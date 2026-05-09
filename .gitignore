@@ -3,6 +3,7 @@
 
 # data outputs and config
 *.json
+!skills-lock.json
 
 # skills and agents
 .agents
