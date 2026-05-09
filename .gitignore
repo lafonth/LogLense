@@ -4,7 +4,6 @@ config.json
 
 # Data Files (Personal logs and analysis)
 *.json
-!character_analysis.json
 
 # Python environment
 __pycache__/
