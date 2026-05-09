@@ -1,0 +1,216 @@
+[
+  {
+    "boss": "Chimaerus, the Undreamt God",
+    "jumbaa_unique": [
+      {
+        "id": 103323,
+        "name": "Thundering Jade (effect)",
+        "rank": 2
+      }
+    ],
+    "top_players_unique": [
+      {
+        "id": 103308,
+        "name": "spell:103308",
+        "rank": 1
+      },
+      {
+        "id": 103316,
+        "name": "spell:103316",
+        "rank": 1
+      }
+    ],
+    "top_players": [
+      "Эклиар",
+      "Miyamizu",
+      "Meow"
+    ]
+  },
+  {
+    "boss": "Imperator Averzian",
+    "jumbaa_unique": [
+      {
+        "id": 103156,
+        "name": "Teleport to Playful Spirit Location 4",
+        "rank": 1
+      },
+      {
+        "id": 103181,
+        "name": "Save Cub",
+        "rank": 1
+      },
+      {
+        "id": 103276,
+        "name": "spell:103276",
+        "rank": 1
+      },
+      {
+        "id": 103326,
+        "name": "spell:103326",
+        "rank": 1
+      },
+      {
+        "id": 117222,
+        "name": "Sweeping Kick",
+        "rank": 1
+      },
+      {
+        "id": 134211,
+        "name": "Spawn the Reliquary",
+        "rank": 1
+      }
+    ],
+    "top_players_unique": [
+      {
+        "id": 103170,
+        "name": "Helper's Reindeer",
+        "rank": 1
+      },
+      {
+        "id": 103174,
+        "name": "Earth's Vengeance",
+        "rank": 1
+      },
+      {
+        "id": 103275,
+        "name": "spell:103275",
+        "rank": 1
+      },
+      {
+        "id": 103308,
+        "name": "spell:103308",
+        "rank": 1
+      },
+      {
+        "id": 114771,
+        "name": "Flask of the Warm Sun",
+        "rank": 1
+      },
+      {
+        "id": 119855,
+        "name": "Throw Away Barrel",
+        "rank": 1
+      }
+    ],
+    "top_players": [
+      "Catsavage",
+      "Эклиар",
+      "Twennyeight"
+    ]
+  },
+  {
+    "boss": "Vorasius",
+    "jumbaa_unique": [
+      {
+        "id": 103276,
+        "name": "spell:103276",
+        "rank": 1
+      },
+      {
+        "id": 103324,
+        "name": "spell:103324",
+        "rank": 1
+      }
+    ],
+    "top_players_unique": [
+      {
+        "id": 103275,
+        "name": "spell:103275",
+        "rank": 1
+      },
+      {
+        "id": 103309,
+        "name": "spell:103309",
+        "rank": 1
+      }
+    ],
+    "top_players": [
+      "Kayakosdog",
+      "Iamw",
+      "愤怒的小鸡児"
+    ]
+  },
+  {
+    "boss": "Fallen-King Salhadaar",
+    "jumbaa_unique": [
+      {
+        "id": 103173,
+        "name": "Earth's Vengeance",
+        "rank": 1
+      },
+      {
+        "id": 103276,
+        "name": "spell:103276",
+        "rank": 1
+      },
+      {
+        "id": 103285,
+        "name": "spell:103285",
+        "rank": 1
+      },
+      {
+        "id": 103309,
+        "name": "spell:103309",
+        "rank": 1
+      },
+      {
+        "id": 103326,
+        "name": "spell:103326",
+        "rank": 1
+      }
+    ],
+    "top_players_unique": [
+      {
+        "id": 103156,
+        "name": "Teleport to Playful Spirit Location 4",
+        "rank": 1
+      },
+      {
+        "id": 103275,
+        "name": "spell:103275",
+        "rank": 1
+      },
+      {
+        "id": 103308,
+        "name": "spell:103308",
+        "rank": 1
+      },
+      {
+        "id": 103323,
+        "name": "Thundering Jade (effect)",
+        "rank": 1
+      },
+      {
+        "id": 103324,
+        "name": "spell:103324",
+        "rank": 1
+      }
+    ],
+    "top_players": [
+      "Jarekin",
+      "Sandless",
+      "Xoane"
+    ]
+  },
+  {
+    "boss": "Vaelgor & Ezzorak",
+    "jumbaa_unique": [
+      {
+        "id": 103324,
+        "name": "spell:103324",
+        "rank": 1
+      },
+      {
+        "id": 128584,
+        "name": "spell:128584",
+        "rank": 1
+      }
+    ],
+    "top_players_unique": [],
+    "top_players": [
+      "Nymocel",
+      "Когтезавр",
+      "Druiman"
+    ]
+  }
+]

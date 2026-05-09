@@ -1,0 +1,19 @@
+# Secrets and Config
+config.json
+.env
+
+# Data Files (Personal logs and analysis)
+*.json
+!character_analysis.json
+
+# Python environment
+__pycache__/
+*.py[cod]
+*$py.class
+.venv
+venv/
+ENV/
+
+# OS files
+.DS_Store
+desktop.ini

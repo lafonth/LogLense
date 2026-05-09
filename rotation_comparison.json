@@ -1,0 +1,1147 @@
+[
+  {
+    "boss": "Chimaerus, the Undreamt God",
+    "jumbaa": {
+      "name": "Jumbaa",
+      "dps": null,
+      "fight_duration": "6:22",
+      "cooldowns": {
+        "Tigers Fury": {
+          "casts": 12,
+          "per_min": 1.88
+        },
+        "Berserk_Incarn": {
+          "casts": 4,
+          "per_min": 0.63
+        },
+        "Feral Frenzy": {
+          "casts": 11,
+          "per_min": 1.72
+        }
+      },
+      "generators": {
+        "Shred": {
+          "casts": 73,
+          "per_min": 11.44
+        },
+        "Swipe": {
+          "casts": 16,
+          "per_min": 2.51
+        },
+        "Thrash": {
+          "casts": 0,
+          "per_min": 0
+        },
+        "Moonfire": {
+          "casts": 25,
+          "per_min": 3.92
+        }
+      },
+      "finishers": {
+        "Rip": {
+          "casts": 18,
+          "per_min": 2.82
+        },
+        "Ferocious Bite": {
+          "casts": 61,
+          "per_min": 9.56
+        },
+        "Primal Wrath": {
+          "casts": 11,
+          "per_min": 1.72
+        }
+      },
+      "uptime": {
+        "Tigers Fury uptime %": 45.2,
+        "Rip uptime %": "?",
+        "Rake uptime %": "?"
+      }
+    },
+    "top_players": [
+      {
+        "name": "Эклиар",
+        "dps": 119862,
+        "fight_duration": "6:29",
+        "cooldowns": {
+          "Tigers Fury": {
+            "casts": 12,
+            "per_min": 1.85
+          },
+          "Berserk_Incarn": {
+            "casts": 4,
+            "per_min": 0.62
+          },
+          "Feral Frenzy": {
+            "casts": 9,
+            "per_min": 1.39
+          }
+        },
+        "generators": {
+          "Shred": {
+            "casts": 62,
+            "per_min": 9.56
+          },
+          "Swipe": {
+            "casts": 29,
+            "per_min": 4.47
+          },
+          "Thrash": {
+            "casts": 0,
+            "per_min": 0
+          },
+          "Moonfire": {
+            "casts": 23,
+            "per_min": 3.55
+          }
+        },
+        "finishers": {
+          "Rip": {
+            "casts": 23,
+            "per_min": 3.55
+          },
+          "Ferocious Bite": {
+            "casts": 65,
+            "per_min": 10.02
+          },
+          "Primal Wrath": {
+            "casts": 13,
+            "per_min": 2.0
+          }
+        },
+        "uptime": {
+          "Tigers Fury uptime %": 45.4,
+          "Rip uptime %": "?",
+          "Rake uptime %": "?"
+        }
+      },
+      {
+        "name": "Miyamizu",
+        "dps": 119143,
+        "fight_duration": "6:27",
+        "cooldowns": {
+          "Tigers Fury": {
+            "casts": 12,
+            "per_min": 1.86
+          },
+          "Berserk_Incarn": {
+            "casts": 4,
+            "per_min": 0.62
+          },
+          "Feral Frenzy": {
+            "casts": 12,
+            "per_min": 1.86
+          }
+        },
+        "generators": {
+          "Shred": {
+            "casts": 91,
+            "per_min": 14.1
+          },
+          "Swipe": {
+            "casts": 24,
+            "per_min": 3.72
+          },
+          "Thrash": {
+            "casts": 0,
+            "per_min": 0
+          },
+          "Moonfire": {
+            "casts": 0,
+            "per_min": 0
+          }
+        },
+        "finishers": {
+          "Rip": {
+            "casts": 15,
+            "per_min": 2.32
+          },
+          "Ferocious Bite": {
+            "casts": 68,
+            "per_min": 10.54
+          },
+          "Primal Wrath": {
+            "casts": 15,
+            "per_min": 2.32
+          }
+        },
+        "uptime": {
+          "Tigers Fury uptime %": 45.4,
+          "Rip uptime %": "?",
+          "Rake uptime %": "?"
+        }
+      },
+      {
+        "name": "Meow",
+        "dps": 118505,
+        "fight_duration": "5:51",
+        "cooldowns": {
+          "Tigers Fury": {
+            "casts": 11,
+            "per_min": 1.88
+          },
+          "Berserk_Incarn": {
+            "casts": 3,
+            "per_min": 0.51
+          },
+          "Feral Frenzy": {
+            "casts": 10,
+            "per_min": 1.71
+          }
+        },
+        "generators": {
+          "Shred": {
+            "casts": 49,
+            "per_min": 8.37
+          },
+          "Swipe": {
+            "casts": 37,
+            "per_min": 6.32
+          },
+          "Thrash": {
+            "casts": 0,
+            "per_min": 0
+          },
+          "Moonfire": {
+            "casts": 19,
+            "per_min": 3.24
+          }
+        },
+        "finishers": {
+          "Rip": {
+            "casts": 12,
+            "per_min": 2.05
+          },
+          "Ferocious Bite": {
+            "casts": 55,
+            "per_min": 9.39
+          },
+          "Primal Wrath": {
+            "casts": 22,
+            "per_min": 3.76
+          }
+        },
+        "uptime": {
+          "Tigers Fury uptime %": 44.7,
+          "Rip uptime %": "?",
+          "Rake uptime %": "?"
+        }
+      }
+    ]
+  },
+  {
+    "boss": "Imperator Averzian",
+    "jumbaa": {
+      "name": "Jumbaa",
+      "dps": null,
+      "fight_duration": "6:19",
+      "cooldowns": {
+        "Tigers Fury": {
+          "casts": 12,
+          "per_min": 1.9
+        },
+        "Berserk_Incarn": {
+          "casts": 4,
+          "per_min": 0.63
+        },
+        "Feral Frenzy": {
+          "casts": 0,
+          "per_min": 0
+        }
+      },
+      "generators": {
+        "Shred": {
+          "casts": 101,
+          "per_min": 15.96
+        },
+        "Swipe": {
+          "casts": 14,
+          "per_min": 2.21
+        },
+        "Thrash": {
+          "casts": 0,
+          "per_min": 0
+        },
+        "Moonfire": {
+          "casts": 5,
+          "per_min": 0.79
+        }
+      },
+      "finishers": {
+        "Rip": {
+          "casts": 24,
+          "per_min": 3.79
+        },
+        "Ferocious Bite": {
+          "casts": 55,
+          "per_min": 8.69
+        },
+        "Primal Wrath": {
+          "casts": 9,
+          "per_min": 1.42
+        }
+      },
+      "uptime": {
+        "Tigers Fury uptime %": 47.4,
+        "Rip uptime %": "?",
+        "Rake uptime %": "?"
+      }
+    },
+    "top_players": [
+      {
+        "name": "Catsavage",
+        "dps": 119209,
+        "fight_duration": "6:35",
+        "cooldowns": {
+          "Tigers Fury": {
+            "casts": 13,
+            "per_min": 1.97
+          },
+          "Berserk_Incarn": {
+            "casts": 4,
+            "per_min": 0.61
+          },
+          "Feral Frenzy": {
+            "casts": 13,
+            "per_min": 1.97
+          }
+        },
+        "generators": {
+          "Shred": {
+            "casts": 95,
+            "per_min": 14.4
+          },
+          "Swipe": {
+            "casts": 18,
+            "per_min": 2.73
+          },
+          "Thrash": {
+            "casts": 0,
+            "per_min": 0
+          },
+          "Moonfire": {
+            "casts": 33,
+            "per_min": 5.0
+          }
+        },
+        "finishers": {
+          "Rip": {
+            "casts": 21,
+            "per_min": 3.18
+          },
+          "Ferocious Bite": {
+            "casts": 64,
+            "per_min": 9.7
+          },
+          "Primal Wrath": {
+            "casts": 11,
+            "per_min": 1.67
+          }
+        },
+        "uptime": {
+          "Tigers Fury uptime %": 49.3,
+          "Rip uptime %": "?",
+          "Rake uptime %": "?"
+        }
+      },
+      {
+        "name": "Эклиар",
+        "dps": 116349,
+        "fight_duration": "6:23",
+        "cooldowns": {
+          "Tigers Fury": {
+            "casts": 13,
+            "per_min": 2.03
+          },
+          "Berserk_Incarn": {
+            "casts": 4,
+            "per_min": 0.63
+          },
+          "Feral Frenzy": {
+            "casts": 11,
+            "per_min": 1.72
+          }
+        },
+        "generators": {
+          "Shred": {
+            "casts": 80,
+            "per_min": 12.51
+          },
+          "Swipe": {
+            "casts": 11,
+            "per_min": 1.72
+          },
+          "Thrash": {
+            "casts": 0,
+            "per_min": 0
+          },
+          "Moonfire": {
+            "casts": 37,
+            "per_min": 5.79
+          }
+        },
+        "finishers": {
+          "Rip": {
+            "casts": 31,
+            "per_min": 4.85
+          },
+          "Ferocious Bite": {
+            "casts": 79,
+            "per_min": 12.35
+          },
+          "Primal Wrath": {
+            "casts": 7,
+            "per_min": 1.09
+          }
+        },
+        "uptime": {
+          "Tigers Fury uptime %": 50.9,
+          "Rip uptime %": "?",
+          "Rake uptime %": "?"
+        }
+      },
+      {
+        "name": "Twennyeight",
+        "dps": 115445,
+        "fight_duration": "5:03",
+        "cooldowns": {
+          "Tigers Fury": {
+            "casts": 10,
+            "per_min": 1.97
+          },
+          "Berserk_Incarn": {
+            "casts": 3,
+            "per_min": 0.59
+          },
+          "Feral Frenzy": {
+            "casts": 10,
+            "per_min": 1.97
+          }
+        },
+        "generators": {
+          "Shred": {
+            "casts": 81,
+            "per_min": 16.0
+          },
+          "Swipe": {
+            "casts": 3,
+            "per_min": 0.59
+          },
+          "Thrash": {
+            "casts": 0,
+            "per_min": 0
+          },
+          "Moonfire": {
+            "casts": 27,
+            "per_min": 5.33
+          }
+        },
+        "finishers": {
+          "Rip": {
+            "casts": 23,
+            "per_min": 4.54
+          },
+          "Ferocious Bite": {
+            "casts": 68,
+            "per_min": 13.43
+          },
+          "Primal Wrath": {
+            "casts": 6,
+            "per_min": 1.18
+          }
+        },
+        "uptime": {
+          "Tigers Fury uptime %": 49.4,
+          "Rip uptime %": "?",
+          "Rake uptime %": "?"
+        }
+      }
+    ]
+  },
+  {
+    "boss": "Vorasius",
+    "jumbaa": {
+      "name": "Jumbaa",
+      "dps": null,
+      "fight_duration": "6:14",
+      "cooldowns": {
+        "Tigers Fury": {
+          "casts": 13,
+          "per_min": 2.08
+        },
+        "Berserk_Incarn": {
+          "casts": 4,
+          "per_min": 0.64
+        },
+        "Feral Frenzy": {
+          "casts": 12,
+          "per_min": 1.92
+        }
+      },
+      "generators": {
+        "Shred": {
+          "casts": 102,
+          "per_min": 16.33
+        },
+        "Swipe": {
+          "casts": 7,
+          "per_min": 1.12
+        },
+        "Thrash": {
+          "casts": 0,
+          "per_min": 0
+        },
+        "Moonfire": {
+          "casts": 24,
+          "per_min": 3.84
+        }
+      },
+      "finishers": {
+        "Rip": {
+          "casts": 25,
+          "per_min": 4.0
+        },
+        "Ferocious Bite": {
+          "casts": 79,
+          "per_min": 12.65
+        },
+        "Primal Wrath": {
+          "casts": 0,
+          "per_min": 0
+        }
+      },
+      "uptime": {
+        "Tigers Fury uptime %": 49.2,
+        "Rip uptime %": "?",
+        "Rake uptime %": "?"
+      }
+    },
+    "top_players": [
+      {
+        "name": "Kayakosdog",
+        "dps": 122490,
+        "fight_duration": "5:23",
+        "cooldowns": {
+          "Tigers Fury": {
+            "casts": 11,
+            "per_min": 2.04
+          },
+          "Berserk_Incarn": {
+            "casts": 3,
+            "per_min": 0.56
+          },
+          "Feral Frenzy": {
+            "casts": 11,
+            "per_min": 2.04
+          }
+        },
+        "generators": {
+          "Shred": {
+            "casts": 95,
+            "per_min": 17.61
+          },
+          "Swipe": {
+            "casts": 2,
+            "per_min": 0.37
+          },
+          "Thrash": {
+            "casts": 0,
+            "per_min": 0
+          },
+          "Moonfire": {
+            "casts": 25,
+            "per_min": 4.63
+          }
+        },
+        "finishers": {
+          "Rip": {
+            "casts": 21,
+            "per_min": 3.89
+          },
+          "Ferocious Bite": {
+            "casts": 60,
+            "per_min": 11.12
+          },
+          "Primal Wrath": {
+            "casts": 0,
+            "per_min": 0
+          }
+        },
+        "uptime": {
+          "Tigers Fury uptime %": 51.0,
+          "Rip uptime %": "?",
+          "Rake uptime %": "?"
+        }
+      },
+      {
+        "name": "Iamw",
+        "dps": 121203,
+        "fight_duration": "5:03",
+        "cooldowns": {
+          "Tigers Fury": {
+            "casts": 10,
+            "per_min": 1.98
+          },
+          "Berserk_Incarn": {
+            "casts": 3,
+            "per_min": 0.59
+          },
+          "Feral Frenzy": {
+            "casts": 10,
+            "per_min": 1.98
+          }
+        },
+        "generators": {
+          "Shred": {
+            "casts": 104,
+            "per_min": 20.54
+          },
+          "Swipe": {
+            "casts": 0,
+            "per_min": 0
+          },
+          "Thrash": {
+            "casts": 0,
+            "per_min": 0
+          },
+          "Moonfire": {
+            "casts": 19,
+            "per_min": 3.75
+          }
+        },
+        "finishers": {
+          "Rip": {
+            "casts": 16,
+            "per_min": 3.16
+          },
+          "Ferocious Bite": {
+            "casts": 72,
+            "per_min": 14.22
+          },
+          "Primal Wrath": {
+            "casts": 0,
+            "per_min": 0
+          }
+        },
+        "uptime": {
+          "Tigers Fury uptime %": 49.4,
+          "Rip uptime %": "?",
+          "Rake uptime %": "?"
+        }
+      },
+      {
+        "name": "愤怒的小鸡児",
+        "dps": 119547,
+        "fight_duration": "5:41",
+        "cooldowns": {
+          "Tigers Fury": {
+            "casts": 11,
+            "per_min": 1.93
+          },
+          "Berserk_Incarn": {
+            "casts": 3,
+            "per_min": 0.53
+          },
+          "Feral Frenzy": {
+            "casts": 11,
+            "per_min": 1.93
+          }
+        },
+        "generators": {
+          "Shred": {
+            "casts": 87,
+            "per_min": 15.28
+          },
+          "Swipe": {
+            "casts": 15,
+            "per_min": 2.64
+          },
+          "Thrash": {
+            "casts": 0,
+            "per_min": 0
+          },
+          "Moonfire": {
+            "casts": 24,
+            "per_min": 4.22
+          }
+        },
+        "finishers": {
+          "Rip": {
+            "casts": 20,
+            "per_min": 3.51
+          },
+          "Ferocious Bite": {
+            "casts": 72,
+            "per_min": 12.65
+          },
+          "Primal Wrath": {
+            "casts": 8,
+            "per_min": 1.41
+          }
+        },
+        "uptime": {
+          "Tigers Fury uptime %": 48.3,
+          "Rip uptime %": "?",
+          "Rake uptime %": "?"
+        }
+      }
+    ]
+  },
+  {
+    "boss": "Fallen-King Salhadaar",
+    "jumbaa": {
+      "name": "Jumbaa",
+      "dps": null,
+      "fight_duration": "6:03",
+      "cooldowns": {
+        "Tigers Fury": {
+          "casts": 12,
+          "per_min": 1.98
+        },
+        "Berserk_Incarn": {
+          "casts": 3,
+          "per_min": 0.5
+        },
+        "Feral Frenzy": {
+          "casts": 11,
+          "per_min": 1.82
+        }
+      },
+      "generators": {
+        "Shred": {
+          "casts": 82,
+          "per_min": 13.53
+        },
+        "Swipe": {
+          "casts": 11,
+          "per_min": 1.82
+        },
+        "Thrash": {
+          "casts": 0,
+          "per_min": 0
+        },
+        "Moonfire": {
+          "casts": 25,
+          "per_min": 4.13
+        }
+      },
+      "finishers": {
+        "Rip": {
+          "casts": 32,
+          "per_min": 5.28
+        },
+        "Ferocious Bite": {
+          "casts": 60,
+          "per_min": 9.9
+        },
+        "Primal Wrath": {
+          "casts": 4,
+          "per_min": 0.66
+        }
+      },
+      "uptime": {
+        "Tigers Fury uptime %": 49.4,
+        "Rip uptime %": "?",
+        "Rake uptime %": "?"
+      }
+    },
+    "top_players": [
+      {
+        "name": "Jarekin",
+        "dps": 131952,
+        "fight_duration": "5:09",
+        "cooldowns": {
+          "Tigers Fury": {
+            "casts": 10,
+            "per_min": 1.94
+          },
+          "Berserk_Incarn": {
+            "casts": 3,
+            "per_min": 0.58
+          },
+          "Feral Frenzy": {
+            "casts": 10,
+            "per_min": 1.94
+          }
+        },
+        "generators": {
+          "Shred": {
+            "casts": 66,
+            "per_min": 12.81
+          },
+          "Swipe": {
+            "casts": 5,
+            "per_min": 0.97
+          },
+          "Thrash": {
+            "casts": 0,
+            "per_min": 0
+          },
+          "Moonfire": {
+            "casts": 46,
+            "per_min": 8.93
+          }
+        },
+        "finishers": {
+          "Rip": {
+            "casts": 12,
+            "per_min": 2.33
+          },
+          "Ferocious Bite": {
+            "casts": 63,
+            "per_min": 12.23
+          },
+          "Primal Wrath": {
+            "casts": 20,
+            "per_min": 3.88
+          }
+        },
+        "uptime": {
+          "Tigers Fury uptime %": 48.5,
+          "Rip uptime %": "?",
+          "Rake uptime %": "?"
+        }
+      },
+      {
+        "name": "Sandless",
+        "dps": 128521,
+        "fight_duration": "5:23",
+        "cooldowns": {
+          "Tigers Fury": {
+            "casts": 11,
+            "per_min": 2.04
+          },
+          "Berserk_Incarn": {
+            "casts": 3,
+            "per_min": 0.56
+          },
+          "Feral Frenzy": {
+            "casts": 11,
+            "per_min": 2.04
+          }
+        },
+        "generators": {
+          "Shred": {
+            "casts": 64,
+            "per_min": 11.88
+          },
+          "Swipe": {
+            "casts": 3,
+            "per_min": 0.56
+          },
+          "Thrash": {
+            "casts": 0,
+            "per_min": 0
+          },
+          "Moonfire": {
+            "casts": 38,
+            "per_min": 7.05
+          }
+        },
+        "finishers": {
+          "Rip": {
+            "casts": 10,
+            "per_min": 1.86
+          },
+          "Ferocious Bite": {
+            "casts": 67,
+            "per_min": 12.44
+          },
+          "Primal Wrath": {
+            "casts": 21,
+            "per_min": 3.9
+          }
+        },
+        "uptime": {
+          "Tigers Fury uptime %": 51.0,
+          "Rip uptime %": "?",
+          "Rake uptime %": "?"
+        }
+      },
+      {
+        "name": "Xoane",
+        "dps": 127167,
+        "fight_duration": "5:23",
+        "cooldowns": {
+          "Tigers Fury": {
+            "casts": 11,
+            "per_min": 2.04
+          },
+          "Berserk_Incarn": {
+            "casts": 3,
+            "per_min": 0.56
+          },
+          "Feral Frenzy": {
+            "casts": 11,
+            "per_min": 2.04
+          }
+        },
+        "generators": {
+          "Shred": {
+            "casts": 67,
+            "per_min": 12.44
+          },
+          "Swipe": {
+            "casts": 8,
+            "per_min": 1.48
+          },
+          "Thrash": {
+            "casts": 0,
+            "per_min": 0
+          },
+          "Moonfire": {
+            "casts": 37,
+            "per_min": 6.87
+          }
+        },
+        "finishers": {
+          "Rip": {
+            "casts": 13,
+            "per_min": 2.41
+          },
+          "Ferocious Bite": {
+            "casts": 52,
+            "per_min": 9.65
+          },
+          "Primal Wrath": {
+            "casts": 24,
+            "per_min": 4.45
+          }
+        },
+        "uptime": {
+          "Tigers Fury uptime %": 48.9,
+          "Rip uptime %": "?",
+          "Rake uptime %": "?"
+        }
+      }
+    ]
+  },
+  {
+    "boss": "Vaelgor & Ezzorak",
+    "jumbaa": {
+      "name": "Jumbaa",
+      "dps": null,
+      "fight_duration": "7:32",
+      "cooldowns": {
+        "Tigers Fury": {
+          "casts": 15,
+          "per_min": 1.99
+        },
+        "Berserk_Incarn": {
+          "casts": 4,
+          "per_min": 0.53
+        },
+        "Feral Frenzy": {
+          "casts": 0,
+          "per_min": 0
+        }
+      },
+      "generators": {
+        "Shred": {
+          "casts": 106,
+          "per_min": 14.05
+        },
+        "Swipe": {
+          "casts": 31,
+          "per_min": 4.11
+        },
+        "Thrash": {
+          "casts": 0,
+          "per_min": 0
+        },
+        "Moonfire": {
+          "casts": 0,
+          "per_min": 0
+        }
+      },
+      "finishers": {
+        "Rip": {
+          "casts": 28,
+          "per_min": 3.71
+        },
+        "Ferocious Bite": {
+          "casts": 57,
+          "per_min": 7.56
+        },
+        "Primal Wrath": {
+          "casts": 22,
+          "per_min": 2.92
+        }
+      },
+      "uptime": {
+        "Tigers Fury uptime %": 47.7,
+        "Rip uptime %": "?",
+        "Rake uptime %": "?"
+      }
+    },
+    "top_players": [
+      {
+        "name": "Nymocel",
+        "dps": 189783,
+        "fight_duration": "6:29",
+        "cooldowns": {
+          "Tigers Fury": {
+            "casts": 13,
+            "per_min": 2.0
+          },
+          "Berserk_Incarn": {
+            "casts": 4,
+            "per_min": 0.62
+          },
+          "Feral Frenzy": {
+            "casts": 0,
+            "per_min": 0
+          }
+        },
+        "generators": {
+          "Shred": {
+            "casts": 20,
+            "per_min": 3.08
+          },
+          "Swipe": {
+            "casts": 102,
+            "per_min": 15.7
+          },
+          "Thrash": {
+            "casts": 0,
+            "per_min": 0
+          },
+          "Moonfire": {
+            "casts": 0,
+            "per_min": 0
+          }
+        },
+        "finishers": {
+          "Rip": {
+            "casts": 4,
+            "per_min": 0.62
+          },
+          "Ferocious Bite": {
+            "casts": 68,
+            "per_min": 10.47
+          },
+          "Primal Wrath": {
+            "casts": 51,
+            "per_min": 7.85
+          }
+        },
+        "uptime": {
+          "Tigers Fury uptime %": 50.0,
+          "Rip uptime %": "?",
+          "Rake uptime %": "?"
+        }
+      },
+      {
+        "name": "Когтезавр",
+        "dps": 186201,
+        "fight_duration": "6:57",
+        "cooldowns": {
+          "Tigers Fury": {
+            "casts": 13,
+            "per_min": 1.87
+          },
+          "Berserk_Incarn": {
+            "casts": 4,
+            "per_min": 0.58
+          },
+          "Feral Frenzy": {
+            "casts": 0,
+            "per_min": 0
+          }
+        },
+        "generators": {
+          "Shred": {
+            "casts": 41,
+            "per_min": 5.9
+          },
+          "Swipe": {
+            "casts": 95,
+            "per_min": 13.66
+          },
+          "Thrash": {
+            "casts": 0,
+            "per_min": 0
+          },
+          "Moonfire": {
+            "casts": 0,
+            "per_min": 0
+          }
+        },
+        "finishers": {
+          "Rip": {
+            "casts": 6,
+            "per_min": 0.86
+          },
+          "Ferocious Bite": {
+            "casts": 64,
+            "per_min": 9.21
+          },
+          "Primal Wrath": {
+            "casts": 58,
+            "per_min": 8.34
+          }
+        },
+        "uptime": {
+          "Tigers Fury uptime %": 46.8,
+          "Rip uptime %": "?",
+          "Rake uptime %": "?"
+        }
+      },
+      {
+        "name": "Druiman",
+        "dps": 183790,
+        "fight_duration": "6:44",
+        "cooldowns": {
+          "Tigers Fury": {
+            "casts": 13,
+            "per_min": 1.93
+          },
+          "Berserk_Incarn": {
+            "casts": 4,
+            "per_min": 0.59
+          },
+          "Feral Frenzy": {
+            "casts": 0,
+            "per_min": 0
+          }
+        },
+        "generators": {
+          "Shred": {
+            "casts": 12,
+            "per_min": 1.78
+          },
+          "Swipe": {
+            "casts": 120,
+            "per_min": 17.8
+          },
+          "Thrash": {
+            "casts": 0,
+            "per_min": 0
+          },
+          "Moonfire": {
+            "casts": 0,
+            "per_min": 0
+          }
+        },
+        "finishers": {
+          "Rip": {
+            "casts": 2,
+            "per_min": 0.3
+          },
+          "Ferocious Bite": {
+            "casts": 55,
+            "per_min": 8.16
+          },
+          "Primal Wrath": {
+            "casts": 50,
+            "per_min": 7.42
+          }
+        },
+        "uptime": {
+          "Tigers Fury uptime %": 48.2,
+          "Rip uptime %": "?",
+          "Rake uptime %": "?"
+        }
+      }
+    ]
+  }
+]
