@@ -1,8 +1,6 @@
 # Secrets and Config
-config.json
 .env
 
-# Data Files (Personal logs and analysis)
 *.json
 
 # Python environment
