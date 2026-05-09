@@ -4,9 +4,17 @@
 # data outputs and config
 *.json
 !skills-lock.json
+!package.json
+!tsconfig.json
 
 # skills and agents
 .agents
+
+# Next.js
+.next/
+out/
+node_modules/
+next-env.d.ts
 
 # Python environment
 __pycache__/
