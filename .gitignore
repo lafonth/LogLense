@@ -4,6 +4,7 @@
 # data outputs and config
 *.json
 !skills-lock.json
+.claude
 
 # skills and agents
 .agents
