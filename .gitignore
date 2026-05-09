@@ -1,7 +1,11 @@
-# Secrets and Config
+# Secrets
 .env
 
+# data outputs and config
 *.json
+
+# skills and agents
+.agents
 
 # Python environment
 __pycache__/
