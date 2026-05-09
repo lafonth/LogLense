@@ -5,9 +5,17 @@
 *.json
 !skills-lock.json
 .claude
+!package.json
+!tsconfig.json
 
 # skills and agents
 .agents
+
+# Next.js
+.next/
+out/
+node_modules/
+next-env.d.ts
 
 # Python environment
 __pycache__/
