@@ -1,7 +1,7 @@
 'use client';
 
 import type { AnalysisInput, BossResult } from '@/types';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 export type BossState =
   | { status: 'idle' }
@@ -10,16 +10,33 @@ export type BossState =
   | { status: 'error'; message: string };
 
 export function useAnalysis() {
+  // Keyed by difficulty — survives difficulty switches
+  const cacheRef = useRef<Partial<Record<number, BossState[]>>>({});
+  const activeDiffRef = useRef<number | null>(null);
+
   const [bossStates, setBossStates] = useState<BossState[]>([]);
+  const [currentDifficulty, setCurrentDifficulty] = useState<number | null>(null);
   const [input, setInput] = useState<AnalysisInput | null>(null);
 
   const start = useCallback(async (analysisInput: AnalysisInput) => {
+    const diff = analysisInput.difficulty;
+    activeDiffRef.current = diff;
+    setCurrentDifficulty(diff);
     setInput(analysisInput);
+
+    // Cache hit — instant display
+    if (cacheRef.current[diff]) {
+      setBossStates([...cacheRef.current[diff]!]);
+      return;
+    }
+
     const initial: BossState[] = analysisInput.encounters.map(() => ({ status: 'loading' }));
-    setBossStates(initial);
+    cacheRef.current[diff] = [...initial];
+    setBossStates([...initial]);
 
     await Promise.all(
       analysisInput.encounters.map(async (enc, i) => {
+        let state: BossState;
         try {
           const res = await fetch(`/api/analyze/${enc.id}`, {
             method: 'POST',
@@ -28,46 +45,51 @@ export function useAnalysis() {
               characterName: analysisInput.characterName,
               serverSlug: analysisInput.serverSlug,
               region: analysisInput.region,
-              difficulty: analysisInput.difficulty,
+              difficulty: diff,
               encounterName: enc.name,
             }),
           });
 
           if (!res.ok) {
             const body = (await res.json()) as { error?: string };
-            setBossStates((prev) => {
-              const next = [...prev];
-              next[i] = { status: 'error', message: body.error ?? 'Request failed' };
-              return next;
-            });
-            return;
+            state = { status: 'error', message: body.error ?? 'Request failed' };
+          } else {
+            const result = (await res.json()) as BossResult | null;
+            state = { status: 'success', result };
           }
-
-          const result = (await res.json()) as BossResult | null;
-          setBossStates((prev) => {
-            const next = [...prev];
-            next[i] = { status: 'success', result };
-            return next;
-          });
         } catch (err) {
-          const message = err instanceof Error ? err.message : 'Network error';
-          setBossStates((prev) => {
-            const next = [...prev];
-            next[i] = { status: 'error', message };
-            return next;
-          });
+          state = { status: 'error', message: err instanceof Error ? err.message : 'Network error' };
+        }
+
+        const cached = cacheRef.current[diff];
+        if (cached) {
+          cached[i] = state;
+          if (activeDiffRef.current === diff) {
+            setBossStates([...cached]);
+          }
         }
       })
     );
   }, []);
 
+  const changeDifficulty = useCallback(
+    (difficulty: AnalysisInput['difficulty']) => {
+      if (!input) return;
+      void start({ ...input, difficulty });
+    },
+    [input, start]
+  );
+
   const reset = useCallback(() => {
+    cacheRef.current = {};
+    activeDiffRef.current = null;
     setBossStates([]);
+    setCurrentDifficulty(null);
     setInput(null);
   }, []);
 
   const isAnyLoading = bossStates.some((s) => s.status === 'loading');
   const isDone = bossStates.length > 0 && !isAnyLoading;
 
-  return { bossStates, isAnyLoading, isDone, input, start, reset };
+  return { bossStates, currentDifficulty, isAnyLoading, isDone, input, start, changeDifficulty, reset };
 }

@@ -6,11 +6,14 @@ import { Q_ZONES } from '@/lib/wcl/queries';
 
 export const runtime = 'edge';
 
+const RAID_DIFFICULTY_IDS = new Set([3, 4, 5]);
+
 interface ZonesResponse {
   worldData: {
     zones: Array<{
       id: number;
       name: string;
+      difficulties: Array<{ id: number }>;
       encounters: Array<{ id: number; name: string }>;
     }>;
   };
@@ -29,7 +32,11 @@ export async function GET() {
     const data = await gql<ZonesResponse>(token, Q_ZONES);
 
     const zones: Zone[] = data.worldData.zones
-      .filter((z) => z.encounters.length > 0)
+      .filter(
+        (z) =>
+          z.encounters.length > 0 &&
+          z.difficulties.some((d) => RAID_DIFFICULTY_IDS.has(d.id))
+      )
       .sort((a, b) => b.id - a.id);
 
     return NextResponse.json(zones);

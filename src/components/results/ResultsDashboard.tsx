@@ -11,8 +11,16 @@ import { OverviewTab } from './OverviewTab';
 interface ResultsDashboardProps {
   input: AnalysisInput;
   bossStates: BossState[];
+  currentDifficulty: number;
+  onDifficultyChange: (difficulty: AnalysisInput['difficulty']) => void;
   onReset: () => void;
 }
+
+const DIFFICULTIES = [
+  { id: 5, label: 'Mythic' },
+  { id: 4, label: 'Heroic' },
+  { id: 3, label: 'Normal' },
+] as const;
 
 type TabId = 'overview' | 'comparison' | 'ai-report';
 
@@ -36,7 +44,13 @@ const tabButtonStyle = (active: boolean): React.CSSProperties => ({
   letterSpacing: '0.04em',
 });
 
-export function ResultsDashboard({ input, bossStates, onReset }: ResultsDashboardProps) {
+export function ResultsDashboard({
+  input,
+  bossStates,
+  currentDifficulty,
+  onDifficultyChange,
+  onReset,
+}: ResultsDashboardProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [activeBossIdx, setActiveBossIdx] = useState(0);
 
@@ -65,16 +79,33 @@ export function ResultsDashboard({ input, bossStates, onReset }: ResultsDashboar
           >
             {input.characterName}
           </h1>
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.78rem',
-              color: 'var(--text-dim)',
-            }}
-          >
-            {input.serverSlug} · {input.region} ·{' '}
-            {input.difficulty === 5 ? 'Mythic' : input.difficulty === 4 ? 'Heroic' : 'Normal'}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+            <span
+              style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-dim)' }}
+            >
+              {input.serverSlug} · {input.region}
+            </span>
+            <span style={{ color: 'var(--border)' }}>·</span>
+            {DIFFICULTIES.map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => onDifficultyChange(id)}
+                style={{
+                  padding: '2px 10px',
+                  borderRadius: '999px',
+                  border: `1px solid ${currentDifficulty === id ? 'var(--gold)' : 'var(--border)'}`,
+                  background: currentDifficulty === id ? 'rgba(198,168,74,0.12)' : 'transparent',
+                  color: currentDifficulty === id ? 'var(--gold)' : 'var(--text-dim)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.72rem',
+                  cursor: 'pointer',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
         <button
           onClick={onReset}

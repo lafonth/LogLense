@@ -5,8 +5,15 @@ import { useEffect, useState } from 'react';
 import { EncounterSelector } from './EncounterSelector';
 
 interface CharacterFormProps {
-  onSubmit: (input: AnalysisInput) => void;
+  onSubmit: (input: AnalysisInput, zoneId: number) => void;
   loading: boolean;
+  zones: Zone[];
+  zonesLoading: boolean;
+  zonesError: string | null;
+  defaultChar?: string;
+  defaultServer?: string;
+  defaultRegion?: AnalysisInput['region'];
+  defaultDifficulty?: AnalysisInput['difficulty'];
 }
 
 const inputStyle: React.CSSProperties = {
@@ -35,34 +42,31 @@ const fieldStyle: React.CSSProperties = {
   marginBottom: '18px',
 };
 
-export function CharacterForm({ onSubmit, loading }: CharacterFormProps) {
-  const [characterName, setCharacterName] = useState('');
-  const [serverSlug, setServerSlug] = useState('');
-  const [region, setRegion] = useState<AnalysisInput['region']>('EU');
-  const [difficulty, setDifficulty] = useState<AnalysisInput['difficulty']>(5);
+export function CharacterForm({
+  onSubmit,
+  loading,
+  zones,
+  zonesLoading,
+  zonesError,
+  defaultChar = 'Jumbaa',
+  defaultServer = 'ysondre',
+  defaultRegion = 'EU',
+  defaultDifficulty = 4,
+}: CharacterFormProps) {
+  const [characterName, setCharacterName] = useState(defaultChar);
+  const [serverSlug, setServerSlug] = useState(defaultServer);
+  const [region, setRegion] = useState<AnalysisInput['region']>(defaultRegion);
+  const [difficulty, setDifficulty] = useState<AnalysisInput['difficulty']>(defaultDifficulty);
   const [encounters, setEncounters] = useState<Encounter[]>([]);
 
-  const [zones, setZones] = useState<Zone[]>([]);
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
-  const [zonesLoading, setZonesLoading] = useState(true);
-  const [zonesError, setZonesError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/zones')
-      .then((r) => r.json())
-      .then((data: Zone[] | { error: string }) => {
-        if ('error' in data) throw new Error(data.error);
-        setZones(data);
-        if (data.length > 0) {
-          setSelectedZoneId(data[0].id);
-          setEncounters(data[0].encounters);
-        }
-      })
-      .catch((err: unknown) => {
-        setZonesError(err instanceof Error ? err.message : 'Failed to load raids');
-      })
-      .finally(() => setZonesLoading(false));
-  }, []);
+    if (zones.length > 0 && selectedZoneId === null) {
+      setSelectedZoneId(zones[0].id);
+      setEncounters(zones[0].encounters);
+    }
+  }, [zones, selectedZoneId]);
 
   function handleZoneChange(zoneId: number) {
     setSelectedZoneId(zoneId);
@@ -72,14 +76,18 @@ export function CharacterForm({ onSubmit, loading }: CharacterFormProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!characterName.trim() || !serverSlug.trim() || encounters.length === 0) return;
-    onSubmit({
-      characterName: characterName.trim(),
-      serverSlug: serverSlug.trim(),
-      region,
-      difficulty,
-      encounters,
-    });
+    if (!characterName.trim() || !serverSlug.trim() || encounters.length === 0 || !selectedZoneId)
+      return;
+    onSubmit(
+      {
+        characterName: characterName.trim(),
+        serverSlug: serverSlug.trim(),
+        region,
+        difficulty,
+        encounters,
+      },
+      selectedZoneId
+    );
   }
 
   const currentZone = zones.find((z) => z.id === selectedZoneId);

@@ -4,6 +4,7 @@ export const Q_ZONES = `
       zones {
         id
         name
+        difficulties { id }
         encounters {
           id
           name
