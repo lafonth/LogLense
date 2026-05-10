@@ -1,5 +1,5 @@
+import type { CastEntry, CharacterStats, RotationSummary } from '@/types';
 import { GUID_TO_NAME } from './constants';
-import type { CharacterStats, CastEntry, RotationSummary } from '@/types';
 
 interface CombatantEvent {
   specID: number;
@@ -123,19 +123,19 @@ export function summarizeRotation(
       Convoke: casts['Convoke the Spirits'] ?? { casts: 0, perMin: 0 },
     },
     generators: {
-      Shred: casts['Shred'] ?? { casts: 0, perMin: 0 },
-      Swipe: casts['Swipe'] ?? { casts: 0, perMin: 0 },
+      Shred: casts.Shred ?? { casts: 0, perMin: 0 },
+      Swipe: casts.Swipe ?? { casts: 0, perMin: 0 },
       Moonfire: { casts: moonfire, perMin: pm(fightMs, moonfire) },
     },
     finishers: {
-      Rip: casts['Rip'] ?? { casts: 0, perMin: 0 },
+      Rip: casts.Rip ?? { casts: 0, perMin: 0 },
       'Ferocious Bite': casts['Ferocious Bite'] ?? { casts: 0, perMin: 0 },
       'Primal Wrath': casts['Primal Wrath'] ?? { casts: 0, perMin: 0 },
     },
     uptime: {
       "Tiger's Fury %": buffUptime["Tiger's Fury"]?.uptimePct ?? 0,
-      'Rip %': debuffUptime['Rip']?.uptimePct ?? 0,
-      'Rake %': debuffUptime['Rake']?.uptimePct ?? 0,
+      'Rip %': debuffUptime.Rip?.uptimePct ?? 0,
+      'Rake %': debuffUptime.Rake?.uptimePct ?? 0,
     },
   };
 }

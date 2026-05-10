@@ -1,4 +1,5 @@
-import type { AnalysisInput, BossResult, AnalysisResult, CharacterStats } from '@/types';
+import type { WCLTable } from './parsers';
+import type { AnalysisInput, AnalysisResult, BossResult, CharacterStats } from '@/types';
 import { getWCLToken } from './auth';
 import { gql } from './client';
 import {
@@ -8,14 +9,13 @@ import {
   UPTIME_BUFFS,
   UPTIME_DEBUFFS,
 } from './constants';
-import { parseStats, parseCasts, parseUptime, summarizeRotation, fmtMs } from './parsers';
-import type { WCLTable } from './parsers';
+import { fmtMs, parseCasts, parseStats, parseUptime, summarizeRotation } from './parsers';
 import {
   Q_CHARACTER_RANKINGS,
-  Q_WORLD_RANKINGS,
   Q_COMBATANT,
   Q_DAMAGE,
   Q_ROTATION,
+  Q_WORLD_RANKINGS,
 } from './queries';
 
 interface CombatantEvent {

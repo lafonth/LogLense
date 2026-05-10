@@ -1,30 +1,23 @@
 // @ts-check
-import tseslint from '@typescript-eslint/eslint-plugin';
-import tsparser from '@typescript-eslint/parser';
-import reactHooks from 'eslint-plugin-react-hooks';
+import antfu from '@antfu/eslint-config';
 import next from '@next/eslint-plugin-next';
 
-export default [
+export default antfu(
+  {
+    typescript: true,
+    react: true,
+    // Keep Prettier for formatting (handles Tailwind class ordering)
+    stylistic: false,
+  },
+  {
+    plugins: { '@next/next': next },
+    rules: /** @type {any} */ (next.configs.recommended.rules),
+  },
+  {
+    // process.env is idiomatic in Next.js (Edge + Node runtimes)
+    rules: { 'node/prefer-global/process': 'off' },
+  },
   {
     ignores: ['**/.next/**', '**/node_modules/**', 'legacy/**', 'prototypes/**'],
   },
-  {
-    files: ['**/*.{ts,tsx}'],
-    languageOptions: {
-      parser: tsparser,
-      parserOptions: { project: './tsconfig.json' },
-    },
-    plugins: {
-      '@typescript-eslint': tseslint,
-      'react-hooks': reactHooks,
-      '@next/next': next,
-    },
-    rules: {
-      ...tseslint.configs.recommended.rules,
-      ...reactHooks.configs.recommended.rules,
-      ...next.configs.recommended.rules,
-      '@typescript-eslint/no-unused-vars': 'error',
-      '@typescript-eslint/consistent-type-imports': 'error',
-    },
-  },
-];
+);

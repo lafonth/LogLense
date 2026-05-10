@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getWCLToken } from '../auth';
 
 describe('getWCLToken', () => {
@@ -7,7 +7,7 @@ describe('getWCLToken', () => {
   });
 
   it('returns access token on success', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ access_token: 'test-token-123' }),
     } as Response);
@@ -15,7 +15,7 @@ describe('getWCLToken', () => {
     const token = await getWCLToken('client-id', 'client-secret');
 
     expect(token).toBe('test-token-123');
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://www.warcraftlogs.com/oauth/token',
       expect.objectContaining({
         method: 'POST',
@@ -27,7 +27,7 @@ describe('getWCLToken', () => {
   });
 
   it('throws on HTTP error', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
     } as Response);

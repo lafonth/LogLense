@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { parseStats, parseCasts, parseUptime, summarizeRotation, fmtMs } from '../parsers';
+import { describe, expect, it } from 'vitest';
+import { fmtMs, parseCasts, parseStats, parseUptime, summarizeRotation } from '../parsers';
 
 describe('fmtMs', () => {
   it('formats milliseconds to M:SS', () => {
@@ -108,8 +108,8 @@ describe('summarizeRotation', () => {
 
     const summary = summarizeRotation('Jumbaa', casts, buffUptime, debuffUptime, 120000, 250000);
 
-    expect(summary.generators['Moonfire'].casts).toBe(9);
-    expect(summary.cooldowns['Berserk'].casts).toBe(4);
+    expect(summary.generators.Moonfire.casts).toBe(9);
+    expect(summary.cooldowns.Berserk.casts).toBe(4);
     expect(summary.uptime["Tiger's Fury %"]).toBe(28);
     expect(summary.uptime['Rip %']).toBe(88);
     expect(summary.dps).toBe(250000);

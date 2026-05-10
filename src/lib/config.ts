@@ -1,5 +1,5 @@
-import configJson from '../../config.json';
 import type { AnalysisInput } from '@/types';
+import configJson from '../../config.json';
 
 export function loadConfig(): AnalysisInput {
   return {
