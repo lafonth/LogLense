@@ -1,3 +1,18 @@
+export const Q_ZONES = `
+  query Zones {
+    worldData {
+      zones {
+        id
+        name
+        encounters {
+          id
+          name
+        }
+      }
+    }
+  }
+`;
+
 export const Q_CHARACTER_RANKINGS = `
   query CharacterRankings(
     $name: String!, $slug: String!, $region: String!,

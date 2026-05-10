@@ -1,17 +1,7 @@
 import type { Encounter } from '@/types';
 
-const TWW_S2_BOSSES: Encounter[] = [
-  { id: 2902, name: 'Ulgrax the Devourer' },
-  { id: 2917, name: 'The Bloodbound Horror' },
-  { id: 2898, name: 'Sikran, Captain of the Sureki' },
-  { id: 2918, name: "Rasha'nan" },
-  { id: 2919, name: "Eggtender Ovi'nax" },
-  { id: 2920, name: "Nexus-Princess Ky'veza" },
-  { id: 2921, name: 'The Silken Court' },
-  { id: 2922, name: 'Queen Ansurek' },
-];
-
 interface EncounterSelectorProps {
+  available: Encounter[];
   selected: Encounter[];
   onChange: (encounters: Encounter[]) => void;
 }
@@ -34,7 +24,7 @@ const labelStyle: React.CSSProperties = {
   padding: '4px 0',
 };
 
-export function EncounterSelector({ selected, onChange }: EncounterSelectorProps) {
+export function EncounterSelector({ available, selected, onChange }: EncounterSelectorProps) {
   const selectedIds = new Set(selected.map((e) => e.id));
 
   function toggle(enc: Encounter) {
@@ -46,10 +36,10 @@ export function EncounterSelector({ selected, onChange }: EncounterSelectorProps
   }
 
   function toggleAll() {
-    if (selected.length === TWW_S2_BOSSES.length) {
+    if (selected.length === available.length) {
       onChange([]);
     } else {
-      onChange([...TWW_S2_BOSSES]);
+      onChange([...available]);
     }
   }
 
@@ -59,13 +49,13 @@ export function EncounterSelector({ selected, onChange }: EncounterSelectorProps
         <input
           type="checkbox"
           style={checkboxStyle}
-          checked={selected.length === TWW_S2_BOSSES.length}
+          checked={available.length > 0 && selected.length === available.length}
           onChange={toggleAll}
         />
         All bosses
       </label>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 24px' }}>
-        {TWW_S2_BOSSES.map((enc) => (
+        {available.map((enc) => (
           <label key={enc.id} style={labelStyle}>
             <input
               type="checkbox"

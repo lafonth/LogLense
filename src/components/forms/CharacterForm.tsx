@@ -1,19 +1,8 @@
 'use client';
 
-import type { AnalysisInput, Encounter } from '@/types';
-import { useState } from 'react';
+import type { AnalysisInput, Encounter, Zone } from '@/types';
+import { useEffect, useState } from 'react';
 import { EncounterSelector } from './EncounterSelector';
-
-const TWW_S2_DEFAULTS: Encounter[] = [
-  { id: 2902, name: 'Ulgrax the Devourer' },
-  { id: 2917, name: 'The Bloodbound Horror' },
-  { id: 2898, name: 'Sikran, Captain of the Sureki' },
-  { id: 2918, name: "Rasha'nan" },
-  { id: 2919, name: "Eggtender Ovi'nax" },
-  { id: 2920, name: "Nexus-Princess Ky'veza" },
-  { id: 2921, name: 'The Silken Court' },
-  { id: 2922, name: 'Queen Ansurek' },
-];
 
 interface CharacterFormProps {
   onSubmit: (input: AnalysisInput) => void;
@@ -51,7 +40,35 @@ export function CharacterForm({ onSubmit, loading }: CharacterFormProps) {
   const [serverSlug, setServerSlug] = useState('');
   const [region, setRegion] = useState<AnalysisInput['region']>('EU');
   const [difficulty, setDifficulty] = useState<AnalysisInput['difficulty']>(5);
-  const [encounters, setEncounters] = useState<Encounter[]>(TWW_S2_DEFAULTS);
+  const [encounters, setEncounters] = useState<Encounter[]>([]);
+
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
+  const [zonesLoading, setZonesLoading] = useState(true);
+  const [zonesError, setZonesError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/zones')
+      .then((r) => r.json())
+      .then((data: Zone[] | { error: string }) => {
+        if ('error' in data) throw new Error(data.error);
+        setZones(data);
+        if (data.length > 0) {
+          setSelectedZoneId(data[0].id);
+          setEncounters(data[0].encounters);
+        }
+      })
+      .catch((err: unknown) => {
+        setZonesError(err instanceof Error ? err.message : 'Failed to load raids');
+      })
+      .finally(() => setZonesLoading(false));
+  }, []);
+
+  function handleZoneChange(zoneId: number) {
+    setSelectedZoneId(zoneId);
+    const zone = zones.find((z) => z.id === zoneId);
+    setEncounters(zone?.encounters ?? []);
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -64,6 +81,8 @@ export function CharacterForm({ onSubmit, loading }: CharacterFormProps) {
       encounters,
     });
   }
+
+  const currentZone = zones.find((z) => z.id === selectedZoneId);
 
   return (
     <div
@@ -166,24 +185,69 @@ export function CharacterForm({ onSubmit, loading }: CharacterFormProps) {
           </div>
         </div>
 
-        <div style={{ ...fieldStyle, gridColumn: '1 / -1' }}>
-          <label style={labelStyle}>Bosses</label>
-          <EncounterSelector selected={encounters} onChange={setEncounters} />
+        <div style={fieldStyle}>
+          <label style={labelStyle}>Raid</label>
+          {zonesLoading ? (
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.82rem',
+                color: 'var(--text-dim)',
+                padding: '8px 0',
+              }}
+            >
+              Loading raids…
+            </div>
+          ) : zonesError ? (
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.82rem',
+                color: 'var(--crimson)',
+                padding: '8px 0',
+              }}
+            >
+              {zonesError}
+            </div>
+          ) : (
+            <select
+              style={inputStyle}
+              value={selectedZoneId ?? ''}
+              onChange={(e) => handleZoneChange(Number.parseInt(e.target.value, 10))}
+            >
+              {zones.map((z) => (
+                <option key={z.id} value={z.id}>
+                  {z.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
+
+        {currentZone && (
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Bosses</label>
+            <EncounterSelector
+              available={currentZone.encounters}
+              selected={encounters}
+              onChange={setEncounters}
+            />
+          </div>
+        )}
 
         <button
           type="submit"
-          disabled={loading || encounters.length === 0}
+          disabled={loading || encounters.length === 0 || zonesLoading}
           style={{
             width: '100%',
             padding: '12px',
-            background: loading ? 'var(--border)' : 'var(--crimson)',
+            background: loading || zonesLoading ? 'var(--border)' : 'var(--crimson)',
             color: 'var(--text)',
             border: 'none',
             borderRadius: '4px',
             fontFamily: 'var(--font-display)',
             fontSize: '1rem',
-            cursor: loading ? 'not-allowed' : 'pointer',
+            cursor: loading || zonesLoading ? 'not-allowed' : 'pointer',
             letterSpacing: '0.06em',
             marginTop: '8px',
           }}

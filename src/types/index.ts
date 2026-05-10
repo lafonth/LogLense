@@ -3,6 +3,12 @@ export interface Encounter {
   name: string;
 }
 
+export interface Zone {
+  id: number;
+  name: string;
+  encounters: Encounter[];
+}
+
 export interface AnalysisInput {
   characterName: string;
   serverSlug: string;
