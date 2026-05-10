@@ -1,12 +1,11 @@
 # Secrets
 .env
 
-# data outputs and config
-*.json
-!skills-lock.json
+# data outputs
+data/
+
+# config
 .claude
-!package.json
-!tsconfig.json
 
 # skills and agents
 .agents

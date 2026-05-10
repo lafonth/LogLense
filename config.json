@@ -1,0 +1,13 @@
+{
+  "character_name": "Jumbaa",
+  "server_slug": "ysondre",
+  "server_region": "EU",
+  "difficulty": 5,
+  "encounters": [
+    { "id": 3306, "name": "Chimaerus, the Undreamt God" },
+    { "id": 3176, "name": "Imperator Averzian" },
+    { "id": 3177, "name": "Vorasius" },
+    { "id": 3179, "name": "Fallen-King Salhadaar" },
+    { "id": 3178, "name": "Vaelgor & Ezzorak" }
+  ]
+}
