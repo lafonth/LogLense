@@ -17,8 +17,7 @@ export function HomeClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { zones, loading: zonesLoading, error: zonesError } = useZones();
-  const { bossStates, currentDifficulty, isAnyLoading, input, start, changeDifficulty, reset } =
-    useAnalysis();
+  const { bossStates, currentDifficulty, isAnyLoading, input, start, reset } = useAnalysis();
 
   const char = searchParams.get('char');
   const server = searchParams.get('server');
