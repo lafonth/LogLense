@@ -1,8 +1,8 @@
 'use client';
 
 import type { AnalysisInput } from '@/types';
-import { useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useRef } from 'react';
 import { CharacterForm } from '@/components/forms/CharacterForm';
 import { ResultsDashboard } from '@/components/results/ResultsDashboard';
 import { useAnalysis } from '@/hooks/useAnalysis';
