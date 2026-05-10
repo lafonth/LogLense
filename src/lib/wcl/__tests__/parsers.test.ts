@@ -27,7 +27,10 @@ describe('parseStats', () => {
       hasteMelee: 3500,
       mastery: 5800,
       versatilityDamageDone: 750,
-      talentTree: [{ id: 395152, rank: 1 }, { id: 391528, rank: 1 }],
+      talentTree: [
+        { id: 395152, rank: 1 },
+        { id: 391528, rank: 1 },
+      ],
     };
 
     const stats = parseStats(event, 'Jumbaa');
@@ -83,7 +86,7 @@ describe('parseUptime', () => {
 describe('summarizeRotation', () => {
   it('combines Moonfire + Moonfire (LI) into single Moonfire entry', () => {
     const casts = {
-      'Moonfire': { casts: 3, perMin: 1 },
+      Moonfire: { casts: 3, perMin: 1 },
       'Moonfire (LI)': { casts: 6, perMin: 2 },
       "Tiger's Fury": { casts: 10, perMin: 5 },
       Berserk: { casts: 4, perMin: 2 },

@@ -58,9 +58,7 @@ export function parseStats(event: CombatantEvent | null, name: string): Characte
     haste: event.hasteMelee ?? 0,
     mastery: event.mastery ?? 0,
     vers: event.versatilityDamageDone ?? 0,
-    talents: Object.fromEntries(
-      (event.talentTree ?? []).map((t) => [t.id, t.rank ?? 1])
-    ),
+    talents: Object.fromEntries((event.talentTree ?? []).map((t) => [t.id, t.rank ?? 1])),
   };
 }
 
