@@ -81,7 +81,11 @@ export function ResultsDashboard({
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
             <span
-              style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-dim)' }}
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.78rem',
+                color: 'var(--text-dim)',
+              }}
             >
               {input.serverSlug} · {input.region}
             </span>

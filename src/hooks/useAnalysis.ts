@@ -58,7 +58,10 @@ export function useAnalysis() {
             state = { status: 'success', result };
           }
         } catch (err) {
-          state = { status: 'error', message: err instanceof Error ? err.message : 'Network error' };
+          state = {
+            status: 'error',
+            message: err instanceof Error ? err.message : 'Network error',
+          };
         }
 
         const cached = cacheRef.current[diff];
@@ -91,5 +94,14 @@ export function useAnalysis() {
   const isAnyLoading = bossStates.some((s) => s.status === 'loading');
   const isDone = bossStates.length > 0 && !isAnyLoading;
 
-  return { bossStates, currentDifficulty, isAnyLoading, isDone, input, start, changeDifficulty, reset };
+  return {
+    bossStates,
+    currentDifficulty,
+    isAnyLoading,
+    isDone,
+    input,
+    start,
+    changeDifficulty,
+    reset,
+  };
 }

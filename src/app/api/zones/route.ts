@@ -33,9 +33,7 @@ export async function GET() {
 
     const zones: Zone[] = data.worldData.zones
       .filter(
-        (z) =>
-          z.encounters.length > 0 &&
-          z.difficulties.some((d) => RAID_DIFFICULTY_IDS.has(d.id))
+        (z) => z.encounters.length > 0 && z.difficulties.some((d) => RAID_DIFFICULTY_IDS.has(d.id))
       )
       .sort((a, b) => b.id - a.id);
 

@@ -37,7 +37,8 @@ export function OverviewTab({ encounter, bossState }: OverviewTabProps) {
       >
         <div style={{ color: 'var(--text-dim)' }}>No Feral parses found for {encounter.name}.</div>
         <div style={{ color: 'var(--text-dim)', marginTop: '6px', fontSize: '0.78rem' }}>
-          Try switching to Heroic or Normal — Mythic requires a kill logged while playing Feral spec.
+          Try switching to Heroic or Normal — Mythic requires a kill logged while playing Feral
+          spec.
         </div>
       </div>
     );

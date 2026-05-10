@@ -32,7 +32,8 @@ export function ComparisonTab({ encounter, bossState }: ComparisonTabProps) {
       <div style={{ padding: '24px 0', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
         <div style={{ color: 'var(--text-dim)' }}>No Feral parses found for {encounter.name}.</div>
         <div style={{ color: 'var(--text-dim)', marginTop: '6px', fontSize: '0.78rem' }}>
-          Try switching to Heroic or Normal — Mythic requires a kill logged while playing Feral spec.
+          Try switching to Heroic or Normal — Mythic requires a kill logged while playing Feral
+          spec.
         </div>
       </div>
     );
