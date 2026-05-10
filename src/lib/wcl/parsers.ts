@@ -98,7 +98,7 @@ function c(casts: Record<string, CastEntry>, ability: string) {
   return casts[ability]?.casts ?? 0;
 }
 
-function pm(casts: Record<string, CastEntry>, fightMs: number, totalCasts: number) {
+function pm(fightMs: number, totalCasts: number) {
   return Math.round((totalCasts / (fightMs / 60000)) * 100) / 100;
 }
 
@@ -120,14 +120,14 @@ export function summarizeRotation(
     fightDurationMs: fightMs,
     cooldowns: {
       "Tiger's Fury": casts["Tiger's Fury"] ?? { casts: 0, perMin: 0 },
-      Frenzy: { casts: frenzy, perMin: pm(casts, fightMs, frenzy) },
-      Berserk: { casts: berserk, perMin: pm(casts, fightMs, berserk) },
+      Frenzy: { casts: frenzy, perMin: pm(fightMs, frenzy) },
+      Berserk: { casts: berserk, perMin: pm(fightMs, berserk) },
       Convoke: casts['Convoke the Spirits'] ?? { casts: 0, perMin: 0 },
     },
     generators: {
       Shred: casts['Shred'] ?? { casts: 0, perMin: 0 },
       Swipe: casts['Swipe'] ?? { casts: 0, perMin: 0 },
-      Moonfire: { casts: moonfire, perMin: pm(casts, fightMs, moonfire) },
+      Moonfire: { casts: moonfire, perMin: pm(fightMs, moonfire) },
     },
     finishers: {
       Rip: casts['Rip'] ?? { casts: 0, perMin: 0 },

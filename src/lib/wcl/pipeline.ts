@@ -1,0 +1,199 @@
+import type { AnalysisInput, BossResult, AnalysisResult, CharacterStats } from '@/types';
+import { getWCLToken } from './auth';
+import { gql } from './client';
+import {
+  FERAL_SPEC_ID,
+  KILL_TIME_TOLERANCE,
+  TOP_N,
+  UPTIME_BUFFS,
+  UPTIME_DEBUFFS,
+} from './constants';
+import { parseStats, parseCasts, parseUptime, summarizeRotation, fmtMs } from './parsers';
+import {
+  Q_CHARACTER_RANKINGS,
+  Q_WORLD_RANKINGS,
+  Q_COMBATANT,
+  Q_DAMAGE,
+  Q_ROTATION,
+} from './queries';
+
+interface CombatantEvent {
+  sourceID: number;
+  specID: number;
+  gear?: { itemLevel: number; id: number; quality: number }[];
+  agility?: number;
+  critMelee?: number;
+  hasteMelee?: number;
+  mastery?: number;
+  versatilityDamageDone?: number;
+  talentTree?: { id: number; rank?: number }[];
+}
+
+async function getFeralEvent(
+  token: string,
+  code: string,
+  fightId: number
+): Promise<CombatantEvent | null> {
+  const data = await gql<{
+    reportData: { report: { events: { data: CombatantEvent[] } } };
+  }>(token, Q_COMBATANT, { code, fightIDs: [fightId] });
+
+  return (
+    data.reportData.report.events.data.find((e) => e.specID === FERAL_SPEC_ID) ?? null
+  );
+}
+
+export async function analyzeBoss(
+  token: string,
+  input: AnalysisInput,
+  encounterId: number,
+  encounterName: string
+): Promise<BossResult | null> {
+  const { characterName: name, serverSlug: slug, region, difficulty } = input;
+
+  const charData = await gql<{
+    characterData: {
+      character: {
+        dps: { ranks: Array<{
+          amount: number; duration: number; rankPercent: number;
+          todayPercent: number; bracketData: number;
+          rankTotalParses: number | '?';
+          report: { code: string; fightID: number };
+        }> };
+        boss: { ranks: Array<{
+          amount: number; rankPercent: number; rankTotalParses: number | '?';
+          report: { code: string; fightID: number };
+        }> };
+      } | null;
+    };
+  }>(token, Q_CHARACTER_RANKINGS, { name, slug, region, encounterID: encounterId, difficulty });
+
+  const char = charData.characterData.character;
+  if (!char) return null;
+
+  const dpsParses = char.dps?.ranks ?? [];
+  const bossParses = char.boss?.ranks ?? [];
+  if (dpsParses.length === 0) return null;
+
+  const best = dpsParses.reduce((a, b) => (a.amount > b.amount ? a : b));
+  const bestDps = Math.round(best.amount);
+  const bestKillMs = best.duration;
+  const bestCode = best.report.code;
+  const bestFightId = best.report.fightID;
+
+  const bossMatch = bossParses.find(
+    (p) => p.report.code === bestCode && p.report.fightID === bestFightId
+  ) ?? null;
+
+  const charEvent = await getFeralEvent(token, bestCode, bestFightId);
+  if (!charEvent) return null;
+
+  const [dmgData, rotData] = await Promise.all([
+    gql<{ reportData: { report: { table: { data: { entries: { guid: number; name: string; total: number }[] } } } } }>(
+      token, Q_DAMAGE, { code: bestCode, fightIDs: [bestFightId], sourceID: charEvent.sourceID }
+    ),
+    gql<{ reportData: { report: {
+      casts: { data: { entries: { guid: number; name: string; total: number }[] } };
+      buffs: { data: { auras: { guid: number; name: string; totalUptime: number; totalUses: number }[] } };
+      debuffs: { data: { auras: { guid: number; name: string; totalUptime: number; totalUses: number }[] } };
+    } } }>(
+      token, Q_ROTATION, { code: bestCode, fightIDs: [bestFightId], sourceID: charEvent.sourceID }
+    ),
+  ]);
+
+  const charStats = parseStats(charEvent, name);
+  if (!charStats) return null;
+
+  const charCasts = parseCasts(rotData.reportData.report.casts as never, bestKillMs);
+  const charBuffs = parseUptime(rotData.reportData.report.buffs as never, bestKillMs, UPTIME_BUFFS);
+  const charDebuffs = parseUptime(rotData.reportData.report.debuffs as never, bestKillMs, UPTIME_DEBUFFS);
+  const charRotation = summarizeRotation(name, charCasts, charBuffs, charDebuffs, bestKillMs, bestDps);
+
+  const damageEntries = (dmgData.reportData.report.table.data?.entries ?? []).map((e) => ({
+    name: e.name,
+    total: e.total,
+  }));
+
+  const worldData = await gql<{
+    worldData: { encounter: { characterRankings: { rankings: Array<{
+      name: string; amount: number; duration: number;
+      report: { code: string; fightID: number };
+    }> } } };
+  }>(token, Q_WORLD_RANKINGS, { encounterID: encounterId, difficulty });
+
+  const allWorld = worldData.worldData.encounter.characterRankings.rankings ?? [];
+  const lo = bestKillMs * (1 - KILL_TIME_TOLERANCE);
+  const hi = bestKillMs * (1 + KILL_TIME_TOLERANCE);
+  const similar = allWorld.filter((r) => r.duration >= lo && r.duration <= hi);
+  const topPool = similar.length > 0 ? similar.slice(0, TOP_N) : allWorld.slice(0, TOP_N);
+
+  // Sequential to avoid WCL rate limits
+  const topPlayers = [];
+  for (const player of topPool) {
+    const { code: pCode, fightID: pFight } = player.report;
+    if (!pCode || !pFight) continue;
+
+    const pEvent = await getFeralEvent(token, pCode, pFight);
+    if (!pEvent) continue;
+
+    const pRot = await gql<{ reportData: { report: {
+      casts: never; buffs: never; debuffs: never;
+    } } }>(token, Q_ROTATION, { code: pCode, fightIDs: [pFight], sourceID: pEvent.sourceID });
+
+    const pStats = parseStats(pEvent, player.name);
+    if (!pStats) continue;
+
+    const pCasts = parseCasts(pRot.reportData.report.casts, player.duration);
+    const pBuffs = parseUptime(pRot.reportData.report.buffs, player.duration, UPTIME_BUFFS);
+    const pDebuffs = parseUptime(pRot.reportData.report.debuffs, player.duration, UPTIME_DEBUFFS);
+    const pRotation = summarizeRotation(player.name, pCasts, pBuffs, pDebuffs, player.duration, Math.round(player.amount));
+
+    const pStatsWithMeta: CharacterStats & { dps: number; killTime: string } = {
+      ...pStats,
+      dps: Math.round(player.amount),
+      killTime: fmtMs(player.duration),
+    };
+
+    topPlayers.push({ stats: pStatsWithMeta, rotation: pRotation });
+  }
+
+  return {
+    encounter: encounterName,
+    encounterId,
+    character: {
+      stats: charStats,
+      rotation: charRotation,
+      damageTable: { entries: damageEntries },
+      dps: bestDps,
+      bossDps: bossMatch ? Math.round(bossMatch.amount) : null,
+      killTime: fmtMs(bestKillMs),
+      overallPct: Math.round(best.rankPercent * 10) / 10,
+      overallPctOf: best.rankTotalParses,
+      todayPct: Math.round(best.todayPercent * 10) / 10,
+      bossDpsPct: bossMatch ? Math.round(bossMatch.rankPercent * 10) / 10 : null,
+      bracket: best.bracketData,
+    },
+    topPlayers,
+  };
+}
+
+export async function runAnalysis(input: AnalysisInput): Promise<AnalysisResult> {
+  const clientId = process.env.WCL_CLIENT_ID;
+  const clientSecret = process.env.WCL_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    throw new Error('WCL_CLIENT_ID and WCL_CLIENT_SECRET environment variables are required');
+  }
+
+  const token = await getWCLToken(clientId, clientSecret);
+
+  const bosses = await Promise.all(
+    input.encounters.map((enc) => analyzeBoss(token, input, enc.id, enc.name).catch(() => null))
+  );
+
+  return {
+    input,
+    bosses,
+    generatedAt: new Date().toISOString(),
+  };
+}
