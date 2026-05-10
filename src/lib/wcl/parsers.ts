@@ -25,7 +25,7 @@ interface WCLAuraEntry {
   totalUses: number;
 }
 
-interface WCLTable {
+export interface WCLTable {
   data?: {
     entries?: WCLCastEntry[];
     auras?: WCLAuraEntry[];

@@ -9,6 +9,7 @@ import {
   UPTIME_DEBUFFS,
 } from './constants';
 import { parseStats, parseCasts, parseUptime, summarizeRotation, fmtMs } from './parsers';
+import type { WCLTable } from './parsers';
 import {
   Q_CHARACTER_RANKINGS,
   Q_WORLD_RANKINGS,
@@ -102,19 +103,7 @@ export async function analyzeBoss(
     }>(token, Q_DAMAGE, { code: bestCode, fightIDs: [bestFightId], sourceID: charEvent.sourceID }),
     gql<{
       reportData: {
-        report: {
-          casts: { data: { entries: { guid: number; name: string; total: number }[] } };
-          buffs: {
-            data: {
-              auras: { guid: number; name: string; totalUptime: number; totalUses: number }[];
-            };
-          };
-          debuffs: {
-            data: {
-              auras: { guid: number; name: string; totalUptime: number; totalUses: number }[];
-            };
-          };
-        };
+        report: { casts: WCLTable; buffs: WCLTable; debuffs: WCLTable };
       };
     }>(token, Q_ROTATION, {
       code: bestCode,
@@ -126,13 +115,9 @@ export async function analyzeBoss(
   const charStats = parseStats(charEvent, name);
   if (!charStats) return null;
 
-  const charCasts = parseCasts(rotData.reportData.report.casts as never, bestKillMs);
-  const charBuffs = parseUptime(rotData.reportData.report.buffs as never, bestKillMs, UPTIME_BUFFS);
-  const charDebuffs = parseUptime(
-    rotData.reportData.report.debuffs as never,
-    bestKillMs,
-    UPTIME_DEBUFFS
-  );
+  const charCasts = parseCasts(rotData.reportData.report.casts, bestKillMs);
+  const charBuffs = parseUptime(rotData.reportData.report.buffs, bestKillMs, UPTIME_BUFFS);
+  const charDebuffs = parseUptime(rotData.reportData.report.debuffs, bestKillMs, UPTIME_DEBUFFS);
   const charRotation = summarizeRotation(
     name,
     charCasts,
@@ -179,11 +164,7 @@ export async function analyzeBoss(
 
     const pRot = await gql<{
       reportData: {
-        report: {
-          casts: never;
-          buffs: never;
-          debuffs: never;
-        };
+        report: { casts: WCLTable; buffs: WCLTable; debuffs: WCLTable };
       };
     }>(token, Q_ROTATION, { code: pCode, fightIDs: [pFight], sourceID: pEvent.sourceID });
 
