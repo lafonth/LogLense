@@ -1,1 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Fira+Code:wght@400;500&display=swap');
 @import 'tailwindcss';
+
+:root {
+  --bg: #09080c;
+  --surface: #110f17;
+  --border: #2a2535;
+  --gold: #c6a84a;
+  --gold-dim: #8a7232;
+  --gold-bright: #e8c96e;
+  --crimson: #c0392b;
+  --crimson-hover: #e84535;
+  --text: #e8e0d0;
+  --text-dim: #9990a8;
+  --font-display: 'IM Fell English', Georgia, serif;
+  --font-mono: 'Fira Code', 'Courier New', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  margin: 0;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: normal;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-dim);
+}
+
+.pct-legendary {
+  color: #ff8000;
+}
+.pct-epic {
+  color: #a335ee;
+}
+.pct-rare {
+  color: #0070dd;
+}
+.pct-uncommon {
+  color: #1eff00;
+}
+.pct-common {
+  color: #9d9d9d;
+}

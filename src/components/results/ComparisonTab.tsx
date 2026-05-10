@@ -1,0 +1,116 @@
+import type { BossState } from '@/hooks/useAnalysis';
+import type { Encounter } from '@/types';
+import { ErrorBanner } from '@/components/ui/ErrorBanner';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { DpsBanner } from './DpsBanner';
+import { RotationTable } from './RotationTable';
+import { StatsTable } from './StatsTable';
+import { TalentDiff } from './TalentDiff';
+
+interface ComparisonTabProps {
+  encounter: Encounter;
+  bossState: BossState;
+}
+
+export function ComparisonTab({ encounter, bossState }: ComparisonTabProps) {
+  if (bossState.status === 'idle' || bossState.status === 'loading') {
+    return (
+      <div style={{ padding: '40px 0' }}>
+        <LoadingSpinner label={`Fetching ${encounter.name}…`} />
+      </div>
+    );
+  }
+
+  if (bossState.status === 'error') {
+    return <ErrorBanner message={bossState.message} />;
+  }
+
+  const result = bossState.result;
+
+  if (!result) {
+    return (
+      <div
+        style={{
+          padding: '24px 0',
+          color: 'var(--text-dim)',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '0.85rem',
+        }}
+      >
+        No comparison data for {encounter.name}.
+      </div>
+    );
+  }
+
+  if (result.topPlayers.length === 0) {
+    return (
+      <div
+        style={{
+          padding: '24px 0',
+          color: 'var(--text-dim)',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '0.85rem',
+        }}
+      >
+        No similar kill-time players found for comparison.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <DpsBanner
+        dps={result.character.dps}
+        overallPct={result.character.overallPct}
+        killTime={result.character.killTime}
+        bossDps={result.character.bossDps}
+        bossDpsPct={result.character.bossDpsPct}
+      />
+      <div style={{ marginTop: '20px' }}>
+        <h3
+          style={{
+            color: 'var(--gold-dim)',
+            fontSize: '0.75rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            fontFamily: 'var(--font-mono)',
+            marginBottom: '10px',
+          }}
+        >
+          Stats vs top players
+        </h3>
+        <StatsTable character={result.character.stats} topPlayers={result.topPlayers} />
+      </div>
+      <div style={{ marginTop: '20px' }}>
+        <h3
+          style={{
+            color: 'var(--gold-dim)',
+            fontSize: '0.75rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            fontFamily: 'var(--font-mono)',
+            marginBottom: '10px',
+          }}
+        >
+          Rotation
+        </h3>
+        <RotationTable character={result.character.rotation} topPlayers={result.topPlayers} />
+      </div>
+      <div style={{ marginTop: '20px' }}>
+        <h3
+          style={{
+            color: 'var(--gold-dim)',
+            fontSize: '0.75rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            fontFamily: 'var(--font-mono)',
+            marginBottom: '10px',
+          }}
+        >
+          Talents
+        </h3>
+        <TalentDiff myTalents={result.character.stats.talents} topPlayers={result.topPlayers} />
+      </div>
+    </div>
+  );
+}
