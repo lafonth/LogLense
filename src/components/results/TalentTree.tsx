@@ -6,10 +6,10 @@ interface TalentTreeProps {
   topPlayers: TopPlayer[];
 }
 
-const COL_SPACING = 56;
-const ROW_SPACING = 52;
-const NODE_R = 14;
-const PAD = 24;
+const COL_SPACING = 48;
+const ROW_SPACING = 48;
+const NODE_R = 13;
+const PAD = 20;
 
 function nodeColor(
   talentIds: number[],
@@ -19,20 +19,41 @@ function nodeColor(
   const iHave = talentIds.some((id) => mySet.has(id));
   const topHave = talentIds.some((id) => topSets.some((s) => s.has(id)));
 
-  if (!iHave && !topHave) return { fill: 'var(--bg)', stroke: 'var(--border)', opacity: 0.25 };
+  if (!iHave && !topHave) return { fill: 'var(--bg)', stroke: 'var(--border)', opacity: 0.2 };
   if (iHave && topHave) return { fill: 'var(--surface)', stroke: 'var(--text-dim)', opacity: 1 };
-  if (iHave) return { fill: 'rgba(198,168,74,0.15)', stroke: 'var(--gold)', opacity: 1 };
-  return { fill: 'rgba(185,28,28,0.15)', stroke: 'var(--crimson)', opacity: 1 };
+  if (iHave) return { fill: 'rgba(198,168,74,0.18)', stroke: 'var(--gold)', opacity: 1 };
+  return { fill: 'rgba(185,28,28,0.18)', stroke: 'var(--crimson)', opacity: 1 };
 }
+
+// Deduplicate nodes that share the same (row, col) — keep the one with a non-empty name.
+// These occur when the Blizzard API returns spec-variant copies of the same tree position.
+function dedupeByPosition(nodes: TalentNode[]): TalentNode[] {
+  const seen = new Map<string, TalentNode>();
+  for (const node of nodes) {
+    const key = `${node.row}:${node.col}`;
+    const existing = seen.get(key);
+    if (!existing || (node.name && !existing.name)) {
+      seen.set(key, node);
+    }
+  }
+  return [...seen.values()];
+}
+
+const LEGEND = [
+  { color: 'var(--gold)', label: 'You only' },
+  { color: 'var(--crimson)', label: 'Top players only' },
+  { color: 'var(--text-dim)', label: 'Both' },
+];
 
 export function TalentTree({ nodes, myTalents, topPlayers }: TalentTreeProps) {
   const mySet = new Set(Object.keys(myTalents).map(Number));
   const topSets = topPlayers.map((p) => new Set(Object.keys(p.stats.talents).map(Number)));
 
-  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  const classNodes = dedupeByPosition(nodes.filter((n) => n.treeType === 'class'));
+  const specNodes = dedupeByPosition(nodes.filter((n) => n.treeType === 'spec'));
+  const dedupedNodes = [...classNodes, ...specNodes];
 
-  const classNodes = nodes.filter((n) => n.treeType === 'class');
-  const specNodes = nodes.filter((n) => n.treeType === 'spec');
+  const nodeById = new Map(dedupedNodes.map((n) => [n.id, n]));
 
   const maxClassRow = classNodes.reduce((m, n) => Math.max(m, n.row), 0);
   const specRowOffset = maxClassRow + 2;
@@ -45,23 +66,17 @@ export function TalentTree({ nodes, myTalents, topPlayers }: TalentTreeProps) {
     return PAD + effectiveRow * ROW_SPACING;
   }
 
-  const maxCol = nodes.reduce((m, n) => Math.max(m, n.col), 0);
+  const maxCol = dedupedNodes.reduce((m, n) => Math.max(m, n.col), 0);
   const maxSpecRow = specNodes.reduce((m, n) => Math.max(m, n.row), 0);
   const maxRow = maxSpecRow + specRowOffset;
 
   const svgWidth = PAD * 2 + maxCol * COL_SPACING + NODE_R;
-  const svgHeight = PAD * 2 + maxRow * ROW_SPACING + NODE_R + 20;
+  const svgHeight = PAD * 2 + maxRow * ROW_SPACING + NODE_R + 16;
 
   const sectionLabelY = {
-    class: PAD - 8,
-    spec: PAD + specRowOffset * ROW_SPACING - 8,
+    class: PAD - 6,
+    spec: PAD + specRowOffset * ROW_SPACING - 6,
   };
-
-  const LEGEND = [
-    { color: 'var(--gold)', label: 'You only' },
-    { color: 'var(--crimson)', label: 'Top players only' },
-    { color: 'var(--text-dim)', label: 'Both' },
-  ];
 
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -80,7 +95,7 @@ export function TalentTree({ nodes, myTalents, topPlayers }: TalentTreeProps) {
             style={{
               fill: 'var(--gold-dim)',
               fontFamily: 'var(--font-mono)',
-              fontSize: '10px',
+              fontSize: '9px',
               textTransform: 'uppercase',
               letterSpacing: '0.1em',
             }}
@@ -89,7 +104,8 @@ export function TalentTree({ nodes, myTalents, topPlayers }: TalentTreeProps) {
           </text>
         ))}
 
-        {nodes.map((node) =>
+        {/* Edges */}
+        {dedupedNodes.map((node) =>
           node.children.map((childId) => {
             const child = nodeById.get(childId);
             if (!child) return null;
@@ -102,24 +118,24 @@ export function TalentTree({ nodes, myTalents, topPlayers }: TalentTreeProps) {
                 y2={toSvgY(child.row, child.treeType)}
                 stroke="var(--border)"
                 strokeWidth={1}
-                opacity={0.5}
+                opacity={0.4}
               />
             );
           })
         )}
 
-        {nodes.map((node) => {
+        {/* Nodes — labels only on hover via <title> */}
+        {dedupedNodes.map((node) => {
           const cx = toSvgX(node.col);
           const cy = toSvgY(node.row, node.treeType);
           const { fill, stroke, opacity } = nodeColor(node.talentIds, mySet, topSets);
           const isChoice = node.nodeType === 'choice';
           const strokeWidth = stroke === 'var(--text-dim)' ? 1 : 2;
-          const label = node.name.length > 12 ? `${node.name.slice(0, 11)}…` : node.name;
 
           return (
-            <g key={node.id} opacity={opacity}>
+            <g key={node.id} opacity={opacity} style={{ cursor: 'default' }}>
               <title>
-                {node.names.join(' / ')}
+                {node.names.filter(Boolean).join(' / ') || '—'}
                 {node.maxRanks > 1 ? ` (${node.maxRanks} ranks)` : ''}
               </title>
               {isChoice ? (
@@ -136,18 +152,6 @@ export function TalentTree({ nodes, myTalents, topPlayers }: TalentTreeProps) {
               ) : (
                 <circle cx={cx} cy={cy} r={NODE_R} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />
               )}
-              <text
-                x={cx}
-                y={cy + NODE_R + 11}
-                textAnchor="middle"
-                style={{
-                  fill: 'var(--text-dim)',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '9px',
-                }}
-              >
-                {label}
-              </text>
             </g>
           );
         })}
@@ -157,7 +161,7 @@ export function TalentTree({ nodes, myTalents, topPlayers }: TalentTreeProps) {
         style={{
           display: 'flex',
           gap: '16px',
-          marginTop: '10px',
+          marginTop: '8px',
           fontFamily: 'var(--font-mono)',
           fontSize: '0.72rem',
           color: 'var(--text-dim)',
@@ -177,6 +181,9 @@ export function TalentTree({ nodes, myTalents, topPlayers }: TalentTreeProps) {
             {label}
           </span>
         ))}
+        <span style={{ marginLeft: 'auto', opacity: 0.6, fontSize: '0.68rem' }}>
+          Hover a node to see its name
+        </span>
       </div>
     </div>
   );
