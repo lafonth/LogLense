@@ -1,6 +1,9 @@
 'use client';
 
 import type { AnalysisResult } from '@/types';
+
+import { useState } from 'react';
+
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { useAIReport } from '@/hooks/useAIReport';
 import { useApiKey } from '@/hooks/useApiKey';
@@ -9,6 +12,25 @@ import { StreamingText } from './StreamingText';
 interface AIReportTabProps {
   analysisResult: AnalysisResult;
 }
+
+type Provider = 'claude' | 'gemini';
+
+const PROVIDERS: { id: Provider; label: string; keyLabel: string; placeholder: string; keyHint: string }[] = [
+  {
+    id: 'claude',
+    label: 'Claude',
+    keyLabel: 'Anthropic API Key',
+    placeholder: 'sk-ant-…',
+    keyHint: 'console.anthropic.com',
+  },
+  {
+    id: 'gemini',
+    label: 'Gemini Flash',
+    keyLabel: 'Google AI Studio Key',
+    placeholder: 'AIza…',
+    keyHint: 'aistudio.google.com — free tier',
+  },
+];
 
 const inputStyle: React.CSSProperties = {
   background: 'var(--surface)',
@@ -22,17 +44,61 @@ const inputStyle: React.CSSProperties = {
   outline: 'none',
 };
 
+function useProvider(): [Provider, (p: Provider) => void] {
+  const [provider, setProvider] = useState<Provider>(() => {
+    if (typeof window === 'undefined') return 'gemini';
+    return (localStorage.getItem('loglense_ai_provider') as Provider | null) ?? 'gemini';
+  });
+
+  function persist(p: Provider) {
+    setProvider(p);
+    localStorage.setItem('loglense_ai_provider', p);
+  }
+
+  return [provider, persist];
+}
+
 export function AIReportTab({ analysisResult }: AIReportTabProps) {
-  const [apiKey, setApiKey] = useApiKey();
+  const [provider, setProvider] = useProvider();
+  const [claudeKey, setClaudeKey] = useApiKey('loglense_api_key');
+  const [geminiKey, setGeminiKey] = useApiKey('loglense_gemini_key');
   const { text, loading, error, start, reset } = useAIReport();
+
+  const active = PROVIDERS.find((p) => p.id === provider)!;
+  const apiKey = provider === 'claude' ? claudeKey : geminiKey;
+  const setApiKey = provider === 'claude' ? setClaudeKey : setGeminiKey;
 
   function handleGenerate() {
     if (!apiKey.trim()) return;
-    start(analysisResult, apiKey.trim());
+    start(analysisResult, apiKey.trim(), provider);
   }
 
   return (
     <div style={{ padding: '24px 0', maxWidth: '760px' }}>
+      {/* Provider toggle */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        {PROVIDERS.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => setProvider(p.id)}
+            disabled={loading}
+            style={{
+              padding: '5px 14px',
+              background: provider === p.id ? 'var(--surface)' : 'transparent',
+              border: `1px solid ${provider === p.id ? 'var(--gold-dim)' : 'var(--border)'}`,
+              borderRadius: '4px',
+              color: provider === p.id ? 'var(--gold)' : 'var(--text-dim)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.78rem',
+              cursor: loading ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Key input + action */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', alignItems: 'flex-end' }}>
         <div style={{ flex: 1 }}>
           <label
@@ -46,12 +112,15 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
               marginBottom: '6px',
             }}
           >
-            Anthropic API Key
+            {active.keyLabel}
+            <span style={{ marginLeft: '8px', color: 'var(--text-dim)', textTransform: 'none', letterSpacing: 0 }}>
+              — {active.keyHint}
+            </span>
           </label>
           <input
             type="password"
             style={inputStyle}
-            placeholder="sk-ant-…"
+            placeholder={active.placeholder}
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             disabled={loading}

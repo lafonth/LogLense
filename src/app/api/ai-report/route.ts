@@ -1,5 +1,6 @@
 import type { AnalysisResult } from '@/types';
 import { ClaudeProvider } from '@/lib/ai/claude';
+import { GeminiProvider } from '@/lib/ai/gemini';
 import { buildAnalysisPrompt, SYSTEM_PROMPT } from '@/lib/ai/prompt';
 
 export const runtime = 'edge';
@@ -14,8 +15,9 @@ export async function POST(req: Request) {
     });
   }
 
+  const providerName = req.headers.get('x-ai-provider') ?? 'claude';
   const result = (await req.json()) as AnalysisResult;
-  const provider = new ClaudeProvider(apiKey);
+  const provider = providerName === 'gemini' ? new GeminiProvider(apiKey) : new ClaudeProvider(apiKey);
   const prompt = buildAnalysisPrompt(result);
   const chunks = provider.stream(prompt, SYSTEM_PROMPT);
 

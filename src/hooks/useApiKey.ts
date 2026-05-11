@@ -2,22 +2,20 @@
 
 import { useState } from 'react';
 
-const STORAGE_KEY = 'loglense_api_key';
-
-function readStored(): string {
+function readStored(storageKey: string): string {
   if (typeof window === 'undefined') return '';
-  return localStorage.getItem(STORAGE_KEY) ?? '';
+  return localStorage.getItem(storageKey) ?? '';
 }
 
-export function useApiKey(): [string, (key: string) => void] {
-  const [apiKey, setApiKey] = useState(readStored);
+export function useApiKey(storageKey = 'loglense_api_key'): [string, (key: string) => void] {
+  const [apiKey, setApiKey] = useState(() => readStored(storageKey));
 
   function persistApiKey(key: string) {
     setApiKey(key);
     if (key) {
-      localStorage.setItem(STORAGE_KEY, key);
+      localStorage.setItem(storageKey, key);
     } else {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(storageKey);
     }
   }
 

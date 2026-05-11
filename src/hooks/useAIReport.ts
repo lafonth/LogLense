@@ -9,7 +9,7 @@ export function useAIReport() {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const start = useCallback(async (result: AnalysisResult, apiKey: string) => {
+  const start = useCallback(async (result: AnalysisResult, apiKey: string, provider: 'claude' | 'gemini' = 'claude') => {
     setText('');
     setError(null);
     setLoading(true);
@@ -20,7 +20,7 @@ export function useAIReport() {
     try {
       const res = await fetch('/api/ai-report', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-ai-key': apiKey },
+        headers: { 'Content-Type': 'application/json', 'x-ai-key': apiKey, 'x-ai-provider': provider },
         body: JSON.stringify(result),
         signal: controller.signal,
       });
