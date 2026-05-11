@@ -26,6 +26,8 @@ const FERAL_SPEC_ID = 103;
 const REGION = 'us';
 const NAMESPACE = `static-${REGION}`;
 
+// ── Blizzard API ──────────────────────────────────────────────────────────────
+
 async function getToken(): Promise<string> {
   const id = process.env.BLIZZARD_CLIENT_ID;
   const secret = process.env.BLIZZARD_CLIENT_SECRET;
@@ -48,7 +50,6 @@ async function bnet<T>(token: string, path: string, namespace = NAMESPACE): Prom
 }
 
 async function bnetUrl<T>(token: string, url: string, label = url): Promise<T> {
-  // Ensure locale is present; preserve existing query params
   const u = new URL(url);
   if (!u.searchParams.has('locale')) u.searchParams.set('locale', 'en_US');
   const res = await fetch(u.toString(), { headers: { Authorization: `Bearer ${token}` } });
@@ -59,8 +60,56 @@ async function bnetUrl<T>(token: string, url: string, label = url): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// ── Wago.tools — TraitNodeXTraitNodeEntry ─────────────────────────────────────
+// WCL records TraitNodeEntryIDs (103xxx range), not the IDs returned by the
+// Blizzard game data API. wago.tools exposes the raw DB2 table that maps
+// TraitNodeID (what Blizzard API gives us) → TraitNodeEntryID (what WCL records).
+
+async function fetchTraitNodeEntryMap(build: string): Promise<Map<number, number[]>> {
+  // Node ID → list of entry IDs (one per rank/choice within that node)
+  const map = new Map<number, number[]>();
+  let page = 1;
+
+  console.log(`  Fetching TraitNodeXTraitNodeEntry from wago.tools (build ${build})…`);
+
+  while (true) {
+    const url = `https://wago.tools/db2/TraitNodeXTraitNodeEntry?build=${build}&locale=enUS&page=${page}`;
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`wago.tools ${res.status}: ${url}`);
+
+    const data = (await res.json()) as {
+      total_count?: number;
+      records?: Array<{ TraitNodeID: number; TraitNodeEntryID: number }>;
+      data?: Array<{ TraitNodeID: number; TraitNodeEntryID: number }>;
+    };
+
+    // Support both {records:[]} and {data:[]} shapes
+    const records = data.records ?? data.data ?? [];
+    if (records.length === 0) break;
+
+    for (const r of records) {
+      const existing = map.get(r.TraitNodeID);
+      if (existing) {
+        if (!existing.includes(r.TraitNodeEntryID)) existing.push(r.TraitNodeEntryID);
+      } else {
+        map.set(r.TraitNodeID, [r.TraitNodeEntryID]);
+      }
+    }
+
+    // If we got fewer records than a typical page, we're done
+    if (records.length < 100) break;
+    page++;
+  }
+
+  console.log(`  Got entry map: ${map.size} nodes`);
+  return map;
+}
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
 interface BlizzardTalentTree {
   id: number;
+  _links?: { self?: { href?: string } };
   class_talent_nodes: BlizzardNode[];
   spec_talent_nodes: BlizzardNode[];
 }
@@ -98,20 +147,32 @@ interface TalentNode {
   children: number[];
 }
 
+// ── Main ──────────────────────────────────────────────────────────────────────
+
 async function main() {
   const token = await getToken();
 
-  // Fetch Feral spec to get the spec_talent_tree href
-  const spec = await bnet<{ spec_talent_tree?: { key: { href: string }; id?: number } }>(
+  // 1. Get the Feral spec talent tree from Blizzard API
+  const spec = await bnet<{ spec_talent_tree?: { key: { href: string } } }>(
     token,
     `/data/wow/playable-specialization/${FERAL_SPEC_ID}`
   );
-
   const treeHref = spec.spec_talent_tree?.key?.href;
-  if (!treeHref) throw new Error('spec_talent_tree href not found in spec response');
+  if (!treeHref) throw new Error('spec_talent_tree href not found');
 
   const tree = await bnetUrl<BlizzardTalentTree>(token, treeHref, 'talent-tree');
 
+  // Extract the build version from the self-link so we hit the same build on wago.tools
+  // e.g. "static-12.0.5_66741-us" → try "12.0.5.66741", fall back to just major version
+  const selfHref = tree._links?.self?.href ?? '';
+  const nsMatch = /static-([\d.]+)_(\d+)-/.exec(selfHref);
+  const wagoBuild = nsMatch ? `${nsMatch[1]}.${nsMatch[2]}` : '12.0.5.57661';
+  console.log(`Blizzard build: ${wagoBuild}`);
+
+  // 2. Get TraitNodeID → TraitNodeEntryID mapping from wago.tools
+  const entryMap = await fetchTraitNodeEntryMap(wagoBuild);
+
+  // 3. Transform nodes
   function transformNodes(nodes: BlizzardNode[], treeType: 'class' | 'spec'): TalentNode[] {
     const parentToChildren = new Map<number, number[]>();
     for (const node of nodes) {
@@ -124,14 +185,12 @@ async function main() {
     return nodes.map((node): TalentNode => {
       const isChoice = node.node_type.type === 'SELECTION';
       const firstRank = node.ranks[0];
-      const talentIds: number[] = [];
       const names: string[] = [];
       let spellId = 0;
       let name = '';
 
       if (isChoice) {
         for (const choice of firstRank?.choice_of_tooltips ?? []) {
-          talentIds.push(choice.talent.id);
           names.push(choice.talent.name);
           if (!spellId) spellId = choice.spell_tooltip?.spell.id ?? 0;
         }
@@ -140,7 +199,6 @@ async function main() {
         for (const rank of node.ranks) {
           const talent = rank.tooltip?.talent;
           if (talent) {
-            talentIds.push(talent.id);
             if (!name) name = talent.name;
             if (!spellId) spellId = rank.tooltip?.spell_tooltip?.spell.id ?? 0;
           }
@@ -150,6 +208,9 @@ async function main() {
 
       const nodeType: TalentNode['nodeType'] =
         isChoice ? 'choice' : node.ranks.length > 1 ? 'rankable' : 'single';
+
+      // Use TraitNodeEntryIDs from wago.tools — these match what WCL records.
+      const talentIds = entryMap.get(node.id) ?? [];
 
       return {
         id: node.id,
@@ -170,6 +231,9 @@ async function main() {
   const classNodes = transformNodes(tree.class_talent_nodes, 'class');
   const specNodes = transformNodes(tree.spec_talent_nodes, 'spec');
   const allNodes = [...classNodes, ...specNodes];
+
+  const noMatch = allNodes.filter((n) => n.talentIds.length === 0).length;
+  if (noMatch > 0) console.warn(`  Warning: ${noMatch} nodes have no TraitNodeEntryID mapping`);
 
   const outDir = resolve(process.cwd(), 'src/data');
   mkdirSync(outDir, { recursive: true });
