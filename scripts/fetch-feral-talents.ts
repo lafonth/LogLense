@@ -95,26 +95,33 @@ async function main() {
   const token = await getToken();
   console.log(`Token acquired (length ${token.length})`);
 
-  // Sanity check: a simple static endpoint that always exists
-  const realm = await bnet<{ realms: unknown[] }>(token, `/data/wow/realm/index`);
-  console.log(`API healthy — ${(realm.realms as unknown[]).length} realms`);
+  // Sanity check with a known static endpoint
+  const classes = await bnet<{ classes: { id: number; name: string }[] }>(token, `/data/wow/playable-class/index`);
+  console.log(`API healthy — classes: ${classes.classes.map((c) => c.name).join(', ')}`);
 
-  // Discover talent tree ID from the playable-specialization endpoint
-  const spec = await bnet<{
-    talent_tree?: { key: { href: string }; id: number };
-  }>(token, `/data/wow/playable-specialization/${FERAL_SPEC_ID}`);
+  // Druid is class 11. Get its spec list to find the talent tree link.
+  const druid = await bnet<{
+    specializations?: Array<{ id: number; name: string; key: { href: string } }>;
+  }>(token, `/data/wow/playable-class/11`);
+  console.log(`Druid specs:`, JSON.stringify(druid.specializations?.map((s) => ({ id: s.id, name: s.name }))));
 
-  let treeId: number | undefined = spec.talent_tree?.id;
+  // Fetch Feral spec to get the talent_tree href
+  const spec = await bnet<Record<string, unknown>>(token, `/data/wow/playable-specialization/${FERAL_SPEC_ID}`);
+  console.log(`Feral spec keys:`, Object.keys(spec));
+  console.log(`Feral spec raw:`, JSON.stringify(spec).slice(0, 500));
+
+  // Try to extract talent tree ID
+  type SpecWithTree = { talent_tree?: { key: { href: string }; id?: number } };
+  const specTyped = spec as SpecWithTree;
+  let treeId: number | undefined = specTyped.talent_tree?.id;
 
   if (!treeId) {
-    // Fallback: parse the href if id isn't directly present
-    const href = spec.talent_tree?.key?.href ?? '';
+    const href = specTyped.talent_tree?.key?.href ?? '';
     const match = /talent-tree\/(\d+)/.exec(href);
     if (match) treeId = Number(match[1]);
   }
 
-  if (!treeId) throw new Error(`Could not find talent tree ID for spec ${FERAL_SPEC_ID}. Raw: ${JSON.stringify(spec.talent_tree)}`);
-
+  if (!treeId) throw new Error(`Could not find talent tree ID. talent_tree field: ${JSON.stringify(specTyped.talent_tree)}`);
   console.log(`Found talent tree ID: ${treeId}`);
 
   const tree = await bnet<BlizzardTalentTree>(
