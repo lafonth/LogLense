@@ -42,10 +42,13 @@ async function getToken(): Promise<string> {
   return json.access_token;
 }
 
-async function bnet<T>(token: string, path: string): Promise<T> {
-  const url = `https://${REGION}.api.blizzard.com${path}?namespace=${NAMESPACE}&locale=en_US&access_token=${token}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Blizzard API ${res.status}: ${url}`);
+async function bnet<T>(token: string, path: string, namespace = NAMESPACE): Promise<T> {
+  const url = `https://${REGION}.api.blizzard.com${path}?namespace=${namespace}&locale=en_US`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Blizzard API ${res.status} ${path}\n${body}`);
+  }
   return res.json() as Promise<T>;
 }
 
@@ -90,6 +93,11 @@ interface TalentNode {
 
 async function main() {
   const token = await getToken();
+  console.log(`Token acquired (length ${token.length})`);
+
+  // Sanity check: a simple static endpoint that always exists
+  const realm = await bnet<{ realms: unknown[] }>(token, `/data/wow/realm/index`);
+  console.log(`API healthy — ${(realm.realms as unknown[]).length} realms`);
 
   // Discover talent tree ID from the playable-specialization endpoint
   const spec = await bnet<{
