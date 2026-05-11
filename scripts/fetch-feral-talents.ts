@@ -1,10 +1,26 @@
 // Run once: npx tsx scripts/fetch-feral-talents.ts
-// Requires env vars: BLIZZARD_CLIENT_ID, BLIZZARD_CLIENT_SECRET
+// Reads BLIZZARD_CLIENT_ID / BLIZZARD_CLIENT_SECRET from .env.local
 // Writes to: src/data/feral-druid-talents.json
 
-import { writeFileSync } from 'fs';
-import { mkdirSync } from 'fs';
+import { writeFileSync, mkdirSync, readFileSync } from 'fs';
 import { resolve } from 'path';
+
+// Load .env.local manually (tsx doesn't auto-load it)
+try {
+  const envPath = resolve(process.cwd(), '.env.local');
+  const lines = readFileSync(envPath, 'utf8').split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const val = trimmed.slice(eq + 1).trim();
+    if (!(key in process.env)) process.env[key] = val;
+  }
+} catch {
+  // .env.local not found — fall back to existing env vars
+}
 
 const FERAL_SPEC_ID = 103;
 const REGION = 'us';
