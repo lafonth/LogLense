@@ -110,18 +110,18 @@ async function main() {
   console.log(`Feral spec keys:`, Object.keys(spec));
   console.log(`Feral spec raw:`, JSON.stringify(spec).slice(0, 500));
 
-  // Try to extract talent tree ID
-  type SpecWithTree = { talent_tree?: { key: { href: string }; id?: number } };
+  // Extract talent tree ID from spec_talent_tree.key.href
+  type SpecWithTree = { spec_talent_tree?: { key: { href: string }; id?: number } };
   const specTyped = spec as SpecWithTree;
-  let treeId: number | undefined = specTyped.talent_tree?.id;
+  let treeId: number | undefined = specTyped.spec_talent_tree?.id;
 
   if (!treeId) {
-    const href = specTyped.talent_tree?.key?.href ?? '';
+    const href = specTyped.spec_talent_tree?.key?.href ?? '';
     const match = /talent-tree\/(\d+)/.exec(href);
     if (match) treeId = Number(match[1]);
   }
 
-  if (!treeId) throw new Error(`Could not find talent tree ID. talent_tree field: ${JSON.stringify(specTyped.talent_tree)}`);
+  if (!treeId) throw new Error(`Could not find talent tree ID. spec_talent_tree field: ${JSON.stringify(specTyped.spec_talent_tree)}`);
   console.log(`Found talent tree ID: ${treeId}`);
 
   const tree = await bnet<BlizzardTalentTree>(
