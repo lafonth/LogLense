@@ -44,10 +44,17 @@ async function getToken(): Promise<string> {
 
 async function bnet<T>(token: string, path: string, namespace = NAMESPACE): Promise<T> {
   const url = `https://${REGION}.api.blizzard.com${path}?namespace=${namespace}&locale=en_US`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  return bnetUrl<T>(token, url, path);
+}
+
+async function bnetUrl<T>(token: string, url: string, label = url): Promise<T> {
+  // Ensure locale is present; preserve existing query params
+  const u = new URL(url);
+  if (!u.searchParams.has('locale')) u.searchParams.set('locale', 'en_US');
+  const res = await fetch(u.toString(), { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Blizzard API ${res.status} ${path}\n${body}`);
+    throw new Error(`Blizzard API ${res.status} ${label}\n${body}`);
   }
   return res.json() as Promise<T>;
 }
@@ -124,10 +131,11 @@ async function main() {
   if (!treeId) throw new Error(`Could not find talent tree ID. spec_talent_tree field: ${JSON.stringify(specTyped.spec_talent_tree)}`);
   console.log(`Found talent tree ID: ${treeId}`);
 
-  const tree = await bnet<BlizzardTalentTree>(
-    token,
-    `/data/wow/talent-tree/${treeId}/playable-spec/${FERAL_SPEC_ID}`
-  );
+  // Follow the href directly from the spec response instead of constructing the URL
+  const treeHref = specTyped.spec_talent_tree?.key?.href ?? '';
+  const tree = await bnetUrl<BlizzardTalentTree & Record<string, unknown>>(token, treeHref, `/talent-tree/${treeId}`);
+  console.log(`Tree keys:`, Object.keys(tree));
+  console.log(`Tree raw (500 chars):`, JSON.stringify(tree).slice(0, 500));
 
   function transformNodes(nodes: BlizzardNode[], treeType: 'class' | 'spec'): TalentNode[] {
     const parentToChildren = new Map<number, number[]>();
