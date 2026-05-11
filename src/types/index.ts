@@ -77,3 +77,17 @@ export interface AnalysisResult {
   bosses: (BossResult | null)[];
   generatedAt: string;
 }
+
+export interface TalentNode {
+  id: number;
+  talentIds: number[];
+  name: string;
+  names: string[];
+  spellId: number;
+  row: number;
+  col: number;
+  maxRanks: number;
+  nodeType: 'single' | 'choice' | 'rankable';
+  treeType: 'class' | 'spec';
+  children: number[];
+}

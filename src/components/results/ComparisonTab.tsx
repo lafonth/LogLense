@@ -1,11 +1,12 @@
 import type { BossState } from '@/hooks/useAnalysis';
-import type { Encounter } from '@/types';
+import type { Encounter, TalentNode } from '@/types';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import talentNodes from '@/data/feral-druid-talents.json';
 import { DpsBanner } from './DpsBanner';
 import { RotationTable } from './RotationTable';
 import { StatsTable } from './StatsTable';
-import { TalentDiff } from './TalentDiff';
+import { TalentTree } from './TalentTree';
 
 interface ComparisonTabProps {
   encounter: Encounter;
@@ -106,7 +107,11 @@ export function ComparisonTab({ encounter, bossState }: ComparisonTabProps) {
         >
           Talents
         </h3>
-        <TalentDiff myTalents={result.character.stats.talents} topPlayers={result.topPlayers} />
+        <TalentTree
+          nodes={talentNodes as TalentNode[]}
+          myTalents={result.character.stats.talents}
+          topPlayers={result.topPlayers}
+        />
       </div>
     </div>
   );
