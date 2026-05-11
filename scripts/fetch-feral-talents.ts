@@ -91,17 +91,27 @@ interface TalentNode {
 async function main() {
   const token = await getToken();
 
-  const index = await bnet<{ talent_trees: Array<{ id: number; playable_spec: { id: number } }> }>(
-    token,
-    `/data/wow/talent-tree/index`
-  );
+  // Discover talent tree ID from the playable-specialization endpoint
+  const spec = await bnet<{
+    talent_tree?: { key: { href: string }; id: number };
+  }>(token, `/data/wow/playable-specialization/${FERAL_SPEC_ID}`);
 
-  const specEntry = index.talent_trees.find((t) => t.playable_spec?.id === FERAL_SPEC_ID);
-  if (!specEntry) throw new Error('Feral spec tree not found in index');
+  let treeId: number | undefined = spec.talent_tree?.id;
+
+  if (!treeId) {
+    // Fallback: parse the href if id isn't directly present
+    const href = spec.talent_tree?.key?.href ?? '';
+    const match = /talent-tree\/(\d+)/.exec(href);
+    if (match) treeId = Number(match[1]);
+  }
+
+  if (!treeId) throw new Error(`Could not find talent tree ID for spec ${FERAL_SPEC_ID}. Raw: ${JSON.stringify(spec.talent_tree)}`);
+
+  console.log(`Found talent tree ID: ${treeId}`);
 
   const tree = await bnet<BlizzardTalentTree>(
     token,
-    `/data/wow/talent-tree/${specEntry.id}/playable-spec/${FERAL_SPEC_ID}`
+    `/data/wow/talent-tree/${treeId}/playable-spec/${FERAL_SPEC_ID}`
   );
 
   function transformNodes(nodes: BlizzardNode[], treeType: 'class' | 'spec'): TalentNode[] {
