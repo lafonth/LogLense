@@ -6,6 +6,10 @@
 # data outputs (top-level only, not src/data/)
 /data/
 
+# downloaded game data CSVs (too large to commit; run scripts/fetch-feral-talents.ts to regenerate)
+scripts/TraitNodeXTraitNodeEntry.csv
+*.csv
+
 # config
 .claude
 

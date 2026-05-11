@@ -1,7 +1,10 @@
 [
   {
     "id": 99805,
-    "talentIds": [],
+    "talentIds": [
+      123297,
+      123296
+    ],
     "name": "",
     "names": [
       ""
@@ -17,7 +20,7 @@
   {
     "id": 82199,
     "talentIds": [
-      108282
+      103277
     ],
     "name": "Rake",
     "names": [
@@ -34,7 +37,7 @@
   {
     "id": 82220,
     "talentIds": [
-      108303
+      103298
     ],
     "name": "Frenzied Regeneration",
     "names": [
@@ -51,7 +54,7 @@
   {
     "id": 82217,
     "talentIds": [
-      108300
+      103295
     ],
     "name": "Rejuvenation",
     "names": [
@@ -68,7 +71,7 @@
   {
     "id": 91044,
     "talentIds": [
-      117972
+      112967
     ],
     "name": "Starfire",
     "names": [
@@ -85,7 +88,7 @@
   {
     "id": 91046,
     "talentIds": [
-      117974
+      112969
     ],
     "name": "Starfire",
     "names": [
@@ -102,7 +105,7 @@
   {
     "id": 82239,
     "talentIds": [
-      108323
+      103318
     ],
     "name": "Grievous Wounds",
     "names": [
@@ -119,7 +122,7 @@
   {
     "id": 82223,
     "talentIds": [
-      108306
+      103301
     ],
     "name": "Swipe",
     "names": [
@@ -136,7 +139,7 @@
   {
     "id": 82219,
     "talentIds": [
-      108302
+      103297
     ],
     "name": "Ursoc's Spirit",
     "names": [
@@ -153,7 +156,7 @@
   {
     "id": 82205,
     "talentIds": [
-      108288
+      103283
     ],
     "name": "Wild Growth",
     "names": [
@@ -170,7 +173,7 @@
   {
     "id": 82200,
     "talentIds": [
-      108283
+      103278
     ],
     "name": "Starsurge",
     "names": [
@@ -187,7 +190,7 @@
   {
     "id": 82222,
     "talentIds": [
-      108305
+      103300
     ],
     "name": "Rip",
     "names": [
@@ -204,7 +207,7 @@
   {
     "id": 82218,
     "talentIds": [
-      108301
+      103296
     ],
     "name": "Verdant Heart",
     "names": [
@@ -221,7 +224,7 @@
   {
     "id": 82241,
     "talentIds": [
-      108325
+      103320
     ],
     "name": "Remove Corruption",
     "names": [
@@ -238,7 +241,7 @@
   {
     "id": 82208,
     "talentIds": [
-      108291
+      103286
     ],
     "name": "Moonkin Form",
     "names": [
@@ -255,7 +258,7 @@
   {
     "id": 91047,
     "talentIds": [
-      117975
+      112970
     ],
     "name": "Moonkin Form",
     "names": [
@@ -272,7 +275,7 @@
   {
     "id": 82221,
     "talentIds": [
-      108304
+      103299
     ],
     "name": "Maim",
     "names": [
@@ -289,8 +292,7 @@
   {
     "id": 82225,
     "talentIds": [
-      108308,
-      108308
+      103303
     ],
     "name": "Killer Instinct",
     "names": [
@@ -307,7 +309,7 @@
   {
     "id": 82227,
     "talentIds": [
-      108310
+      103305
     ],
     "name": "Ironfur",
     "names": [
@@ -324,7 +326,7 @@
   {
     "id": 104085,
     "talentIds": [
-      133394
+      128591
     ],
     "name": "Improved Barkskin",
     "names": [
@@ -341,7 +343,7 @@
   {
     "id": 82211,
     "talentIds": [
-      108294
+      103289
     ],
     "name": "Hibernate",
     "names": [
@@ -358,8 +360,7 @@
   {
     "id": 82214,
     "talentIds": [
-      108297,
-      108297
+      103292
     ],
     "name": "Nurturing Instinct",
     "names": [
@@ -376,7 +377,7 @@
   {
     "id": 93714,
     "talentIds": [
-      121114
+      116102
     ],
     "name": "Sunfire",
     "names": [
@@ -393,7 +394,7 @@
   {
     "id": 82224,
     "talentIds": [
-      108307
+      103302
     ],
     "name": "Primal Fury",
     "names": [
@@ -410,7 +411,7 @@
   {
     "id": 82228,
     "talentIds": [
-      108311
+      103306
     ],
     "name": "Thick Hide",
     "names": [
@@ -427,7 +428,7 @@
   {
     "id": 82242,
     "talentIds": [
-      108327
+      103322
     ],
     "name": "Skull Bash",
     "names": [
@@ -444,7 +445,7 @@
   {
     "id": 82206,
     "talentIds": [
-      108289
+      103284
     ],
     "name": "Natural Recovery",
     "names": [
@@ -461,7 +462,7 @@
   {
     "id": 82210,
     "talentIds": [
-      108293
+      103288
     ],
     "name": "Astral Influence",
     "names": [
@@ -477,7 +478,10 @@
   },
   {
     "id": 82198,
-    "talentIds": [],
+    "talentIds": [
+      103276,
+      103275
+    ],
     "name": "",
     "names": [
       ""
@@ -492,7 +496,10 @@
   },
   {
     "id": 82229,
-    "talentIds": [],
+    "talentIds": [
+      103307,
+      128587
+    ],
     "name": "",
     "names": [
       ""
@@ -508,7 +515,7 @@
   {
     "id": 82232,
     "talentIds": [
-      133384
+      128581
     ],
     "name": "Aessina's Renewal",
     "names": [
@@ -525,7 +532,7 @@
   {
     "id": 100223,
     "talentIds": [
-      128706
+      123868
     ],
     "name": "Starlight Conduit",
     "names": [
@@ -542,7 +549,7 @@
   {
     "id": 82236,
     "talentIds": [
-      108319
+      103314
     ],
     "name": "Feline Swiftness",
     "names": [
@@ -559,7 +566,7 @@
   {
     "id": 82235,
     "talentIds": [
-      108318
+      103313
     ],
     "name": "Well-Honed Instincts",
     "names": [
@@ -576,8 +583,7 @@
   {
     "id": 100177,
     "talentIds": [
-      128634,
-      128634
+      123796
     ],
     "name": "Matted Fur",
     "names": [
@@ -594,7 +600,7 @@
   {
     "id": 82234,
     "talentIds": [
-      108317
+      103312
     ],
     "name": "Stampeding Roar",
     "names": [
@@ -611,7 +617,7 @@
   {
     "id": 82240,
     "talentIds": [
-      108324
+      103319
     ],
     "name": "Lingering Healing",
     "names": [
@@ -628,7 +634,7 @@
   {
     "id": 82209,
     "talentIds": [
-      108292
+      103287
     ],
     "name": "Typhoon",
     "names": [
@@ -644,7 +650,10 @@
   },
   {
     "id": 82207,
-    "talentIds": [],
+    "talentIds": [
+      103285,
+      128589
+    ],
     "name": "",
     "names": [
       ""
@@ -660,7 +669,7 @@
   {
     "id": 100176,
     "talentIds": [
-      128633
+      123795
     ],
     "name": "Oakskin",
     "names": [
@@ -677,7 +686,7 @@
   {
     "id": 104082,
     "talentIds": [
-      133389
+      128586
     ],
     "name": "Perfectly-Honed Instincts",
     "names": [
@@ -694,7 +703,7 @@
   {
     "id": 104081,
     "talentIds": [
-      133388
+      128585
     ],
     "name": "Instincts of the Claw",
     "names": [
@@ -711,8 +720,7 @@
   {
     "id": 82233,
     "talentIds": [
-      108316,
-      108316
+      103311
     ],
     "name": "Lycara's Teachings",
     "names": [
@@ -729,7 +737,7 @@
   {
     "id": 104080,
     "talentIds": [
-      133387
+      128584
     ],
     "name": "Lore of the Grove",
     "names": [
@@ -745,7 +753,10 @@
   },
   {
     "id": 104079,
-    "talentIds": [],
+    "talentIds": [
+      128583,
+      128582
+    ],
     "name": "",
     "names": [
       ""
@@ -761,7 +772,7 @@
   {
     "id": 100175,
     "talentIds": [
-      128632
+      123794
     ],
     "name": "Gift of the Wild",
     "names": [
@@ -777,7 +788,10 @@
   },
   {
     "id": 82237,
-    "talentIds": [],
+    "talentIds": [
+      103316,
+      103315
+    ],
     "name": "",
     "names": [
       ""
@@ -793,7 +807,7 @@
   {
     "id": 100174,
     "talentIds": [
-      128631
+      123793
     ],
     "name": "Ursine Vigor",
     "names": [
@@ -810,7 +824,7 @@
   {
     "id": 82230,
     "talentIds": [
-      108313
+      103308
     ],
     "name": "Improved Stampeding Roar",
     "names": [
@@ -826,7 +840,10 @@
   },
   {
     "id": 104078,
-    "talentIds": [],
+    "talentIds": [
+      128580,
+      128579
+    ],
     "name": "",
     "names": [
       ""
@@ -842,7 +859,7 @@
   {
     "id": 92229,
     "talentIds": [
-      119305
+      114300
     ],
     "name": "Lycara's Inspiration",
     "names": [
@@ -859,7 +876,7 @@
   {
     "id": 100173,
     "talentIds": [
-      128630
+      123792
     ],
     "name": "Symbiotic Relationship",
     "names": [
@@ -876,8 +893,7 @@
   {
     "id": 82243,
     "talentIds": [
-      108328,
-      108328
+      103323
     ],
     "name": "Forestwalk",
     "names": [
@@ -894,7 +910,7 @@
   {
     "id": 82246,
     "talentIds": [
-      108331
+      103326
     ],
     "name": "Fluid Form",
     "names": [
@@ -911,7 +927,7 @@
   {
     "id": 82231,
     "talentIds": [
-      108314
+      103309
     ],
     "name": "Heart of the Wild",
     "names": [
@@ -928,7 +944,7 @@
   {
     "id": 82244,
     "talentIds": [
-      108329
+      103324
     ],
     "name": "Innervate",
     "names": [
@@ -945,7 +961,7 @@
   {
     "id": 82124,
     "talentIds": [
-      108193
+      103188
     ],
     "name": "Tiger's Fury",
     "names": [
@@ -962,7 +978,7 @@
   {
     "id": 94626,
     "talentIds": [
-      122238
+      117226
     ],
     "name": "Thriving Growth",
     "names": [
@@ -979,7 +995,7 @@
   {
     "id": 82123,
     "talentIds": [
-      108192
+      103187
     ],
     "name": "Omen of Clarity",
     "names": [
@@ -996,7 +1012,7 @@
   {
     "id": 82085,
     "talentIds": [
-      108149
+      103144
     ],
     "name": "Coiled to Spring",
     "names": [
@@ -1013,7 +1029,7 @@
   {
     "id": 82120,
     "talentIds": [
-      108189
+      103184
     ],
     "name": "Primal Wrath",
     "names": [
@@ -1030,7 +1046,7 @@
   {
     "id": 94629,
     "talentIds": [
-      122243
+      117231
     ],
     "name": "Hunt Beneath the Open Skies",
     "names": [
@@ -1047,7 +1063,7 @@
   {
     "id": 94623,
     "talentIds": [
-      122235
+      117223
     ],
     "name": "Strategic Infusion",
     "names": [
@@ -1064,7 +1080,7 @@
   {
     "id": 94621,
     "talentIds": [
-      122233
+      117221
     ],
     "name": "Wildstalker's Power",
     "names": [
@@ -1081,7 +1097,7 @@
   {
     "id": 109717,
     "talentIds": [
-      140730
+      135975
     ],
     "name": "Green Thumb",
     "names": [
@@ -1098,7 +1114,7 @@
   {
     "id": 82098,
     "talentIds": [
-      108164
+      103159
     ],
     "name": "Merciless Claws",
     "names": [
@@ -1115,7 +1131,7 @@
   {
     "id": 82122,
     "talentIds": [
-      108191
+      103186
     ],
     "name": "Predator",
     "names": [
@@ -1132,7 +1148,7 @@
   {
     "id": 82086,
     "talentIds": [
-      108150
+      103145
     ],
     "name": "Double-Clawed Rake",
     "names": [
@@ -1149,7 +1165,7 @@
   {
     "id": 94624,
     "talentIds": [
-      122236
+      117224
     ],
     "name": "Lethal Preservation",
     "names": [
@@ -1165,7 +1181,10 @@
   },
   {
     "id": 94622,
-    "talentIds": [],
+    "talentIds": [
+      117222,
+      119855
+    ],
     "name": "",
     "names": [
       ""
@@ -1180,7 +1199,10 @@
   },
   {
     "id": 94625,
-    "talentIds": [],
+    "talentIds": [
+      117225,
+      119854
+    ],
     "name": "",
     "names": [
       ""
@@ -1196,7 +1218,7 @@
   {
     "id": 109716,
     "talentIds": [
-      140729
+      135974
     ],
     "name": "Bursting Growth",
     "names": [
@@ -1213,7 +1235,7 @@
   {
     "id": 82102,
     "talentIds": [
-      108168
+      103163
     ],
     "name": "Sabertooth",
     "names": [
@@ -1230,8 +1252,7 @@
   {
     "id": 82121,
     "talentIds": [
-      108190,
-      108190
+      103185
     ],
     "name": "Tireless Energy",
     "names": [
@@ -1248,7 +1269,7 @@
   {
     "id": 82119,
     "talentIds": [
-      108188
+      103183
     ],
     "name": "Pouncing Strikes",
     "names": [
@@ -1264,7 +1285,10 @@
   },
   {
     "id": 94631,
-    "talentIds": [],
+    "talentIds": [
+      117234,
+      117233
+    ],
     "name": "",
     "names": [
       ""
@@ -1280,7 +1304,7 @@
   {
     "id": 94630,
     "talentIds": [
-      122244
+      117232
     ],
     "name": "Patient Custodian",
     "names": [
@@ -1296,7 +1320,10 @@
   },
   {
     "id": 94628,
-    "talentIds": [],
+    "talentIds": [
+      117230,
+      117229
+    ],
     "name": "",
     "names": [
       ""
@@ -1312,7 +1339,7 @@
   {
     "id": 109715,
     "talentIds": [
-      140728
+      135973
     ],
     "name": "Rampancy",
     "names": [
@@ -1329,7 +1356,7 @@
   {
     "id": 82104,
     "talentIds": [
-      108170
+      103165
     ],
     "name": "Taste for Blood",
     "names": [
@@ -1346,7 +1373,7 @@
   {
     "id": 82116,
     "talentIds": [
-      108185
+      103180
     ],
     "name": "Survival Instincts",
     "names": [
@@ -1363,7 +1390,7 @@
   {
     "id": 82118,
     "talentIds": [
-      108187
+      103182
     ],
     "name": "Dreadful Bleeding",
     "names": [
@@ -1380,7 +1407,7 @@
   {
     "id": 94627,
     "talentIds": [
-      122239
+      117227
     ],
     "name": "Vigorous Creepers",
     "names": [
@@ -1397,7 +1424,7 @@
   {
     "id": 92641,
     "talentIds": [
-      119778
+      114771
     ],
     "name": "Sudden Ambush",
     "names": [
@@ -1414,7 +1441,7 @@
   {
     "id": 82106,
     "talentIds": [
-      108172
+      103167
     ],
     "name": "Moment of Clarity",
     "names": [
@@ -1431,7 +1458,7 @@
   {
     "id": 82099,
     "talentIds": [
-      108165
+      103160
     ],
     "name": "Savage Fury",
     "names": [
@@ -1448,7 +1475,7 @@
   {
     "id": 82101,
     "talentIds": [
-      108167
+      103162
     ],
     "name": "Berserk",
     "names": [
@@ -1465,7 +1492,7 @@
   {
     "id": 82103,
     "talentIds": [
-      108169
+      103164
     ],
     "name": "Panther's Guile",
     "names": [
@@ -1482,7 +1509,7 @@
   {
     "id": 82117,
     "talentIds": [
-      108186
+      103181
     ],
     "name": "Rampant Ferocity",
     "names": [
@@ -1499,7 +1526,7 @@
   {
     "id": 82088,
     "talentIds": [
-      108152
+      103147
     ],
     "name": "Infected Wounds",
     "names": [
@@ -1516,7 +1543,7 @@
   {
     "id": 94609,
     "talentIds": [
-      122218
+      117206
     ],
     "name": "Ravage",
     "names": [
@@ -1532,7 +1559,10 @@
   },
   {
     "id": 82107,
-    "talentIds": [],
+    "talentIds": [
+      103169,
+      103168
+    ],
     "name": "",
     "names": [
       ""
@@ -1548,7 +1578,7 @@
   {
     "id": 82105,
     "talentIds": [
-      108171
+      103166
     ],
     "name": "Wild Slashes",
     "names": [
@@ -1565,7 +1595,7 @@
   {
     "id": 82100,
     "talentIds": [
-      108166
+      103161
     ],
     "name": "Berserk: Heart of the Lion",
     "names": [
@@ -1582,7 +1612,7 @@
   {
     "id": 82090,
     "talentIds": [
-      108154
+      103149
     ],
     "name": "Blood Spattered",
     "names": [
@@ -1599,7 +1629,7 @@
   {
     "id": 82091,
     "talentIds": [
-      108155
+      103150
     ],
     "name": "Soul of the Forest",
     "names": [
@@ -1616,7 +1646,7 @@
   {
     "id": 94618,
     "talentIds": [
-      122230
+      117218
     ],
     "name": "Fount of Strength",
     "names": [
@@ -1633,7 +1663,7 @@
   {
     "id": 94620,
     "talentIds": [
-      122232
+      117220
     ],
     "name": "Dreadful Wound",
     "names": [
@@ -1650,7 +1680,7 @@
   {
     "id": 94611,
     "talentIds": [
-      122220
+      117208
     ],
     "name": "Bestial Strength",
     "names": [
@@ -1667,7 +1697,7 @@
   {
     "id": 109722,
     "talentIds": [
-      140735
+      135980
     ],
     "name": "Limb from Limb",
     "names": [
@@ -1684,8 +1714,7 @@
   {
     "id": 82110,
     "talentIds": [
-      108178,
-      108178
+      103173
     ],
     "name": "Carnivorous Instinct",
     "names": [
@@ -1702,8 +1731,7 @@
   {
     "id": 82115,
     "talentIds": [
-      108184,
-      108184
+      103179
     ],
     "name": "Frantic Momentum",
     "names": [
@@ -1720,8 +1748,7 @@
   {
     "id": 82094,
     "talentIds": [
-      108160,
-      108160
+      103155
     ],
     "name": "Saber Jaws",
     "names": [
@@ -1738,7 +1765,7 @@
   {
     "id": 94610,
     "talentIds": [
-      122219
+      117207
     ],
     "name": "Wildshape Mastery",
     "names": [
@@ -1755,7 +1782,7 @@
   {
     "id": 94619,
     "talentIds": [
-      122231
+      117219
     ],
     "name": "Exacerbating Wounds",
     "names": [
@@ -1772,7 +1799,7 @@
   {
     "id": 94615,
     "talentIds": [
-      122227
+      117215
     ],
     "name": "Pack's Endurance",
     "names": [
@@ -1788,7 +1815,10 @@
   },
   {
     "id": 109723,
-    "talentIds": [],
+    "talentIds": [
+      135981,
+      136624
+    ],
     "name": "",
     "names": [
       ""
@@ -1804,7 +1834,7 @@
   {
     "id": 82109,
     "talentIds": [
-      108177
+      103172
     ],
     "name": "Apex Predator's Craving",
     "names": [
@@ -1821,7 +1851,7 @@
   {
     "id": 82112,
     "talentIds": [
-      108180
+      103175
     ],
     "name": "Feral Frenzy",
     "names": [
@@ -1837,7 +1867,10 @@
   },
   {
     "id": 82114,
-    "talentIds": [],
+    "talentIds": [
+      103178,
+      103177
+    ],
     "name": "",
     "names": [
       ""
@@ -1853,7 +1886,7 @@
   {
     "id": 82096,
     "talentIds": [
-      108162
+      103157
     ],
     "name": "Lacerating Claws",
     "names": [
@@ -1869,7 +1902,10 @@
   },
   {
     "id": 82093,
-    "talentIds": [],
+    "talentIds": [
+      103154,
+      103153
+    ],
     "name": "",
     "names": [
       ""
@@ -1884,7 +1920,10 @@
   },
   {
     "id": 94612,
-    "talentIds": [],
+    "talentIds": [
+      117210,
+      117209
+    ],
     "name": "",
     "names": [
       ""
@@ -1900,7 +1939,7 @@
   {
     "id": 94616,
     "talentIds": [
-      122228
+      117216
     ],
     "name": "Aggravate Wounds",
     "names": [
@@ -1916,7 +1955,10 @@
   },
   {
     "id": 94614,
-    "talentIds": [],
+    "talentIds": [
+      117214,
+      117213
+    ],
     "name": "",
     "names": [
       ""
@@ -1932,7 +1974,7 @@
   {
     "id": 109721,
     "talentIds": [
-      140734
+      135979
     ],
     "name": "Twin Claw",
     "names": [
@@ -1948,7 +1990,10 @@
   },
   {
     "id": 82108,
-    "talentIds": [],
+    "talentIds": [
+      103170,
+      134212
+    ],
     "name": "",
     "names": [
       ""
@@ -1963,7 +2008,10 @@
   },
   {
     "id": 82111,
-    "talentIds": [],
+    "talentIds": [
+      103174,
+      134211
+    ],
     "name": "",
     "names": [
       ""
@@ -1979,7 +2027,7 @@
   {
     "id": 82113,
     "talentIds": [
-      108181
+      103176
     ],
     "name": "Ashamane's Guidance",
     "names": [
@@ -1996,7 +2044,7 @@
   {
     "id": 82095,
     "talentIds": [
-      108161
+      103156
     ],
     "name": "Hunger for Battle",
     "names": [
@@ -2013,7 +2061,7 @@
   {
     "id": 82092,
     "talentIds": [
-      108157
+      103152
     ],
     "name": "Circle of Life and Death",
     "names": [
@@ -2030,7 +2078,7 @@
   {
     "id": 94613,
     "talentIds": [
-      122223
+      117211
     ],
     "name": "Claw Rampage",
     "names": [
@@ -2047,7 +2095,9 @@
   {
     "id": 110426,
     "talentIds": [
-      141809
+      137046,
+      137045,
+      137044
     ],
     "name": "Unseen Predator",
     "names": [

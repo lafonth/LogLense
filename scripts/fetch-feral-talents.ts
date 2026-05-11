@@ -65,76 +65,82 @@ async function bnetUrl<T>(token: string, url: string, label = url): Promise<T> {
 // Blizzard game data API. wago.tools exposes the raw DB2 table that maps
 // TraitNodeID (what Blizzard API gives us) → TraitNodeEntryID (what WCL records).
 
-const WAGO_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  Accept: 'text/csv,application/json,*/*',
-};
+function parseCsv(text: string): Map<number, number[]> {
+  const map = new Map<number, number[]>();
+  const lines = text.split('\n').filter((l) => l.trim());
+  if (lines.length < 2) return map;
+
+  const headers = lines[0].split(',').map((h) => h.trim().replace(/"/g, ''));
+  const nodeCol = headers.findIndex((h) => h === 'TraitNodeID');
+  const entryCol = headers.findIndex((h) => h === 'TraitNodeEntryID');
+  if (nodeCol === -1 || entryCol === -1) {
+    throw new Error(`Expected TraitNodeID and TraitNodeEntryID columns. Got: ${headers.join(',')}`);
+  }
+  for (const line of lines.slice(1)) {
+    const cols = line.split(',');
+    const nodeId = Number(cols[nodeCol]);
+    const entryId = Number(cols[entryCol]);
+    if (!nodeId || !entryId) continue;
+    const existing = map.get(nodeId);
+    if (existing) { if (!existing.includes(entryId)) existing.push(entryId); }
+    else map.set(nodeId, [entryId]);
+  }
+  return map;
+}
 
 async function fetchTraitNodeEntryMap(build: string): Promise<Map<number, number[]>> {
-  // Node ID → list of entry IDs (one per rank/choice within that node)
-  const map = new Map<number, number[]>();
-
-  console.log(`  Fetching TraitNodeXTraitNodeEntry from wago.tools (build ${build})…`);
-
-  // Try CSV first — bypasses Next.js SSR HTML response
-  const csvUrl = `https://wago.tools/db2/TraitNodeXTraitNodeEntry.csv?build=${build}`;
-  const csvRes = await fetch(csvUrl, { headers: WAGO_HEADERS });
-  const csvText = await csvRes.text();
-  const firstLine = csvText.trimStart().slice(0, 80);
-  console.log(`  CSV response status=${csvRes.status} first80: ${firstLine}`);
-
-  if (csvRes.ok && !csvText.trimStart().startsWith('<')) {
-    // CSV format: ID,TraitNodeID,TraitNodeEntryID,... (header on first line)
-    const lines = csvText.split('\n').filter((l) => l.trim());
-    const headers = lines[0].split(',');
-    const nodeCol = headers.findIndex((h) => h.trim() === 'TraitNodeID');
-    const entryCol = headers.findIndex((h) => h.trim() === 'TraitNodeEntryID');
-    if (nodeCol === -1 || entryCol === -1) {
-      throw new Error(`CSV headers not found. Got: ${headers.join(',')}`);
+  // 1. Check for a manually downloaded local CSV first
+  const localPath = resolve(process.cwd(), 'scripts/TraitNodeXTraitNodeEntry.csv');
+  try {
+    const text = readFileSync(localPath, 'utf8');
+    const map = parseCsv(text);
+    if (map.size > 0) {
+      console.log(`  Using local CSV (${map.size} nodes): ${localPath}`);
+      return map;
     }
-    for (const line of lines.slice(1)) {
-      const cols = line.split(',');
-      const nodeId = Number(cols[nodeCol]);
-      const entryId = Number(cols[entryCol]);
-      if (!nodeId || !entryId) continue;
-      const existing = map.get(nodeId);
-      if (existing) { if (!existing.includes(entryId)) existing.push(entryId); }
-      else map.set(nodeId, [entryId]);
-    }
-    console.log(`  Parsed ${map.size} nodes from CSV`);
-    return map;
+  } catch {
+    // file doesn't exist — fall through to remote fetch
   }
 
-  // Fallback: JSON API
-  console.log(`  CSV failed or returned HTML, trying JSON API…`);
-  let page = 1;
-  while (true) {
-    const url = `https://wago.tools/db2/TraitNodeXTraitNodeEntry?build=${build}&locale=enUS&page=${page}`;
-    const res = await fetch(url, { headers: { ...WAGO_HEADERS, Accept: 'application/json' } });
-    const text = await res.text();
-    if (!res.ok || text.trimStart().startsWith('<')) {
-      console.error(`  JSON API failed. status=${res.status} first80=${text.slice(0, 80)}`);
-      break;
+  // 2. Try remote sources (both are often blocked by bot protection)
+  const candidates = [
+    `https://wow.tools/dbc/download/csv/?name=TraitNodeXTraitNodeEntry&build=${build}`,
+    `https://wow.tools/dbc/download/csv/?name=traitnodextraitnodeentry&build=${build}`,
+    `https://wago.tools/db2/TraitNodeXTraitNodeEntry.csv?build=${build}`,
+  ];
+
+  for (const url of candidates) {
+    console.log(`  Trying: ${url}`);
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; talent-data-fetcher)',
+          Accept: 'text/csv,text/plain,*/*',
+        },
+      });
+      const text = await res.text();
+      console.log(`  → status=${res.status} content-type=${res.headers.get('content-type')} first60=${text.slice(0, 60).replace(/\n/g, '↵')}`);
+      if (!res.ok || text.trimStart().startsWith('<')) continue;
+
+      const map = parseCsv(text);
+      if (map.size > 0) {
+        console.log(`  Parsed ${map.size} nodes from CSV`);
+        return map;
+      }
+    } catch (e) {
+      console.log(`  → error: ${(e as Error).message}`);
     }
-    const data = JSON.parse(text) as {
-      records?: Array<{ TraitNodeID: number; TraitNodeEntryID: number }>;
-      data?: Array<{ TraitNodeID: number; TraitNodeEntryID: number }>;
-    };
-    const records = data.records ?? data.data ?? [];
-    if (records.length === 0) break;
-    for (const r of records) {
-      const existing = map.get(r.TraitNodeID);
-      if (existing) { if (!existing.includes(r.TraitNodeEntryID)) existing.push(r.TraitNodeEntryID); }
-      else map.set(r.TraitNodeID, [r.TraitNodeEntryID]);
-    }
-    if (records.length < 100) break;
-    page++;
   }
 
-  if (map.size === 0) throw new Error('Could not fetch TraitNodeXTraitNodeEntry from wago.tools — try visiting https://wago.tools/db2/TraitNodeXTraitNodeEntry in a browser to confirm the data exists for this build');
-
-  console.log(`  Got entry map: ${map.size} nodes`);
-  return map;
+  throw new Error(
+    `Could not fetch TraitNodeXTraitNodeEntry (build ${build}).\n\n` +
+    'Manual download steps:\n' +
+    '  1. Open in a browser: https://wago.tools/db2/TraitNodeXTraitNodeEntry\n' +
+    `  2. Select build ${build} from the dropdown (or the closest available)\n` +
+    '  3. Click the CSV download button\n' +
+    '  4. Save to: scripts/TraitNodeXTraitNodeEntry.csv\n' +
+    '  5. Re-run: npx tsx scripts/fetch-feral-talents.ts'
+  );
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
