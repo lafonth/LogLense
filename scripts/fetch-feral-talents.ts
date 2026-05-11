@@ -100,42 +100,17 @@ interface TalentNode {
 
 async function main() {
   const token = await getToken();
-  console.log(`Token acquired (length ${token.length})`);
 
-  // Sanity check with a known static endpoint
-  const classes = await bnet<{ classes: { id: number; name: string }[] }>(token, `/data/wow/playable-class/index`);
-  console.log(`API healthy — classes: ${classes.classes.map((c) => c.name).join(', ')}`);
+  // Fetch Feral spec to get the spec_talent_tree href
+  const spec = await bnet<{ spec_talent_tree?: { key: { href: string }; id?: number } }>(
+    token,
+    `/data/wow/playable-specialization/${FERAL_SPEC_ID}`
+  );
 
-  // Druid is class 11. Get its spec list to find the talent tree link.
-  const druid = await bnet<{
-    specializations?: Array<{ id: number; name: string; key: { href: string } }>;
-  }>(token, `/data/wow/playable-class/11`);
-  console.log(`Druid specs:`, JSON.stringify(druid.specializations?.map((s) => ({ id: s.id, name: s.name }))));
+  const treeHref = spec.spec_talent_tree?.key?.href;
+  if (!treeHref) throw new Error('spec_talent_tree href not found in spec response');
 
-  // Fetch Feral spec to get the talent_tree href
-  const spec = await bnet<Record<string, unknown>>(token, `/data/wow/playable-specialization/${FERAL_SPEC_ID}`);
-  console.log(`Feral spec keys:`, Object.keys(spec));
-  console.log(`Feral spec raw:`, JSON.stringify(spec).slice(0, 500));
-
-  // Extract talent tree ID from spec_talent_tree.key.href
-  type SpecWithTree = { spec_talent_tree?: { key: { href: string }; id?: number } };
-  const specTyped = spec as SpecWithTree;
-  let treeId: number | undefined = specTyped.spec_talent_tree?.id;
-
-  if (!treeId) {
-    const href = specTyped.spec_talent_tree?.key?.href ?? '';
-    const match = /talent-tree\/(\d+)/.exec(href);
-    if (match) treeId = Number(match[1]);
-  }
-
-  if (!treeId) throw new Error(`Could not find talent tree ID. spec_talent_tree field: ${JSON.stringify(specTyped.spec_talent_tree)}`);
-  console.log(`Found talent tree ID: ${treeId}`);
-
-  // Follow the href directly from the spec response instead of constructing the URL
-  const treeHref = specTyped.spec_talent_tree?.key?.href ?? '';
-  const tree = await bnetUrl<BlizzardTalentTree & Record<string, unknown>>(token, treeHref, `/talent-tree/${treeId}`);
-  console.log(`Tree keys:`, Object.keys(tree));
-  console.log(`Tree raw (500 chars):`, JSON.stringify(tree).slice(0, 500));
+  const tree = await bnetUrl<BlizzardTalentTree>(token, treeHref, 'talent-tree');
 
   function transformNodes(nodes: BlizzardNode[], treeType: 'class' | 'spec'): TalentNode[] {
     const parentToChildren = new Map<number, number[]>();

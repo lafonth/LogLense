@@ -1,1 +1,2064 @@
-[]
+[
+  {
+    "id": 99805,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 1,
+    "col": 13,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82199,
+    "talentIds": [
+      108282
+    ],
+    "name": "Rake",
+    "names": [
+      "Rake"
+    ],
+    "spellId": 1822,
+    "row": 2,
+    "col": 3,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82220,
+    "talentIds": [
+      108303
+    ],
+    "name": "Frenzied Regeneration",
+    "names": [
+      "Frenzied Regeneration"
+    ],
+    "spellId": 22842,
+    "row": 2,
+    "col": 5,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82217,
+    "talentIds": [
+      108300
+    ],
+    "name": "Rejuvenation",
+    "names": [
+      "Rejuvenation"
+    ],
+    "spellId": 774,
+    "row": 2,
+    "col": 7,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 91044,
+    "talentIds": [
+      117972
+    ],
+    "name": "Starfire",
+    "names": [
+      "Starfire"
+    ],
+    "spellId": 197628,
+    "row": 2,
+    "col": 9,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 91046,
+    "talentIds": [
+      117974
+    ],
+    "name": "Starfire",
+    "names": [
+      "Starfire"
+    ],
+    "spellId": 197628,
+    "row": 2,
+    "col": 9,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82239,
+    "talentIds": [
+      108323
+    ],
+    "name": "Grievous Wounds",
+    "names": [
+      "Grievous Wounds"
+    ],
+    "spellId": 474526,
+    "row": 3,
+    "col": 2,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82223,
+    "talentIds": [
+      108306
+    ],
+    "name": "Swipe",
+    "names": [
+      "Swipe"
+    ],
+    "spellId": 213764,
+    "row": 3,
+    "col": 4,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82219,
+    "talentIds": [
+      108302
+    ],
+    "name": "Ursoc's Spirit",
+    "names": [
+      "Ursoc's Spirit"
+    ],
+    "spellId": 449182,
+    "row": 3,
+    "col": 6,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82205,
+    "talentIds": [
+      108288
+    ],
+    "name": "Wild Growth",
+    "names": [
+      "Wild Growth"
+    ],
+    "spellId": 48438,
+    "row": 3,
+    "col": 8,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82200,
+    "talentIds": [
+      108283
+    ],
+    "name": "Starsurge",
+    "names": [
+      "Starsurge"
+    ],
+    "spellId": 197626,
+    "row": 3,
+    "col": 10,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82222,
+    "talentIds": [
+      108305
+    ],
+    "name": "Rip",
+    "names": [
+      "Rip"
+    ],
+    "spellId": 1079,
+    "row": 4,
+    "col": 3,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82218,
+    "talentIds": [
+      108301
+    ],
+    "name": "Verdant Heart",
+    "names": [
+      "Verdant Heart"
+    ],
+    "spellId": 301768,
+    "row": 4,
+    "col": 5,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82241,
+    "talentIds": [
+      108325
+    ],
+    "name": "Remove Corruption",
+    "names": [
+      "Remove Corruption"
+    ],
+    "spellId": 2782,
+    "row": 4,
+    "col": 7,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82208,
+    "talentIds": [
+      108291
+    ],
+    "name": "Moonkin Form",
+    "names": [
+      "Moonkin Form"
+    ],
+    "spellId": 24858,
+    "row": 4,
+    "col": 9,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 91047,
+    "talentIds": [
+      117975
+    ],
+    "name": "Moonkin Form",
+    "names": [
+      "Moonkin Form"
+    ],
+    "spellId": 197625,
+    "row": 4,
+    "col": 9,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82221,
+    "talentIds": [
+      108304
+    ],
+    "name": "Maim",
+    "names": [
+      "Maim"
+    ],
+    "spellId": 22570,
+    "row": 5,
+    "col": 2,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82225,
+    "talentIds": [
+      108308,
+      108308
+    ],
+    "name": "Killer Instinct",
+    "names": [
+      "Killer Instinct"
+    ],
+    "spellId": 108299,
+    "row": 5,
+    "col": 4,
+    "maxRanks": 2,
+    "nodeType": "rankable",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82227,
+    "talentIds": [
+      108310
+    ],
+    "name": "Ironfur",
+    "names": [
+      "Ironfur"
+    ],
+    "spellId": 192081,
+    "row": 5,
+    "col": 5,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 104085,
+    "talentIds": [
+      133394
+    ],
+    "name": "Improved Barkskin",
+    "names": [
+      "Improved Barkskin"
+    ],
+    "spellId": 327993,
+    "row": 5,
+    "col": 6,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82211,
+    "talentIds": [
+      108294
+    ],
+    "name": "Hibernate",
+    "names": [
+      "Hibernate"
+    ],
+    "spellId": 2637,
+    "row": 5,
+    "col": 7,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82214,
+    "talentIds": [
+      108297,
+      108297
+    ],
+    "name": "Nurturing Instinct",
+    "names": [
+      "Nurturing Instinct"
+    ],
+    "spellId": 33873,
+    "row": 5,
+    "col": 8,
+    "maxRanks": 2,
+    "nodeType": "rankable",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 93714,
+    "talentIds": [
+      121114
+    ],
+    "name": "Sunfire",
+    "names": [
+      "Sunfire"
+    ],
+    "spellId": 93402,
+    "row": 5,
+    "col": 10,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82224,
+    "talentIds": [
+      108307
+    ],
+    "name": "Primal Fury",
+    "names": [
+      "Primal Fury"
+    ],
+    "spellId": 159286,
+    "row": 6,
+    "col": 3,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82228,
+    "talentIds": [
+      108311
+    ],
+    "name": "Thick Hide",
+    "names": [
+      "Thick Hide"
+    ],
+    "spellId": 16931,
+    "row": 6,
+    "col": 5,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82242,
+    "talentIds": [
+      108327
+    ],
+    "name": "Skull Bash",
+    "names": [
+      "Skull Bash"
+    ],
+    "spellId": 106839,
+    "row": 6,
+    "col": 6,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82206,
+    "talentIds": [
+      108289
+    ],
+    "name": "Natural Recovery",
+    "names": [
+      "Natural Recovery"
+    ],
+    "spellId": 377796,
+    "row": 6,
+    "col": 7,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82210,
+    "talentIds": [
+      108293
+    ],
+    "name": "Astral Influence",
+    "names": [
+      "Astral Influence"
+    ],
+    "spellId": 197524,
+    "row": 6,
+    "col": 9,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82198,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 7,
+    "col": 4,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82229,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 7,
+    "col": 6,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82232,
+    "talentIds": [
+      133384
+    ],
+    "name": "Aessina's Renewal",
+    "names": [
+      "Aessina's Renewal"
+    ],
+    "spellId": 474678,
+    "row": 7,
+    "col": 8,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 100223,
+    "talentIds": [
+      128706
+    ],
+    "name": "Starlight Conduit",
+    "names": [
+      "Starlight Conduit"
+    ],
+    "spellId": 451211,
+    "row": 7,
+    "col": 10,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82236,
+    "talentIds": [
+      108319
+    ],
+    "name": "Feline Swiftness",
+    "names": [
+      "Feline Swiftness"
+    ],
+    "spellId": 131768,
+    "row": 8,
+    "col": 3,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82235,
+    "talentIds": [
+      108318
+    ],
+    "name": "Well-Honed Instincts",
+    "names": [
+      "Well-Honed Instincts"
+    ],
+    "spellId": 377847,
+    "row": 8,
+    "col": 4,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 100177,
+    "talentIds": [
+      128634,
+      128634
+    ],
+    "name": "Matted Fur",
+    "names": [
+      "Matted Fur"
+    ],
+    "spellId": 385786,
+    "row": 8,
+    "col": 5,
+    "maxRanks": 2,
+    "nodeType": "rankable",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82234,
+    "talentIds": [
+      108317
+    ],
+    "name": "Stampeding Roar",
+    "names": [
+      "Stampeding Roar"
+    ],
+    "spellId": 106898,
+    "row": 8,
+    "col": 6,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82240,
+    "talentIds": [
+      108324
+    ],
+    "name": "Lingering Healing",
+    "names": [
+      "Lingering Healing"
+    ],
+    "spellId": 231040,
+    "row": 8,
+    "col": 7,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82209,
+    "talentIds": [
+      108292
+    ],
+    "name": "Typhoon",
+    "names": [
+      "Typhoon"
+    ],
+    "spellId": 132469,
+    "row": 8,
+    "col": 8,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82207,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 8,
+    "col": 9,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 100176,
+    "talentIds": [
+      128633
+    ],
+    "name": "Oakskin",
+    "names": [
+      "Oakskin"
+    ],
+    "spellId": 449191,
+    "row": 9,
+    "col": 3,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 104082,
+    "talentIds": [
+      133389
+    ],
+    "name": "Perfectly-Honed Instincts",
+    "names": [
+      "Perfectly-Honed Instincts"
+    ],
+    "spellId": 1213597,
+    "row": 9,
+    "col": 4,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 104081,
+    "talentIds": [
+      133388
+    ],
+    "name": "Instincts of the Claw",
+    "names": [
+      "Instincts of the Claw"
+    ],
+    "spellId": 449184,
+    "row": 9,
+    "col": 5,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82233,
+    "talentIds": [
+      108316,
+      108316
+    ],
+    "name": "Lycara's Teachings",
+    "names": [
+      "Lycara's Teachings"
+    ],
+    "spellId": 378988,
+    "row": 9,
+    "col": 6,
+    "maxRanks": 2,
+    "nodeType": "rankable",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 104080,
+    "talentIds": [
+      133387
+    ],
+    "name": "Lore of the Grove",
+    "names": [
+      "Lore of the Grove"
+    ],
+    "spellId": 449185,
+    "row": 9,
+    "col": 7,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 104079,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 9,
+    "col": 8,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 100175,
+    "talentIds": [
+      128632
+    ],
+    "name": "Gift of the Wild",
+    "names": [
+      "Gift of the Wild"
+    ],
+    "spellId": 1262034,
+    "row": 9,
+    "col": 9,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82237,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 10,
+    "col": 2,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 100174,
+    "talentIds": [
+      128631
+    ],
+    "name": "Ursine Vigor",
+    "names": [
+      "Ursine Vigor"
+    ],
+    "spellId": 377842,
+    "row": 10,
+    "col": 4,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82230,
+    "talentIds": [
+      108313
+    ],
+    "name": "Improved Stampeding Roar",
+    "names": [
+      "Improved Stampeding Roar"
+    ],
+    "spellId": 288826,
+    "row": 10,
+    "col": 5,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 104078,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 10,
+    "col": 6,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 92229,
+    "talentIds": [
+      119305
+    ],
+    "name": "Lycara's Inspiration",
+    "names": [
+      "Lycara's Inspiration"
+    ],
+    "spellId": 1232897,
+    "row": 10,
+    "col": 7,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 100173,
+    "talentIds": [
+      128630
+    ],
+    "name": "Symbiotic Relationship",
+    "names": [
+      "Symbiotic Relationship"
+    ],
+    "spellId": 474750,
+    "row": 10,
+    "col": 8,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82243,
+    "talentIds": [
+      108328,
+      108328
+    ],
+    "name": "Forestwalk",
+    "names": [
+      "Forestwalk"
+    ],
+    "spellId": 400129,
+    "row": 10,
+    "col": 10,
+    "maxRanks": 2,
+    "nodeType": "rankable",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82246,
+    "talentIds": [
+      108331
+    ],
+    "name": "Fluid Form",
+    "names": [
+      "Fluid Form"
+    ],
+    "spellId": 449193,
+    "row": 11,
+    "col": 3,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82231,
+    "talentIds": [
+      108314
+    ],
+    "name": "Heart of the Wild",
+    "names": [
+      "Heart of the Wild"
+    ],
+    "spellId": 1261867,
+    "row": 11,
+    "col": 6,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82244,
+    "talentIds": [
+      108329
+    ],
+    "name": "Innervate",
+    "names": [
+      "Innervate"
+    ],
+    "spellId": 29166,
+    "row": 11,
+    "col": 9,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "class",
+    "children": []
+  },
+  {
+    "id": 82124,
+    "talentIds": [
+      108193
+    ],
+    "name": "Tiger's Fury",
+    "names": [
+      "Tiger's Fury"
+    ],
+    "spellId": 5217,
+    "row": 2,
+    "col": 20,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94626,
+    "talentIds": [
+      122238
+    ],
+    "name": "Thriving Growth",
+    "names": [
+      "Thriving Growth"
+    ],
+    "spellId": 439528,
+    "row": 2,
+    "col": 26,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82123,
+    "talentIds": [
+      108192
+    ],
+    "name": "Omen of Clarity",
+    "names": [
+      "Omen of Clarity"
+    ],
+    "spellId": 16864,
+    "row": 3,
+    "col": 19,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82085,
+    "talentIds": [
+      108149
+    ],
+    "name": "Coiled to Spring",
+    "names": [
+      "Coiled to Spring"
+    ],
+    "spellId": 449537,
+    "row": 3,
+    "col": 20,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82120,
+    "talentIds": [
+      108189
+    ],
+    "name": "Primal Wrath",
+    "names": [
+      "Primal Wrath"
+    ],
+    "spellId": 285381,
+    "row": 3,
+    "col": 21,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94629,
+    "talentIds": [
+      122243
+    ],
+    "name": "Hunt Beneath the Open Skies",
+    "names": [
+      "Hunt Beneath the Open Skies"
+    ],
+    "spellId": 439868,
+    "row": 3,
+    "col": 24,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94623,
+    "talentIds": [
+      122235
+    ],
+    "name": "Strategic Infusion",
+    "names": [
+      "Strategic Infusion"
+    ],
+    "spellId": 439890,
+    "row": 3,
+    "col": 25,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94621,
+    "talentIds": [
+      122233
+    ],
+    "name": "Wildstalker's Power",
+    "names": [
+      "Wildstalker's Power"
+    ],
+    "spellId": 439926,
+    "row": 3,
+    "col": 26,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 109717,
+    "talentIds": [
+      140730
+    ],
+    "name": "Green Thumb",
+    "names": [
+      "Green Thumb"
+    ],
+    "spellId": 1270565,
+    "row": 3,
+    "col": 27,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82098,
+    "talentIds": [
+      108164
+    ],
+    "name": "Merciless Claws",
+    "names": [
+      "Merciless Claws"
+    ],
+    "spellId": 231063,
+    "row": 4,
+    "col": 18,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82122,
+    "talentIds": [
+      108191
+    ],
+    "name": "Predator",
+    "names": [
+      "Predator"
+    ],
+    "spellId": 202021,
+    "row": 4,
+    "col": 20,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82086,
+    "talentIds": [
+      108150
+    ],
+    "name": "Double-Clawed Rake",
+    "names": [
+      "Double-Clawed Rake"
+    ],
+    "spellId": 391700,
+    "row": 4,
+    "col": 22,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94624,
+    "talentIds": [
+      122236
+    ],
+    "name": "Lethal Preservation",
+    "names": [
+      "Lethal Preservation"
+    ],
+    "spellId": 455461,
+    "row": 4,
+    "col": 24,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94622,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 4,
+    "col": 25,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94625,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 4,
+    "col": 26,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 109716,
+    "talentIds": [
+      140729
+    ],
+    "name": "Bursting Growth",
+    "names": [
+      "Bursting Growth"
+    ],
+    "spellId": 440120,
+    "row": 4,
+    "col": 27,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82102,
+    "talentIds": [
+      108168
+    ],
+    "name": "Sabertooth",
+    "names": [
+      "Sabertooth"
+    ],
+    "spellId": 202031,
+    "row": 5,
+    "col": 19,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82121,
+    "talentIds": [
+      108190,
+      108190
+    ],
+    "name": "Tireless Energy",
+    "names": [
+      "Tireless Energy"
+    ],
+    "spellId": 383352,
+    "row": 5,
+    "col": 20,
+    "maxRanks": 2,
+    "nodeType": "rankable",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82119,
+    "talentIds": [
+      108188
+    ],
+    "name": "Pouncing Strikes",
+    "names": [
+      "Pouncing Strikes"
+    ],
+    "spellId": 390772,
+    "row": 5,
+    "col": 21,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94631,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 5,
+    "col": 24,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94630,
+    "talentIds": [
+      122244
+    ],
+    "name": "Patient Custodian",
+    "names": [
+      "Patient Custodian"
+    ],
+    "spellId": 1270592,
+    "row": 5,
+    "col": 25,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94628,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 5,
+    "col": 26,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 109715,
+    "talentIds": [
+      140728
+    ],
+    "name": "Rampancy",
+    "names": [
+      "Rampancy"
+    ],
+    "spellId": 1270586,
+    "row": 5,
+    "col": 27,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82104,
+    "talentIds": [
+      108170
+    ],
+    "name": "Taste for Blood",
+    "names": [
+      "Taste for Blood"
+    ],
+    "spellId": 384665,
+    "row": 6,
+    "col": 18,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82116,
+    "talentIds": [
+      108185
+    ],
+    "name": "Survival Instincts",
+    "names": [
+      "Survival Instincts"
+    ],
+    "spellId": 61336,
+    "row": 6,
+    "col": 20,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82118,
+    "talentIds": [
+      108187
+    ],
+    "name": "Dreadful Bleeding",
+    "names": [
+      "Dreadful Bleeding"
+    ],
+    "spellId": 391045,
+    "row": 6,
+    "col": 22,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94627,
+    "talentIds": [
+      122239
+    ],
+    "name": "Vigorous Creepers",
+    "names": [
+      "Vigorous Creepers"
+    ],
+    "spellId": 440119,
+    "row": 6,
+    "col": 26,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 92641,
+    "talentIds": [
+      119778
+    ],
+    "name": "Sudden Ambush",
+    "names": [
+      "Sudden Ambush"
+    ],
+    "spellId": 384667,
+    "row": 7,
+    "col": 17,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82106,
+    "talentIds": [
+      108172
+    ],
+    "name": "Moment of Clarity",
+    "names": [
+      "Moment of Clarity"
+    ],
+    "spellId": 236068,
+    "row": 7,
+    "col": 18,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82099,
+    "talentIds": [
+      108165
+    ],
+    "name": "Savage Fury",
+    "names": [
+      "Savage Fury"
+    ],
+    "spellId": 449645,
+    "row": 7,
+    "col": 19,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82101,
+    "talentIds": [
+      108167
+    ],
+    "name": "Berserk",
+    "names": [
+      "Berserk"
+    ],
+    "spellId": 106951,
+    "row": 7,
+    "col": 20,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82103,
+    "talentIds": [
+      108169
+    ],
+    "name": "Panther's Guile",
+    "names": [
+      "Panther's Guile"
+    ],
+    "spellId": 1280316,
+    "row": 7,
+    "col": 21,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82117,
+    "talentIds": [
+      108186
+    ],
+    "name": "Rampant Ferocity",
+    "names": [
+      "Rampant Ferocity"
+    ],
+    "spellId": 391709,
+    "row": 7,
+    "col": 22,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82088,
+    "talentIds": [
+      108152
+    ],
+    "name": "Infected Wounds",
+    "names": [
+      "Infected Wounds"
+    ],
+    "spellId": 48484,
+    "row": 7,
+    "col": 23,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94609,
+    "talentIds": [
+      122218
+    ],
+    "name": "Ravage",
+    "names": [
+      "Ravage"
+    ],
+    "spellId": 441583,
+    "row": 8,
+    "col": 2,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82107,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 8,
+    "col": 17,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82105,
+    "talentIds": [
+      108171
+    ],
+    "name": "Wild Slashes",
+    "names": [
+      "Wild Slashes"
+    ],
+    "spellId": 390864,
+    "row": 8,
+    "col": 19,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82100,
+    "talentIds": [
+      108166
+    ],
+    "name": "Berserk: Heart of the Lion",
+    "names": [
+      "Berserk: Heart of the Lion"
+    ],
+    "spellId": 391174,
+    "row": 8,
+    "col": 20,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82090,
+    "talentIds": [
+      108154
+    ],
+    "name": "Blood Spattered",
+    "names": [
+      "Blood Spattered"
+    ],
+    "spellId": 1244532,
+    "row": 8,
+    "col": 21,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82091,
+    "talentIds": [
+      108155
+    ],
+    "name": "Soul of the Forest",
+    "names": [
+      "Soul of the Forest"
+    ],
+    "spellId": 158476,
+    "row": 8,
+    "col": 23,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94618,
+    "talentIds": [
+      122230
+    ],
+    "name": "Fount of Strength",
+    "names": [
+      "Fount of Strength"
+    ],
+    "spellId": 441675,
+    "row": 9,
+    "col": 1,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94620,
+    "talentIds": [
+      122232
+    ],
+    "name": "Dreadful Wound",
+    "names": [
+      "Dreadful Wound"
+    ],
+    "spellId": 441809,
+    "row": 9,
+    "col": 2,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94611,
+    "talentIds": [
+      122220
+    ],
+    "name": "Bestial Strength",
+    "names": [
+      "Bestial Strength"
+    ],
+    "spellId": 441841,
+    "row": 9,
+    "col": 3,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 109722,
+    "talentIds": [
+      140735
+    ],
+    "name": "Limb from Limb",
+    "names": [
+      "Limb from Limb"
+    ],
+    "spellId": 1271540,
+    "row": 9,
+    "col": 4,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82110,
+    "talentIds": [
+      108178,
+      108178
+    ],
+    "name": "Carnivorous Instinct",
+    "names": [
+      "Carnivorous Instinct"
+    ],
+    "spellId": 390902,
+    "row": 9,
+    "col": 18,
+    "maxRanks": 2,
+    "nodeType": "rankable",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82115,
+    "talentIds": [
+      108184,
+      108184
+    ],
+    "name": "Frantic Momentum",
+    "names": [
+      "Frantic Momentum"
+    ],
+    "spellId": 391875,
+    "row": 9,
+    "col": 20,
+    "maxRanks": 2,
+    "nodeType": "rankable",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82094,
+    "talentIds": [
+      108160,
+      108160
+    ],
+    "name": "Saber Jaws",
+    "names": [
+      "Saber Jaws"
+    ],
+    "spellId": 421432,
+    "row": 9,
+    "col": 22,
+    "maxRanks": 2,
+    "nodeType": "rankable",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94610,
+    "talentIds": [
+      122219
+    ],
+    "name": "Wildshape Mastery",
+    "names": [
+      "Wildshape Mastery"
+    ],
+    "spellId": 441678,
+    "row": 10,
+    "col": 1,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94619,
+    "talentIds": [
+      122231
+    ],
+    "name": "Exacerbating Wounds",
+    "names": [
+      "Exacerbating Wounds"
+    ],
+    "spellId": 1271839,
+    "row": 10,
+    "col": 2,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94615,
+    "talentIds": [
+      122227
+    ],
+    "name": "Pack's Endurance",
+    "names": [
+      "Pack's Endurance"
+    ],
+    "spellId": 441844,
+    "row": 10,
+    "col": 3,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 109723,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 10,
+    "col": 4,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82109,
+    "talentIds": [
+      108177
+    ],
+    "name": "Apex Predator's Craving",
+    "names": [
+      "Apex Predator's Craving"
+    ],
+    "spellId": 391881,
+    "row": 10,
+    "col": 17,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82112,
+    "talentIds": [
+      108180
+    ],
+    "name": "Feral Frenzy",
+    "names": [
+      "Feral Frenzy"
+    ],
+    "spellId": 274837,
+    "row": 10,
+    "col": 19,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82114,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 10,
+    "col": 20,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82096,
+    "talentIds": [
+      108162
+    ],
+    "name": "Lacerating Claws",
+    "names": [
+      "Lacerating Claws"
+    ],
+    "spellId": 1244632,
+    "row": 10,
+    "col": 21,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82093,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 10,
+    "col": 23,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94612,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 11,
+    "col": 1,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94616,
+    "talentIds": [
+      122228
+    ],
+    "name": "Aggravate Wounds",
+    "names": [
+      "Aggravate Wounds"
+    ],
+    "spellId": 441829,
+    "row": 11,
+    "col": 2,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94614,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 11,
+    "col": 3,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 109721,
+    "talentIds": [
+      140734
+    ],
+    "name": "Twin Claw",
+    "names": [
+      "Twin Claw"
+    ],
+    "spellId": 1271635,
+    "row": 11,
+    "col": 4,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82108,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 11,
+    "col": 18,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82111,
+    "talentIds": [],
+    "name": "",
+    "names": [
+      ""
+    ],
+    "spellId": 0,
+    "row": 11,
+    "col": 19,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82113,
+    "talentIds": [
+      108181
+    ],
+    "name": "Ashamane's Guidance",
+    "names": [
+      "Ashamane's Guidance"
+    ],
+    "spellId": 391548,
+    "row": 11,
+    "col": 20,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82095,
+    "talentIds": [
+      108161
+    ],
+    "name": "Hunger for Battle",
+    "names": [
+      "Hunger for Battle"
+    ],
+    "spellId": 1244547,
+    "row": 11,
+    "col": 21,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 82092,
+    "talentIds": [
+      108157
+    ],
+    "name": "Circle of Life and Death",
+    "names": [
+      "Circle of Life and Death"
+    ],
+    "spellId": 400320,
+    "row": 11,
+    "col": 22,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 94613,
+    "talentIds": [
+      122223
+    ],
+    "name": "Claw Rampage",
+    "names": [
+      "Claw Rampage"
+    ],
+    "spellId": 441835,
+    "row": 12,
+    "col": 2,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  },
+  {
+    "id": 110426,
+    "talentIds": [
+      141809
+    ],
+    "name": "Unseen Predator",
+    "names": [
+      "Unseen Predator"
+    ],
+    "spellId": 1263657,
+    "row": 12,
+    "col": 20,
+    "maxRanks": 1,
+    "nodeType": "single",
+    "treeType": "spec",
+    "children": []
+  }
+]
