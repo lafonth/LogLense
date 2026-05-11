@@ -1,7 +1,7 @@
 'use client';
 
-import type { AnalysisInput, Encounter, Zone } from '@/types';
-import { useEffect, useState } from 'react';
+import type { AnalysisInput, Zone } from '@/types';
+import { useState } from 'react';
 import { EncounterSelector } from './EncounterSelector';
 
 interface CharacterFormProps {
@@ -57,26 +57,26 @@ export function CharacterForm({
   const [serverSlug, setServerSlug] = useState(defaultServer);
   const [region, setRegion] = useState<AnalysisInput['region']>(defaultRegion);
   const [difficulty, setDifficulty] = useState<AnalysisInput['difficulty']>(defaultDifficulty);
-  const [encounters, setEncounters] = useState<Encounter[]>([]);
-
+  // null = "all bosses in zone"; set = user explicitly toggled some off
+  const [selectedEncounterIds, setSelectedEncounterIds] = useState<Set<number> | null>(null);
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (zones.length > 0 && selectedZoneId === null) {
-      setSelectedZoneId(zones[0].id);
-      setEncounters(zones[0].encounters);
-    }
-  }, [zones, selectedZoneId]);
+  // Derive active zone without an effect — falls back to first zone when none selected
+  const activeZoneId = selectedZoneId ?? zones[0]?.id ?? null;
+  const currentZone = zones.find((z) => z.id === activeZoneId) ?? null;
+  const encounters =
+    selectedEncounterIds === null
+      ? (currentZone?.encounters ?? [])
+      : (currentZone?.encounters ?? []).filter((e) => selectedEncounterIds.has(e.id));
 
   function handleZoneChange(zoneId: number) {
     setSelectedZoneId(zoneId);
-    const zone = zones.find((z) => z.id === zoneId);
-    setEncounters(zone?.encounters ?? []);
+    setSelectedEncounterIds(null); // reset to all bosses on zone switch
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!characterName.trim() || !serverSlug.trim() || encounters.length === 0 || !selectedZoneId)
+    if (!characterName.trim() || !serverSlug.trim() || !activeZoneId || encounters.length === 0)
       return;
     onSubmit(
       {
@@ -86,11 +86,9 @@ export function CharacterForm({
         difficulty,
         encounters,
       },
-      selectedZoneId
+      activeZoneId
     );
   }
-
-  const currentZone = zones.find((z) => z.id === selectedZoneId);
 
   return (
     <div
@@ -238,7 +236,7 @@ export function CharacterForm({
             <EncounterSelector
               available={currentZone.encounters}
               selected={encounters}
-              onChange={setEncounters}
+              onChange={(encs) => setSelectedEncounterIds(new Set(encs.map((e) => e.id)))}
             />
           </div>
         )}

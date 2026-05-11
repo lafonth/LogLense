@@ -52,12 +52,12 @@ function Section({
           <tr key={`${sectionKey}-${ability}`}>
             <td style={{ ...cellStyle, textAlign: 'left', color: 'var(--text-dim)' }}>{ability}</td>
             <td style={{ ...cellStyle, color: 'var(--text)' }}>{myCpm}</td>
-            {topPlayers.map((p, i) => {
+            {topPlayers.map((p) => {
               const entry = (p.rotation.cooldowns[ability] ??
                 p.rotation.generators[ability] ??
                 p.rotation.finishers[ability]) as CastEntry | undefined;
               return (
-                <td key={i} style={{ ...cellStyle, color: 'var(--text-dim)' }}>
+                <td key={p.stats.name} style={{ ...cellStyle, color: 'var(--text-dim)' }}>
                   {entry ? entry.perMin.toFixed(2) : '—'}
                 </td>
               );
@@ -88,8 +88,8 @@ export function RotationTable({ character, topPlayers }: RotationTableProps) {
           <tr>
             <th style={{ ...tableHeaderCellStyle, textAlign: 'left' }}>Ability</th>
             <th style={tableHeaderCellStyle}>You /min</th>
-            {topPlayers.map((_, i) => (
-              <th key={i} style={tableHeaderCellStyle}>
+            {topPlayers.map((p, i) => (
+              <th key={p.stats.name} style={tableHeaderCellStyle}>
                 P{i + 1} /min
               </th>
             ))}
@@ -125,8 +125,8 @@ export function RotationTable({ character, topPlayers }: RotationTableProps) {
           <tr>
             <th style={{ ...tableHeaderCellStyle, textAlign: 'left' }}>Uptime</th>
             <th style={tableHeaderCellStyle}>You</th>
-            {topPlayers.map((_, i) => (
-              <th key={i} style={tableHeaderCellStyle}>
+            {topPlayers.map((p, i) => (
+              <th key={p.stats.name} style={tableHeaderCellStyle}>
                 P{i + 1}
               </th>
             ))}
@@ -158,9 +158,9 @@ export function RotationTable({ character, topPlayers }: RotationTableProps) {
               >
                 {val}%
               </td>
-              {topPlayers.map((p, i) => (
+              {topPlayers.map((p) => (
                 <td
-                  key={i}
+                  key={p.stats.name}
                   style={{
                     padding: '5px 10px',
                     fontFamily: 'var(--font-mono)',

@@ -37,29 +37,25 @@ export function StatsTable({ character, topPlayers }: StatsTableProps) {
         <tr>
           <th style={{ ...headerCellStyle, textAlign: 'left' }}>Stat</th>
           <th style={headerCellStyle}>You</th>
-          {topPlayers.map((_, i) => (
-            <th key={i} style={headerCellStyle}>
+          {topPlayers.map((p, i) => (
+            <th key={p.stats.name} style={headerCellStyle}>
               P{i + 1}
             </th>
           ))}
         </tr>
       </thead>
       <tbody>
-        {STAT_ROWS.map(({ label, key, fmt }) => {
-          const myVal = fmt(character[key]);
-          const topVals = topPlayers.map((p) => fmt(p.stats[key]));
-          return (
-            <tr key={label}>
-              <td style={{ ...cellStyle, textAlign: 'left', color: 'var(--text-dim)' }}>{label}</td>
-              <td style={{ ...cellStyle, color: 'var(--text)' }}>{myVal}</td>
-              {topVals.map((v, i) => (
-                <td key={i} style={{ ...cellStyle, color: 'var(--text-dim)' }}>
-                  {v}
-                </td>
-              ))}
-            </tr>
-          );
-        })}
+        {STAT_ROWS.map(({ label, key, fmt }) => (
+          <tr key={label}>
+            <td style={{ ...cellStyle, textAlign: 'left', color: 'var(--text-dim)' }}>{label}</td>
+            <td style={{ ...cellStyle, color: 'var(--text)' }}>{fmt(character[key])}</td>
+            {topPlayers.map((p) => (
+              <td key={p.stats.name} style={{ ...cellStyle, color: 'var(--text-dim)' }}>
+                {fmt(p.stats[key])}
+              </td>
+            ))}
+          </tr>
+        ))}
       </tbody>
     </table>
   );

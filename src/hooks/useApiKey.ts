@@ -1,19 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 const STORAGE_KEY = 'loglense_api_key';
 
+function readStored(): string {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem(STORAGE_KEY) ?? '';
+}
+
 export function useApiKey(): [string, (key: string) => void] {
-  const [apiKey, setApiKeyState] = useState('');
+  const [apiKey, setApiKey] = useState(readStored);
 
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) setApiKeyState(stored);
-  }, []);
-
-  function setApiKey(key: string) {
-    setApiKeyState(key);
+  function persistApiKey(key: string) {
+    setApiKey(key);
     if (key) {
       localStorage.setItem(STORAGE_KEY, key);
     } else {
@@ -21,5 +21,5 @@ export function useApiKey(): [string, (key: string) => void] {
     }
   }
 
-  return [apiKey, setApiKey];
+  return [apiKey, persistApiKey];
 }

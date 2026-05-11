@@ -50,6 +50,22 @@ export async function analyzeBoss(
 ): Promise<BossResult | null> {
   const { characterName: name, serverSlug: slug, region, difficulty } = input;
 
+  // Start world rankings immediately — needs only encounterId + difficulty, independent of char pipeline
+  const worldDataPromise = gql<{
+    worldData: {
+      encounter: {
+        characterRankings: {
+          rankings: Array<{
+            name: string;
+            amount: number;
+            duration: number;
+            report: { code: string; fightID: number };
+          }>;
+        };
+      };
+    };
+  }>(token, Q_WORLD_RANKINGS, { encounterID: encounterId, difficulty });
+
   const charData = await gql<{
     characterData: {
       character: {
@@ -132,20 +148,7 @@ export async function analyzeBoss(
     total: e.total,
   }));
 
-  const worldData = await gql<{
-    worldData: {
-      encounter: {
-        characterRankings: {
-          rankings: Array<{
-            name: string;
-            amount: number;
-            duration: number;
-            report: { code: string; fightID: number };
-          }>;
-        };
-      };
-    };
-  }>(token, Q_WORLD_RANKINGS, { encounterID: encounterId, difficulty });
+  const worldData = await worldDataPromise;
 
   const allWorld = worldData.worldData.encounter.characterRankings.rankings ?? [];
   const lo = bestKillMs * (1 - KILL_TIME_TOLERANCE);
