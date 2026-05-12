@@ -96,7 +96,13 @@ export function TalentTree({ nodes, myTalents, topPlayers }: TalentTreeProps) {
           x={classLabelX}
           y={PAD}
           textAnchor="middle"
-          style={{ fill: 'var(--gold-dim)', fontFamily: 'var(--font-mono)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em' }}
+          style={{
+            fill: 'var(--gold-dim)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '9px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+          }}
         >
           Class Tree
         </text>
@@ -104,7 +110,13 @@ export function TalentTree({ nodes, myTalents, topPlayers }: TalentTreeProps) {
           x={specLabelX}
           y={PAD}
           textAnchor="middle"
-          style={{ fill: 'var(--gold-dim)', fontFamily: 'var(--font-mono)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em' }}
+          style={{
+            fill: 'var(--gold-dim)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '9px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+          }}
         >
           Spec Tree
         </text>
@@ -155,7 +167,14 @@ export function TalentTree({ nodes, myTalents, topPlayers }: TalentTreeProps) {
                   strokeWidth={strokeWidth}
                 />
               ) : (
-                <circle cx={cx} cy={cy} r={NODE_R} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={NODE_R}
+                  fill={fill}
+                  stroke={stroke}
+                  strokeWidth={strokeWidth}
+                />
               )}
             </g>
           );
@@ -186,7 +205,9 @@ export function TalentTree({ nodes, myTalents, topPlayers }: TalentTreeProps) {
             {label}
           </span>
         ))}
-        <span style={{ marginLeft: 'auto', opacity: 0.6, fontSize: '0.68rem' }}>Hover a node for its name</span>
+        <span style={{ marginLeft: 'auto', opacity: 0.6, fontSize: '0.68rem' }}>
+          Hover a node for its name
+        </span>
       </div>
     </div>
   );

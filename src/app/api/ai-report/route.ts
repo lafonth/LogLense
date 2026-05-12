@@ -32,23 +32,27 @@ export async function POST(req: Request) {
     const apiKey = envKey || headerKey;
 
     if (!apiKey) {
-      return jsonResponse({ error: 'API key required — enter one in the UI or set it in the server environment' }, 401);
+      return jsonResponse(
+        { error: 'API key required — enter one in the UI or set it in the server environment' },
+        401
+      );
     }
 
     const result = (await req.json()) as AnalysisResult;
-    const provider = providerName === 'gemini' ? new GeminiProvider(apiKey) : new ClaudeProvider(apiKey);
+    const provider =
+      providerName === 'gemini' ? new GeminiProvider(apiKey) : new ClaudeProvider(apiKey);
     const prompt = buildAnalysisPrompt(result);
     const chunks = provider.stream(prompt, SYSTEM_PROMPT);
 
-  const encoder = new TextEncoder();
-  const sseStream = new TransformStream<string, Uint8Array>({
-    transform(chunk, controller) {
-      controller.enqueue(encoder.encode(`data: ${chunk}\n\n`));
-    },
-    flush(controller) {
-      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-    },
-  });
+    const encoder = new TextEncoder();
+    const sseStream = new TransformStream<string, Uint8Array>({
+      transform(chunk, controller) {
+        controller.enqueue(encoder.encode(`data: ${chunk}\n\n`));
+      },
+      flush(controller) {
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+      },
+    });
 
     chunks.pipeTo(sseStream.writable).catch(() => {});
 

@@ -15,7 +15,13 @@ interface AIReportTabProps {
 
 type Provider = 'claude' | 'gemini';
 
-const PROVIDERS: { id: Provider; label: string; keyLabel: string; placeholder: string; keyHint: string }[] = [
+const PROVIDERS: {
+  id: Provider;
+  label: string;
+  keyLabel: string;
+  placeholder: string;
+  keyHint: string;
+}[] = [
   {
     id: 'claude',
     label: 'Claude',
@@ -163,7 +169,14 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
       <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', alignItems: 'flex-end' }}>
         <div style={{ flex: 1 }}>
           {serverHasKey ? (
-            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-dim)', margin: 0 }}>
+            <p
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.78rem',
+                color: 'var(--text-dim)',
+                margin: 0,
+              }}
+            >
               <span style={{ color: 'var(--gold-dim)', marginRight: '6px' }}>●</span>
               {active.keyLabel} configured on server
             </p>
@@ -181,7 +194,14 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
                 }}
               >
                 {active.keyLabel}
-                <span style={{ marginLeft: '8px', color: 'var(--text-dim)', textTransform: 'none', letterSpacing: 0 }}>
+                <span
+                  style={{
+                    marginLeft: '8px',
+                    color: 'var(--text-dim)',
+                    textTransform: 'none',
+                    letterSpacing: 0,
+                  }}
+                >
                   — {active.keyHint}
                 </span>
               </label>
