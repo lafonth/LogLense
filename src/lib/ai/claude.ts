@@ -13,17 +13,21 @@ export class ClaudeProvider implements AIProvider {
 
     return new ReadableStream<string>({
       async start(controller) {
-        const stream = client.messages.stream({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 1500,
-          system: systemPrompt,
-          messages: [{ role: 'user', content: prompt }],
-        });
+        try {
+          const stream = client.messages.stream({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 1500,
+            system: systemPrompt,
+            messages: [{ role: 'user', content: prompt }],
+          });
 
-        for await (const event of stream) {
-          if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-            controller.enqueue(event.delta.text);
+          for await (const event of stream) {
+            if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+              controller.enqueue(event.delta.text);
+            }
           }
+        } catch (e) {
+          controller.enqueue(`\n\n[Error: ${e instanceof Error ? e.message : 'Unknown error'}]`);
         }
 
         controller.close();

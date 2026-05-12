@@ -6,6 +6,19 @@ interface GeminiChunk {
   }>;
 }
 
+interface GeminiErrorBody {
+  error?: { message?: string; status?: string };
+}
+
+function extractGeminiError(body: string): string {
+  try {
+    const parsed = JSON.parse(body) as GeminiErrorBody;
+    return parsed.error?.message?.split('\n')[0] ?? body;
+  } catch {
+    return body;
+  }
+}
+
 export class GeminiProvider implements AIProvider {
   constructor(private apiKey: string) {}
 
@@ -28,13 +41,15 @@ export class GeminiProvider implements AIProvider {
             }),
           });
         } catch (e) {
-          controller.error(e);
+          controller.enqueue(`\n\n[Error: ${e instanceof Error ? e.message : 'Network error'}]`);
+          controller.close();
           return;
         }
 
         if (!res.ok) {
           const body = await res.text();
-          controller.error(new Error(`Gemini API ${res.status}: ${body}`));
+          controller.enqueue(`\n\n[Gemini API error ${res.status}: ${extractGeminiError(body)}]`);
+          controller.close();
           return;
         }
 
