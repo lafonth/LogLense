@@ -46,9 +46,14 @@ export function useAIReport() {
           const lines = decoder.decode(value).split('\n');
           for (const line of lines) {
             if (!line.startsWith('data: ')) continue;
-            const chunk = line.slice(6);
-            if (chunk === '[DONE]') break;
-            setText((prev) => prev + chunk);
+            const raw = line.slice(6);
+            try {
+              const chunk = JSON.parse(raw) as string;
+              if (chunk === '[DONE]') break;
+              setText((prev) => prev + chunk);
+            } catch {
+              // ignore malformed chunks
+            }
           }
         }
       } catch (err) {

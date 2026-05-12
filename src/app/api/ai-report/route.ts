@@ -47,10 +47,11 @@ export async function POST(req: Request) {
     const encoder = new TextEncoder();
     const sseStream = new TransformStream<string, Uint8Array>({
       transform(chunk, controller) {
-        controller.enqueue(encoder.encode(`data: ${chunk}\n\n`));
+        // JSON-encode so newlines inside chunks don't break the SSE line format
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
       },
       flush(controller) {
-        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.enqueue(encoder.encode('data: "[DONE]"\n\n'));
       },
     });
 

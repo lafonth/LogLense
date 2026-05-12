@@ -45,9 +45,9 @@ describe('ai-report route', () => {
     expect(res.headers.get('content-type')).toContain('text/event-stream');
 
     const text = await res.text();
-    expect(text).toContain('data: Great rotation ');
-    expect(text).toContain('data: analysis here.');
-    expect(text).toContain('data: [DONE]');
+    expect(text).toContain('data: "Great rotation "');
+    expect(text).toContain('data: "analysis here."');
+    expect(text).toContain('data: "[DONE]"');
   });
 
   it('returns 401 when X-AI-Key header is missing', async () => {
