@@ -27,7 +27,8 @@ export class GeminiProvider implements AIProvider {
 
     return new ReadableStream<string>({
       async start(controller) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=${apiKey}`;
+        // gemini-1.5-flash has the most reliable free tier across all project types
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?alt=sse&key=${apiKey}`;
 
         let res: Response;
         try {

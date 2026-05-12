@@ -117,6 +117,10 @@ export function buildAnalysisPrompt(result: AnalysisResult): string {
     .map((boss, i) => {
       if (!boss) return `## Boss ${i + 1}\nNo data available for this boss.`;
 
+      // Cap at 3 top players to keep token count manageable on free-tier models
+      const topPlayers = boss.topPlayers.slice(0, 3);
+      const bossForPrompt = { ...boss, topPlayers };
+
       const charWithMeta = {
         ...boss.character.stats,
         dps: boss.character.dps,
@@ -127,14 +131,14 @@ export function buildAnalysisPrompt(result: AnalysisResult): string {
         `## ${boss.encounter}`,
         `Kill time: ${boss.character.killTime} | Your DPS: ${fmt(boss.character.dps)} (${boss.character.overallPct}th percentile)`,
         '',
-        statsTable(charWithMeta, boss.topPlayers),
+        statsTable(charWithMeta, bossForPrompt.topPlayers),
         '',
-        rotationTable(boss.character.rotation, boss.topPlayers),
+        rotationTable(boss.character.rotation, bossForPrompt.topPlayers),
         '',
-        uptimeTable(boss.character.rotation, boss.topPlayers),
+        uptimeTable(boss.character.rotation, bossForPrompt.topPlayers),
         '',
         '### Talent differences',
-        talentDiff(boss.character.stats.talents, boss.topPlayers),
+        talentDiff(boss.character.stats.talents, bossForPrompt.topPlayers),
       ].join('\n');
     })
     .join('\n\n---\n\n');
