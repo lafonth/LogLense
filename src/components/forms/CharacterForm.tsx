@@ -2,6 +2,7 @@
 
 import type { AnalysisInput, Zone } from '@/types';
 import { useState } from 'react';
+import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { EncounterSelector } from './EncounterSelector';
 
 interface CharacterFormProps {
@@ -205,16 +206,7 @@ export function CharacterForm({
               Loading raids…
             </div>
           ) : zonesError ? (
-            <div
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.82rem',
-                color: 'var(--crimson)',
-                padding: '8px 0',
-              }}
-            >
-              {zonesError}
-            </div>
+            <ErrorBanner message={zonesError} />
           ) : (
             <select
               style={inputStyle}
