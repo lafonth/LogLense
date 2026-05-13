@@ -7,6 +7,8 @@ import { AIReportTab } from '@/components/ai/AIReportTab';
 import { BossSidebar } from './BossSidebar';
 import { ComparisonTab } from './ComparisonTab';
 import { OverviewTab } from './OverviewTab';
+import { ProgressSteps } from '@/components/ui/ProgressSteps';
+import type { StepStatus } from '@/components/ui/ProgressSteps';
 
 interface ResultsDashboardProps {
   input: AnalysisInput;
@@ -127,6 +129,45 @@ export function ResultsDashboard({
           ← New search
         </button>
       </div>
+
+      {bossStates.some((s) => s.status === 'loading' || s.status === 'idle') && (
+        <div
+          style={{
+            marginBottom: '20px',
+            padding: '14px 16px',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '4px',
+          }}
+        >
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.72rem',
+              color: 'var(--gold-dim)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              marginBottom: '10px',
+            }}
+          >
+            Fetching bosses…
+          </div>
+          <ProgressSteps
+            steps={input.encounters.map((enc, i) => {
+              const s = bossStates[i];
+              const status: StepStatus =
+                s?.status === 'success'
+                  ? 'done'
+                  : s?.status === 'error'
+                    ? 'error'
+                    : s?.status === 'loading'
+                      ? 'loading'
+                      : 'pending';
+              return { label: enc.name, status };
+            })}
+          />
+        </div>
+      )}
 
       <div style={{ borderBottom: '1px solid var(--border)', marginBottom: '24px' }}>
         {(['overview', 'comparison', 'ai-report'] as TabId[]).map((tab) => (
