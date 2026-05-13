@@ -1,4 +1,4 @@
-import type { RotationSummary, TopPlayer } from '@/types';
+import type { CastEntry, RotationSummary, TopPlayer } from '@/types';
 
 interface RotationTableProps {
   character: RotationSummary;
@@ -23,6 +23,47 @@ const headerCellStyle: React.CSSProperties = {
   textAlign: 'right',
   borderBottom: '1px solid var(--border)',
 };
+
+function dotColor(ratio: number | null): string | null {
+  if (ratio === null) return null;
+  if (ratio >= 0.9) return 'var(--gold-dim)';
+  if (ratio >= 0.7) return '#b87333';
+  return 'var(--crimson)';
+}
+
+function castRatio(mine: CastEntry | undefined, topPlayers: TopPlayer[], ability: string): number | null {
+  const topVals = topPlayers.map((p) => p.rotation.casts[ability]?.perMin ?? 0);
+  const topAvg = topVals.reduce((a, b) => a + b, 0) / topVals.length;
+  if (topAvg === 0) return null; // tops don't use it
+  if (!mine) return 0; // user doesn't use it but tops do
+  return mine.perMin / topAvg;
+}
+
+function uptimeRatio(userPct: number, topPlayers: TopPlayer[], ability: string): number | null {
+  const topVals = topPlayers.map((p) => p.rotation.buffs[ability] ?? 0);
+  const topAvg = topVals.reduce((a, b) => a + b, 0) / topVals.length;
+  if (topAvg === 0) return null;
+  return userPct / topAvg;
+}
+
+function StatusDot({ ratio }: { ratio: number | null }) {
+  const color = dotColor(ratio);
+  if (!color) return null;
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        width: '7px',
+        height: '7px',
+        borderRadius: '50%',
+        background: color,
+        marginRight: '6px',
+        verticalAlign: 'middle',
+        flexShrink: 0,
+      }}
+    />
+  );
+}
 
 export function RotationTable({ character, topPlayers }: RotationTableProps) {
   // Union of all ability names across character + top players, ordered by character cast count
@@ -55,13 +96,17 @@ export function RotationTable({ character, topPlayers }: RotationTableProps) {
         <tbody>
           {allAbilities.map((ability) => {
             const mine = character.casts[ability];
+            const ratio = castRatio(mine, topPlayers, ability);
             return (
               <tr key={ability}>
                 <td style={{ ...cellStyle, textAlign: 'left', color: 'var(--text-dim)' }}>
                   {ability}
                 </td>
                 <td style={{ ...cellStyle, color: 'var(--text)' }}>
-                  {mine ? mine.perMin.toFixed(2) : '—'}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                    <StatusDot ratio={ratio} />
+                    {mine ? mine.perMin.toFixed(2) : '—'}
+                  </span>
                 </td>
                 {topPlayers.map((p) => {
                   const entry = p.rotation.casts[ability];
@@ -91,19 +136,27 @@ export function RotationTable({ character, topPlayers }: RotationTableProps) {
             </tr>
           </thead>
           <tbody>
-            {activeBufEntries.map(([name, pct]) => (
-              <tr key={name}>
-                <td style={{ ...cellStyle, textAlign: 'left', color: 'var(--text-dim)' }}>
-                  {name}
-                </td>
-                <td style={{ ...cellStyle, color: 'var(--text)' }}>{pct}%</td>
+            {activeBufEntries.map(([name, pct]) => {
+              const ratio = uptimeRatio(pct, topPlayers, name);
+              return (
+                <tr key={name}>
+                  <td style={{ ...cellStyle, textAlign: 'left', color: 'var(--text-dim)' }}>
+                    {name}
+                  </td>
+                  <td style={{ ...cellStyle, color: 'var(--text)' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                      <StatusDot ratio={ratio} />
+                      {pct}%
+                    </span>
+                  </td>
                 {topPlayers.map((p) => (
                   <td key={p.stats.name} style={{ ...cellStyle, color: 'var(--text-dim)' }}>
                     {p.rotation.buffs[name] ?? 0}%
                   </td>
                 ))}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       )}
