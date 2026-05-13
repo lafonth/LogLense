@@ -1,10 +1,11 @@
 import type { GroqModelId } from '@/lib/ai/groq';
-import type { AnalysisResult } from '@/types';
+import type { AnalysisResult, TalentNode } from '@/types';
 
 import { ClaudeProvider } from '@/lib/ai/claude';
 import { GeminiProvider } from '@/lib/ai/gemini';
 import { DEFAULT_GROQ_MODEL, GroqProvider } from '@/lib/ai/groq';
 import { buildAnalysisPrompt, SYSTEM_PROMPT } from '@/lib/ai/prompt';
+import feralTalents from '@/data/feral-druid-talents.json';
 
 export const runtime = 'edge';
 
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
         : providerName === 'groq'
           ? new GroqProvider(apiKey, groqModel)
           : new ClaudeProvider(apiKey);
-    const prompt = buildAnalysisPrompt(result);
+    const prompt = buildAnalysisPrompt(result, feralTalents as TalentNode[]);
     const chunks = provider.stream(prompt, SYSTEM_PROMPT);
 
     const encoder = new TextEncoder();

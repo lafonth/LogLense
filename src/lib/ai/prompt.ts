@@ -1,5 +1,4 @@
 import type { AnalysisResult, BossResult, CharacterStats, DamageEntry, FightTarget, RotationSummary, TalentNode, TopPlayer } from '@/types';
-import talentTree from '@/data/feral-druid-talents.json';
 
 export const SYSTEM_PROMPT = `You are a WarcraftLogs performance coach. Speak directly to the player. \
 Each ## section is one boss encounter — treat it as a single fight even if the name contains multiple names (council fights).
@@ -183,21 +182,22 @@ function damageTable(
   return mdTable(headers, rows);
 }
 
-const nodes = talentTree as TalentNode[];
-
-function talentName(talentId: number): string {
-  const node = nodes.find((n) => n.talentIds.includes(talentId));
-  if (!node) return `#${talentId}`;
-  if (node.nodeType === 'choice') {
-    const idx = node.talentIds.indexOf(talentId);
-    return node.names[idx] ?? node.name;
-  }
-  return node.name;
+function makeTalentNameFn(nodes: TalentNode[]) {
+  return function talentName(talentId: number): string {
+    const node = nodes.find((n) => n.talentIds.includes(talentId));
+    if (!node) return `#${talentId}`;
+    if (node.nodeType === 'choice') {
+      const idx = node.talentIds.indexOf(talentId);
+      return node.names[idx] ?? node.name;
+    }
+    return node.name;
+  };
 }
 
 function talentDiff(
   myTalents: Record<number, number>,
-  topPlayers: BossResult['topPlayers']
+  topPlayers: BossResult['topPlayers'],
+  talentName: (id: number) => string,
 ): string {
   if (topPlayers.length === 0) return '';
 
@@ -233,7 +233,8 @@ function talentDiff(
   return lines.join('\n') || 'Talent builds are identical.';
 }
 
-export function buildAnalysisPrompt(result: AnalysisResult): string {
+export function buildAnalysisPrompt(result: AnalysisResult, talentNodes: TalentNode[] = []): string {
+  const talentName = makeTalentNameFn(talentNodes);
   const difficultyLabel: Record<number, string> = { 3: 'Normal', 4: 'Heroic', 5: 'Mythic' };
   const diff = difficultyLabel[result.input.difficulty] ?? `Difficulty ${result.input.difficulty}`;
 
@@ -273,7 +274,7 @@ export function buildAnalysisPrompt(result: AnalysisResult): string {
         damageTable(boss.character.damageTable.entries, topPlayers),
         '',
         '### Talent Differences',
-        talentDiff(boss.character.stats.talents, topPlayers),
+        talentDiff(boss.character.stats.talents, topPlayers, talentName),
       );
 
       return sections.join('\n');
@@ -281,7 +282,7 @@ export function buildAnalysisPrompt(result: AnalysisResult): string {
     .join('\n\n---\n\n');
 
   return [
-    `# Feral Druid Performance Analysis — ${result.input.characterName}-${result.input.serverSlug} (${diff})`,
+    `# WarcraftLogs Performance Analysis — ${result.input.characterName}-${result.input.serverSlug} (${diff})`,
     '',
     bossSections,
     '',
