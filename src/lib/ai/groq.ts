@@ -4,16 +4,27 @@ interface OpenAIChunk {
   choices?: Array<{ delta?: { content?: string } }>;
 }
 
+export const GROQ_MODELS = [
+  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B — best quality (1k req/day)' },
+  { id: 'llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout 17B — balanced (1k req/day)' },
+  { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B — unlimited (14k req/day)' },
+] as const;
+
+export type GroqModelId = (typeof GROQ_MODELS)[number]['id'];
+export const DEFAULT_GROQ_MODEL: GroqModelId = 'llama-3.3-70b-versatile';
+
 export class GroqProvider implements AIProvider {
-  constructor(private apiKey: string) {}
+  constructor(
+    private apiKey: string,
+    private model: GroqModelId = DEFAULT_GROQ_MODEL
+  ) {}
 
   stream(prompt: string, systemPrompt: string): ReadableStream<string> {
     const apiKey = this.apiKey;
+    const model = process.env.GROQ_MODEL ?? this.model;
 
     return new ReadableStream<string>({
       async start(controller) {
-        const model = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
-
         let res: Response;
         try {
           res = await fetch('https://api.groq.com/openai/v1/chat/completions', {

@@ -1,5 +1,6 @@
 'use client';
 
+import type { GroqModelId } from '@/lib/ai/groq';
 import type { AnalysisResult, BossResult } from '@/types';
 
 import { useEffect, useState } from 'react';
@@ -7,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { useAIReport } from '@/hooks/useAIReport';
 import { useApiKey } from '@/hooks/useApiKey';
+import { DEFAULT_GROQ_MODEL, GROQ_MODELS } from '@/lib/ai/groq';
 import { StreamingText } from './StreamingText';
 
 interface AIReportTabProps {
@@ -78,6 +80,12 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
   const [groqKey, setGroqKey] = useApiKey('loglense_groq_key');
   const [serverProviders, setServerProviders] = useState<string[]>([]);
   const [selectedBossIdx, setSelectedBossIdx] = useState<number | 'all'>('all');
+  const [groqModel, setGroqModel] = useState<GroqModelId>(() => {
+    if (typeof window === 'undefined') return DEFAULT_GROQ_MODEL;
+    return (
+      (localStorage.getItem('loglense_groq_model') as GroqModelId | null) ?? DEFAULT_GROQ_MODEL
+    );
+  });
   const { text, loading, error, start, reset } = useAIReport();
 
   useEffect(() => {
@@ -107,7 +115,13 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
 
   function handleGenerate() {
     if (!serverHasKey && !apiKey.trim()) return;
-    start(buildPayload(), apiKey.trim(), provider);
+    start(buildPayload(), apiKey.trim(), provider, provider === 'groq' ? groqModel : undefined);
+  }
+
+  function handleGroqModelChange(id: GroqModelId) {
+    setGroqModel(id);
+    localStorage.setItem('loglense_groq_model', id);
+    reset();
   }
 
   function handleBossChange(value: string) {
@@ -141,6 +155,52 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
           </button>
         ))}
       </div>
+
+      {/* Groq model selector */}
+      {provider === 'groq' && (
+        <div style={{ marginBottom: '16px' }}>
+          <label
+            style={{
+              display: 'block',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.72rem',
+              color: 'var(--gold-dim)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              marginBottom: '6px',
+            }}
+          >
+            Model
+          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {GROQ_MODELS.map((m) => (
+              <label
+                key={m.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.82rem',
+                  color: groqModel === m.id ? 'var(--text)' : 'var(--text-dim)',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <input
+                  type="radio"
+                  name="groq-model"
+                  value={m.id}
+                  checked={groqModel === m.id}
+                  disabled={loading}
+                  onChange={() => handleGroqModelChange(m.id)}
+                  style={{ accentColor: 'var(--gold)' }}
+                />
+                {m.label}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Boss selector */}
       {availableBosses.length > 1 && (

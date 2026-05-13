@@ -13,7 +13,8 @@ export function useAIReport() {
     async (
       result: AnalysisResult,
       apiKey: string,
-      provider: 'claude' | 'gemini' | 'groq' = 'groq'
+      provider: 'claude' | 'gemini' | 'groq' = 'groq',
+      model?: string
     ) => {
       setText('');
       setError(null);
@@ -29,6 +30,7 @@ export function useAIReport() {
             'Content-Type': 'application/json',
             'x-ai-key': apiKey,
             'x-ai-provider': provider,
+            ...(model ? { 'x-ai-model': model } : {}),
           },
           body: JSON.stringify(result),
           signal: controller.signal,

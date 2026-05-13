@@ -1,7 +1,9 @@
+import type { GroqModelId } from '@/lib/ai/groq';
 import type { AnalysisResult } from '@/types';
+
 import { ClaudeProvider } from '@/lib/ai/claude';
 import { GeminiProvider } from '@/lib/ai/gemini';
-import { GroqProvider } from '@/lib/ai/groq';
+import { DEFAULT_GROQ_MODEL, GroqProvider } from '@/lib/ai/groq';
 import { buildAnalysisPrompt, SYSTEM_PROMPT } from '@/lib/ai/prompt';
 
 export const runtime = 'edge';
@@ -42,12 +44,13 @@ export async function POST(req: Request) {
       );
     }
 
+    const groqModel = (req.headers.get('x-ai-model') ?? DEFAULT_GROQ_MODEL) as GroqModelId;
     const result = (await req.json()) as AnalysisResult;
     const provider =
       providerName === 'gemini'
         ? new GeminiProvider(apiKey)
         : providerName === 'groq'
-          ? new GroqProvider(apiKey)
+          ? new GroqProvider(apiKey, groqModel)
           : new ClaudeProvider(apiKey);
     const prompt = buildAnalysisPrompt(result);
     const chunks = provider.stream(prompt, SYSTEM_PROMPT);
