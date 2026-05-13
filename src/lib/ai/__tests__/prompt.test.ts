@@ -145,8 +145,9 @@ describe('buildAnalysisPrompt', () => {
 });
 
 describe('system prompt', () => {
-  it('exists and mentions Feral Druid', () => {
-    expect(SYSTEM_PROMPT).toContain('Feral Druid');
-    expect(SYSTEM_PROMPT).toContain('Tiger');
+  it('exists and describes the analysis process', () => {
+    expect(SYSTEM_PROMPT).toContain('WarcraftLogs');
+    expect(SYSTEM_PROMPT).toContain('Fight targets');
+    expect(SYSTEM_PROMPT).toContain('Spell Usage');
   });
 });
