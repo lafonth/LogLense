@@ -73,9 +73,8 @@ export const Q_ROTATION = `
   query Rotation($code: String!, $fightIDs: [Int]!, $sourceID: Int!) {
     reportData {
       report(code: $code) {
-        casts:   table(dataType: Casts,   fightIDs: $fightIDs, sourceID: $sourceID)
-        buffs:   table(dataType: Buffs,   fightIDs: $fightIDs, sourceID: $sourceID)
-        debuffs: table(dataType: Debuffs, fightIDs: $fightIDs, sourceID: $sourceID)
+        casts: table(dataType: Casts, fightIDs: $fightIDs, sourceID: $sourceID)
+        buffs: table(dataType: Buffs, fightIDs: $fightIDs, sourceID: $sourceID)
       }
     }
   }

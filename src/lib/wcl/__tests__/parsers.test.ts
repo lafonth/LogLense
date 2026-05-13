@@ -65,7 +65,7 @@ describe('parseCasts', () => {
 });
 
 describe('parseUptime', () => {
-  it('calculates uptime percentage for wanted abilities', () => {
+  it('returns uptime percentage for all auras', () => {
     const table = {
       data: {
         auras: [
@@ -74,44 +74,27 @@ describe('parseUptime', () => {
         ],
       },
     };
-    const wanted = new Set(["Tiger's Fury"]);
-    const result = parseUptime(table, 120000, wanted);
+    const result = parseUptime(table, 120000);
 
-    expect(result["Tiger's Fury"]).toBeDefined();
-    expect(result["Tiger's Fury"].uptimePct).toBe(25);
-    expect(result['Other Buff']).toBeUndefined();
+    expect(result["Tiger's Fury"]).toBe(25);
+    expect(result['Other Buff']).toBe(50);
   });
 });
 
 describe('summarizeRotation', () => {
-  it('combines Moonfire + Moonfire (LI) into single Moonfire entry', () => {
+  it('passes through casts and buffs as-is', () => {
     const casts = {
-      Moonfire: { casts: 3, perMin: 1 },
-      'Moonfire (LI)': { casts: 6, perMin: 2 },
       "Tiger's Fury": { casts: 10, perMin: 5 },
-      Berserk: { casts: 4, perMin: 2 },
-      Incarnation: { casts: 0, perMin: 0 },
-      'Feral Frenzy': { casts: 2, perMin: 1 },
-      'Frantic Frenzy': { casts: 0, perMin: 0 },
-      'Convoke the Spirits': { casts: 2, perMin: 1 },
       Shred: { casts: 40, perMin: 20 },
-      Swipe: { casts: 5, perMin: 2.5 },
       Rip: { casts: 8, perMin: 4 },
-      'Ferocious Bite': { casts: 12, perMin: 6 },
-      'Primal Wrath': { casts: 0, perMin: 0 },
     };
-    const buffUptime = { "Tiger's Fury": { uptimePct: 28, applications: 10 } };
-    const debuffUptime = {
-      Rip: { uptimePct: 88, applications: 8 },
-      Rake: { uptimePct: 92, applications: 10 },
-    };
+    const buffs = { "Tiger's Fury": 28 };
 
-    const summary = summarizeRotation('Jumbaa', casts, buffUptime, debuffUptime, 120000, 250000);
+    const summary = summarizeRotation('Jumbaa', casts, buffs, 120000, 250000);
 
-    expect(summary.generators.Moonfire.casts).toBe(9);
-    expect(summary.cooldowns.Berserk.casts).toBe(4);
-    expect(summary.uptime["Tiger's Fury %"]).toBe(28);
-    expect(summary.uptime['Rip %']).toBe(88);
+    expect(summary.casts['Shred'].casts).toBe(40);
+    expect(summary.casts["Tiger's Fury"].casts).toBe(10);
+    expect(summary.buffs["Tiger's Fury"]).toBe(28);
     expect(summary.dps).toBe(250000);
   });
 });

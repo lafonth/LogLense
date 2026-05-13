@@ -4,13 +4,15 @@ Pulls a character's best parse per boss, compares against top 3 similar kill-tim
 Configure everything in config.json before running.
 """
 import json
+import os
 import sys
 import requests
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-CONFIG_FILE  = "config.json"
-OUTPUT_FILE  = "character_analysis.json"
+_DIR         = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE  = os.path.join(_DIR, "config.json")
+OUTPUT_FILE  = os.path.join(_DIR, "character_analysis.json")
 TOKEN_URL    = "https://www.warcraftlogs.com/oauth/token"
 API_URL      = "https://www.warcraftlogs.com/api/v2/client"
 

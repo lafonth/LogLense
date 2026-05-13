@@ -1,5 +1,4 @@
 import type { CastEntry, CharacterStats, RotationSummary } from '@/types';
-import { GUID_TO_NAME } from './constants';
 
 interface CombatantEvent {
   specID: number;
@@ -12,29 +11,11 @@ interface CombatantEvent {
   talentTree?: { id: number; rank?: number }[];
 }
 
-interface WCLCastEntry {
-  guid: number;
-  name: string;
-  total: number;
-}
-
-interface WCLAuraEntry {
-  guid: number;
-  name: string;
-  totalUptime: number;
-  totalUses: number;
-}
-
 export interface WCLTable {
   data?: {
-    entries?: WCLCastEntry[];
-    auras?: WCLAuraEntry[];
+    entries?: Array<{ guid: number; name: string; total: number }>;
+    auras?: Array<{ guid: number; name: string; totalUptime: number; totalUses: number }>;
   };
-}
-
-export interface UptimeEntry {
-  uptimePct: number;
-  applications: number;
 }
 
 export function fmtMs(ms: number): string {
@@ -66,8 +47,7 @@ export function parseCasts(table: WCLTable, fightMs: number): Record<string, Cas
   const durMin = fightMs / 60000;
   const result: Record<string, CastEntry> = {};
   for (const entry of table.data?.entries ?? []) {
-    const name = GUID_TO_NAME[entry.guid] ?? entry.name;
-    result[name] = {
+    result[entry.name] = {
       casts: entry.total,
       perMin: Math.round((entry.total / durMin) * 100) / 100,
     };
@@ -75,67 +55,20 @@ export function parseCasts(table: WCLTable, fightMs: number): Record<string, Cas
   return result;
 }
 
-export function parseUptime(
-  table: WCLTable,
-  fightMs: number,
-  wanted: Set<string>
-): Record<string, UptimeEntry> {
-  const result: Record<string, UptimeEntry> = {};
+export function parseUptime(table: WCLTable, fightMs: number): Record<string, number> {
+  const result: Record<string, number> = {};
   for (const aura of table.data?.auras ?? []) {
-    const name = GUID_TO_NAME[aura.guid] ?? aura.name;
-    if (!wanted.has(name)) continue;
-    result[name] = {
-      uptimePct: fightMs > 0 ? Math.round((aura.totalUptime / fightMs) * 1000) / 10 : 0,
-      applications: aura.totalUses,
-    };
+    result[aura.name] = fightMs > 0 ? Math.round((aura.totalUptime / fightMs) * 1000) / 10 : 0;
   }
   return result;
-}
-
-function c(casts: Record<string, CastEntry>, ability: string) {
-  return casts[ability]?.casts ?? 0;
-}
-
-function pm(fightMs: number, totalCasts: number) {
-  return Math.round((totalCasts / (fightMs / 60000)) * 100) / 100;
 }
 
 export function summarizeRotation(
   name: string,
   casts: Record<string, CastEntry>,
-  buffUptime: Record<string, UptimeEntry>,
-  debuffUptime: Record<string, UptimeEntry>,
+  buffs: Record<string, number>,
   fightMs: number,
   dps?: number
 ): RotationSummary {
-  const frenzy = c(casts, 'Feral Frenzy') + c(casts, 'Frantic Frenzy');
-  const berserk = c(casts, 'Berserk') + c(casts, 'Incarnation');
-  const moonfire = c(casts, 'Moonfire') + c(casts, 'Moonfire (LI)');
-
-  return {
-    name,
-    dps,
-    fightDurationMs: fightMs,
-    cooldowns: {
-      "Tiger's Fury": casts["Tiger's Fury"] ?? { casts: 0, perMin: 0 },
-      Frenzy: { casts: frenzy, perMin: pm(fightMs, frenzy) },
-      Berserk: { casts: berserk, perMin: pm(fightMs, berserk) },
-      Convoke: casts['Convoke the Spirits'] ?? { casts: 0, perMin: 0 },
-    },
-    generators: {
-      Shred: casts.Shred ?? { casts: 0, perMin: 0 },
-      Swipe: casts.Swipe ?? { casts: 0, perMin: 0 },
-      Moonfire: { casts: moonfire, perMin: pm(fightMs, moonfire) },
-    },
-    finishers: {
-      Rip: casts.Rip ?? { casts: 0, perMin: 0 },
-      'Ferocious Bite': casts['Ferocious Bite'] ?? { casts: 0, perMin: 0 },
-      'Primal Wrath': casts['Primal Wrath'] ?? { casts: 0, perMin: 0 },
-    },
-    uptime: {
-      "Tiger's Fury %": buffUptime["Tiger's Fury"]?.uptimePct ?? 0,
-      'Rip %': debuffUptime.Rip?.uptimePct ?? 0,
-      'Rake %': debuffUptime.Rake?.uptimePct ?? 0,
-    },
-  };
+  return { name, dps, fightDurationMs: fightMs, casts, buffs };
 }

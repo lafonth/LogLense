@@ -12,6 +12,11 @@ scripts/TraitNodeXTraitNodeEntry.csv
 
 # config
 .claude
+legacy/config.json
+legacy/character_analysis.json
+
+# prompt download output
+ai-prompt.txt
 
 # skills and agents
 .agents
