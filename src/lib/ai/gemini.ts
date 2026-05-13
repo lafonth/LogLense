@@ -1,14 +1,28 @@
-import type { AIProvider } from './provider';
+import type { AIProvider, AIStreamChunk } from './provider';
 
 interface GeminiChunk {
   candidates?: Array<{
     content?: { parts?: Array<{ text?: string }> };
   }>;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
+  modelVersion?: string;
 }
 
 interface GeminiErrorBody {
   error?: { message?: string; status?: string };
 }
+
+const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash-lite';
+const GEMINI_CONTEXT_WINDOWS: Record<string, number> = {
+  'gemini-2.0-flash-lite': 1048576,
+  'gemini-2.0-flash': 1048576,
+  'gemini-1.5-flash': 1048576,
+  'gemini-1.5-pro': 2097152,
+};
 
 function extractGeminiError(body: string): string {
   try {
@@ -22,12 +36,12 @@ function extractGeminiError(body: string): string {
 export class GeminiProvider implements AIProvider {
   constructor(private apiKey: string) {}
 
-  stream(prompt: string, systemPrompt: string): ReadableStream<string> {
+  stream(prompt: string, systemPrompt: string): ReadableStream<AIStreamChunk> {
     const apiKey = this.apiKey;
 
-    return new ReadableStream<string>({
+    return new ReadableStream<AIStreamChunk>({
       async start(controller) {
-        const model = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash-lite';
+        const model = process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
         let res: Response;
@@ -42,14 +56,14 @@ export class GeminiProvider implements AIProvider {
             }),
           });
         } catch (e) {
-          controller.enqueue(`\n\n[Error: ${e instanceof Error ? e.message : 'Network error'}]`);
+          controller.enqueue({ type: 'text', content: `\n\n[Error: ${e instanceof Error ? e.message : 'Network error'}]` });
           controller.close();
           return;
         }
 
         if (!res.ok) {
           const body = await res.text();
-          controller.enqueue(`\n\n[Gemini API error ${res.status}: ${extractGeminiError(body)}]`);
+          controller.enqueue({ type: 'text', content: `\n\n[Gemini API error ${res.status}: ${extractGeminiError(body)}]` });
           controller.close();
           return;
         }
@@ -62,6 +76,8 @@ export class GeminiProvider implements AIProvider {
 
         const decoder = new TextDecoder();
         let buffer = '';
+        let lastUsage: GeminiChunk['usageMetadata'] | undefined;
+        let resolvedModel = model;
 
         while (true) {
           const { value, done } = await reader.read();
@@ -78,11 +94,28 @@ export class GeminiProvider implements AIProvider {
             try {
               const chunk = JSON.parse(json) as GeminiChunk;
               const text = chunk.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (text) controller.enqueue(text);
+              if (text) controller.enqueue({ type: 'text', content: text });
+              if (chunk.usageMetadata) lastUsage = chunk.usageMetadata;
+              if (chunk.modelVersion) resolvedModel = chunk.modelVersion;
             } catch {
               // malformed chunk — skip
             }
           }
+        }
+
+        if (lastUsage) {
+          const promptTokens = lastUsage.promptTokenCount ?? 0;
+          const completionTokens = lastUsage.candidatesTokenCount ?? 0;
+          controller.enqueue({
+            type: 'usage',
+            data: {
+              promptTokens,
+              completionTokens,
+              totalTokens: lastUsage.totalTokenCount ?? promptTokens + completionTokens,
+              model: resolvedModel,
+              contextWindow: GEMINI_CONTEXT_WINDOWS[model] ?? 1048576,
+            },
+          });
         }
 
         controller.close();

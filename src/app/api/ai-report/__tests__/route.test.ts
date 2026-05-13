@@ -1,3 +1,4 @@
+import type { AIStreamChunk } from '@/lib/ai/provider';
 import type { AnalysisResult } from '@/types';
 import { describe, expect, it, vi } from 'vitest';
 import { POST } from '../route';
@@ -5,10 +6,11 @@ import { POST } from '../route';
 vi.mock('@/lib/ai/claude', () => ({
   ClaudeProvider: vi.fn().mockImplementation(() => ({
     stream: vi.fn().mockReturnValue(
-      new ReadableStream<string>({
+      new ReadableStream<AIStreamChunk>({
         start(controller) {
-          controller.enqueue('Great rotation ');
-          controller.enqueue('analysis here.');
+          controller.enqueue({ type: 'text', content: 'Great rotation ' });
+          controller.enqueue({ type: 'text', content: 'analysis here.' });
+          controller.enqueue({ type: 'usage', data: { promptTokens: 100, completionTokens: 20, totalTokens: 120, model: 'claude-sonnet-4-6', contextWindow: 200000 } });
           controller.close();
         },
       })

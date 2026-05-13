@@ -1,10 +1,16 @@
 'use client';
 
+import type { UsageData } from '@/lib/ai/provider';
 import type { AnalysisResult } from '@/types';
 import { useCallback, useRef, useState } from 'react';
 
+interface UsageEvent extends UsageData {
+  _meta: 'usage';
+}
+
 export function useAIReport() {
   const [text, setText] = useState('');
+  const [usage, setUsage] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -17,6 +23,7 @@ export function useAIReport() {
       model?: string
     ) => {
       setText('');
+      setUsage(null);
       setError(null);
       setLoading(true);
 
@@ -54,9 +61,15 @@ export function useAIReport() {
             if (!line.startsWith('data: ')) continue;
             const raw = line.slice(6);
             try {
-              const chunk = JSON.parse(raw) as string;
+              const chunk = JSON.parse(raw) as string | UsageEvent;
               if (chunk === '[DONE]') break;
-              setText((prev) => prev + chunk);
+              if (typeof chunk === 'object' && chunk._meta === 'usage') {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { _meta, ...data } = chunk;
+                setUsage(data as UsageData);
+              } else if (typeof chunk === 'string') {
+                setText((prev) => prev + chunk);
+              }
             } catch {
               // ignore malformed chunks
             }
@@ -76,9 +89,10 @@ export function useAIReport() {
   const reset = useCallback(() => {
     abortRef.current?.abort();
     setText('');
+    setUsage(null);
     setError(null);
     setLoading(false);
   }, []);
 
-  return { text, loading, error, start, reset };
+  return { text, usage, loading, error, start, reset };
 }

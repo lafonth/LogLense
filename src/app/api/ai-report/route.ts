@@ -1,3 +1,4 @@
+import type { AIStreamChunk } from '@/lib/ai/provider';
 import type { GroqModelId } from '@/lib/ai/groq';
 import type { AnalysisResult, TalentNode } from '@/types';
 
@@ -57,10 +58,13 @@ export async function POST(req: Request) {
     const chunks = provider.stream(prompt, SYSTEM_PROMPT);
 
     const encoder = new TextEncoder();
-    const sseStream = new TransformStream<string, Uint8Array>({
+    const sseStream = new TransformStream<AIStreamChunk, Uint8Array>({
       transform(chunk, controller) {
-        // JSON-encode so newlines inside chunks don't break the SSE line format
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+        if (chunk.type === 'text') {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk.content)}\n\n`));
+        } else {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ _meta: 'usage', ...chunk.data })}\n\n`));
+        }
       },
       flush(controller) {
         controller.enqueue(encoder.encode('data: "[DONE]"\n\n'));

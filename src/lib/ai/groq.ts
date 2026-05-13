@@ -1,17 +1,23 @@
-import type { AIProvider } from './provider';
+import type { AIProvider, AIStreamChunk } from './provider';
 
 interface OpenAIChunk {
-  choices?: Array<{ delta?: { content?: string } }>;
+  choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }>;
+  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+  model?: string;
 }
 
 export const GROQ_MODELS = [
-  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B — best quality (1k req/day)' },
-  { id: 'llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout 17B — balanced (1k req/day)' },
-  { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B — unlimited (14k req/day)' },
+  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B — best quality (1k req/day)', contextWindow: 131072 },
+  { id: 'llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout 17B — balanced (1k req/day)', contextWindow: 131072 },
+  { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B — unlimited (14k req/day)', contextWindow: 131072 },
 ] as const;
 
 export type GroqModelId = (typeof GROQ_MODELS)[number]['id'];
 export const DEFAULT_GROQ_MODEL: GroqModelId = 'llama-3.3-70b-versatile';
+
+function contextWindowForModel(model: string): number {
+  return GROQ_MODELS.find((m) => m.id === model)?.contextWindow ?? 131072;
+}
 
 export class GroqProvider implements AIProvider {
   constructor(
@@ -19,11 +25,11 @@ export class GroqProvider implements AIProvider {
     private model: GroqModelId = DEFAULT_GROQ_MODEL
   ) {}
 
-  stream(prompt: string, systemPrompt: string): ReadableStream<string> {
+  stream(prompt: string, systemPrompt: string): ReadableStream<AIStreamChunk> {
     const apiKey = this.apiKey;
     const model = process.env.GROQ_MODEL ?? this.model;
 
-    return new ReadableStream<string>({
+    return new ReadableStream<AIStreamChunk>({
       async start(controller) {
         let res: Response;
         try {
@@ -37,6 +43,7 @@ export class GroqProvider implements AIProvider {
               model,
               max_tokens: 1500,
               stream: true,
+              stream_options: { include_usage: true },
               messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: prompt },
@@ -44,14 +51,14 @@ export class GroqProvider implements AIProvider {
             }),
           });
         } catch (e) {
-          controller.enqueue(`\n\n[Error: ${e instanceof Error ? e.message : 'Network error'}]`);
+          controller.enqueue({ type: 'text', content: `\n\n[Error: ${e instanceof Error ? e.message : 'Network error'}]` });
           controller.close();
           return;
         }
 
         if (!res.ok) {
           const body = await res.text();
-          controller.enqueue(`\n\n[Groq API error ${res.status}: ${body}]`);
+          controller.enqueue({ type: 'text', content: `\n\n[Groq API error ${res.status}: ${body}]` });
           controller.close();
           return;
         }
@@ -64,6 +71,8 @@ export class GroqProvider implements AIProvider {
 
         const decoder = new TextDecoder();
         let buffer = '';
+        let usageChunk: OpenAIChunk['usage'] | null = null;
+        let resolvedModel = model;
 
         while (true) {
           const { value, done } = await reader.read();
@@ -80,11 +89,26 @@ export class GroqProvider implements AIProvider {
             try {
               const chunk = JSON.parse(json) as OpenAIChunk;
               const text = chunk.choices?.[0]?.delta?.content;
-              if (text) controller.enqueue(text);
+              if (text) controller.enqueue({ type: 'text', content: text });
+              if (chunk.usage) usageChunk = chunk.usage;
+              if (chunk.model) resolvedModel = chunk.model;
             } catch {
               // malformed chunk — skip
             }
           }
+        }
+
+        if (usageChunk) {
+          controller.enqueue({
+            type: 'usage',
+            data: {
+              promptTokens: usageChunk.prompt_tokens,
+              completionTokens: usageChunk.completion_tokens,
+              totalTokens: usageChunk.total_tokens,
+              model: resolvedModel,
+              contextWindow: contextWindowForModel(resolvedModel),
+            },
+          });
         }
 
         controller.close();

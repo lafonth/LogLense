@@ -9,6 +9,7 @@ import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { useAIReport } from '@/hooks/useAIReport';
 import { useApiKey } from '@/hooks/useApiKey';
 import { DEFAULT_GROQ_MODEL, GROQ_MODELS } from '@/lib/ai/groq';
+import { buildAnalysisPrompt } from '@/lib/ai/prompt';
 import { StreamingText } from './StreamingText';
 
 interface AIReportTabProps {
@@ -86,7 +87,7 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
       (localStorage.getItem('loglense_groq_model') as GroqModelId | null) ?? DEFAULT_GROQ_MODEL
     );
   });
-  const { text, loading, error, start, reset } = useAIReport();
+  const { text, usage, loading, error, start, reset } = useAIReport();
 
   useEffect(() => {
     fetch('/api/ai-report')
@@ -116,6 +117,17 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
   function handleGenerate() {
     if (!serverHasKey && !apiKey.trim()) return;
     start(buildPayload(), apiKey.trim(), provider, provider === 'groq' ? groqModel : undefined);
+  }
+
+  function handleDownloadPrompt() {
+    const prompt = buildAnalysisPrompt(buildPayload());
+    const blob = new Blob([prompt], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ai-prompt.txt';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function handleGroqModelChange(id: GroqModelId) {
@@ -235,7 +247,7 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
       )}
 
       {/* Key input + action */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', alignItems: 'flex-end' }}>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div style={{ flex: 1 }}>
           {serverHasKey ? (
             <p
@@ -285,6 +297,24 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
             </>
           )}
         </div>
+        <button
+          onClick={handleDownloadPrompt}
+          disabled={loading}
+          title="Download the prompt that will be sent to the AI"
+          style={{
+            padding: '8px 14px',
+            background: 'transparent',
+            border: '1px solid var(--border)',
+            borderRadius: '4px',
+            color: 'var(--text-dim)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.78rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          ↓ prompt
+        </button>
         {text ? (
           <button
             onClick={reset}
@@ -336,6 +366,66 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
         >
           <StreamingText text={text} loading={loading} />
         </div>
+      )}
+
+      {usage && !loading && (
+        <details
+          style={{
+            marginTop: '12px',
+            border: '1px solid var(--border)',
+            borderRadius: '4px',
+            background: 'var(--surface)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.78rem',
+          }}
+        >
+          <summary
+            style={{
+              padding: '8px 14px',
+              cursor: 'pointer',
+              color: 'var(--text-dim)',
+              userSelect: 'none',
+              listStyle: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <span style={{ color: 'var(--gold-dim)' }}>◂</span>
+            Analysis metadata
+          </summary>
+          <div
+            style={{
+              padding: '12px 16px',
+              borderTop: '1px solid var(--border)',
+              display: 'grid',
+              gridTemplateColumns: 'max-content 1fr',
+              gap: '4px 20px',
+              color: 'var(--text-dim)',
+            }}
+          >
+            <span style={{ color: 'var(--text-dim)' }}>Model</span>
+            <span style={{ color: 'var(--text)' }}>{usage.model}</span>
+
+            <span>Prompt tokens</span>
+            <span style={{ color: 'var(--text)' }}>{usage.promptTokens.toLocaleString()}</span>
+
+            <span>Completion tokens</span>
+            <span style={{ color: 'var(--text)' }}>{usage.completionTokens.toLocaleString()}</span>
+
+            <span>Total tokens</span>
+            <span style={{ color: 'var(--text)' }}>{usage.totalTokens.toLocaleString()}</span>
+
+            <span>Context window</span>
+            <span style={{ color: 'var(--text)' }}>
+              {usage.contextWindow.toLocaleString()}
+              {' '}
+              <span style={{ color: 'var(--text-dim)' }}>
+                ({((usage.totalTokens / usage.contextWindow) * 100).toFixed(1)}% used)
+              </span>
+            </span>
+          </div>
+        </details>
       )}
     </div>
   );
