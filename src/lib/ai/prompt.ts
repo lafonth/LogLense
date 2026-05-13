@@ -1,4 +1,4 @@
-import type { AnalysisResult, BossResult, CharacterStats, DamageEntry, FightTarget, RotationSummary, TalentNode } from '@/types';
+import type { AnalysisResult, BossResult, CharacterStats, DamageEntry, FightTarget, RotationSummary, TalentNode, TopPlayer } from '@/types';
 import talentTree from '@/data/feral-druid-talents.json';
 
 export const SYSTEM_PROMPT = `You are a Feral Druid performance coach analysing WarcraftLogs data. \
@@ -18,65 +18,147 @@ function fmt(n: number): string {
   return n.toLocaleString('en-US');
 }
 
-function pct(entries: DamageEntry[], name: string): string {
-  const total = entries.reduce((s, e) => s + e.total, 0);
-  const entry = entries.find((e) => e.name === name);
-  if (!entry || total === 0) return '—';
-  return `${((entry.total / total) * 100).toFixed(1)}%`;
-}
-
-function damageBreakdown(entries: DamageEntry[]): string {
-  if (entries.length === 0) return '';
-  const total = entries.reduce((s, e) => s + e.total, 0);
-  if (total === 0) return '';
-  return entries
-    .slice(0, 10)
-    .map((e) => `${e.name} ${((e.total / total) * 100).toFixed(1)}%`)
-    .join(', ');
-}
-
-function rotationLine(r: RotationSummary): string {
-  return Object.entries(r.casts)
-    .filter(([, v]) => v.casts > 0)
-    .map(([k, v]) => `${k} ${v.perMin.toFixed(2)}/min`)
-    .join(' | ');
-}
-
-function statsLine(s: CharacterStats & { dps: number; killTime: string }): string {
-  return `ilvl ${s.avgIlvl.toFixed(1)} | Agi ${fmt(s.agility)} | Crit ${fmt(s.crit)} | Haste ${fmt(s.haste)} | Mastery ${fmt(s.mastery)} | Vers ${fmt(s.vers)}`;
-}
-
 function fightTargetsLine(targets: FightTarget[]): string {
   if (targets.length === 0) return 'unknown';
   return targets.map((t) => `${t.name} (${t.type}, ${t.damagePct}%)`).join(', ');
 }
 
-function playerBlock(
-  label: string,
-  stats: CharacterStats & { dps: number; killTime: string },
-  rotation: RotationSummary,
-  damageEntries: DamageEntry[],
-  bossDps?: number | null,
-  bossDpsPct?: number | null,
+function mdTable(headers: string[], rows: string[][]): string {
+  const cols = headers.length;
+  const pad = (s: string) => ` ${s} `;
+  const headerRow = `|${headers.map(pad).join('|')}|`;
+  const sepRow = `|${Array(cols).fill('---').join('|')}|`;
+  const dataRows = rows.map((r) => `|${r.map(pad).join('|')}|`);
+  return [headerRow, sepRow, ...dataRows].join('\n');
+}
+
+function statsTable(
+  char: CharacterStats & { dps: number; killTime: string; overallPct: number; bossDps: number | null; bossDpsPct: number | null },
+  topPlayers: TopPlayer[]
 ): string {
-  const tfUptime = rotation.buffs["Tiger's Fury"] ?? 0;
-  const ripPct = pct(damageEntries, 'Rip');
-  const rakePct = pct(damageEntries, 'Rake');
+  const headers = ['', `You (${char.overallPct}th pct)`, ...topPlayers.map((_, i) => `P${i + 1}`)];
 
-  const dpsLine = bossDps
-    ? `DPS: ${fmt(stats.dps)} (boss-only: ${fmt(bossDps)}, ${bossDpsPct}th pct) | Kill time: ${stats.killTime}`
-    : `DPS: ${fmt(stats.dps)} | Kill time: ${stats.killTime}`;
-
-  const lines = [
-    `### ${label}`,
-    dpsLine,
-    `Stats: ${statsLine(stats)}`,
-    `Rotation (casts/min): ${rotationLine(rotation)}`,
-    `Tiger's Fury uptime: ${tfUptime}%`,
-    `Damage % of total: ${damageBreakdown(damageEntries)}`,
-    `  (Rip: ${ripPct} of damage | Rake: ${rakePct} of damage)`,
+  const rows: [string, (c: typeof char, p: TopPlayer) => string][] = [
+    ['DPS', (c, p) => fmt(p?.stats.dps ?? c.dps)],
+    ['Kill time', (c, p) => p?.stats.killTime ?? c.killTime],
+    ['ilvl', (c, p) => (p?.stats.avgIlvl ?? c.avgIlvl).toFixed(1)],
+    ['Agility', (c, p) => fmt(p?.stats.agility ?? c.agility)],
+    ['Crit', (c, p) => fmt(p?.stats.crit ?? c.crit)],
+    ['Haste', (c, p) => fmt(p?.stats.haste ?? c.haste)],
+    ['Mastery', (c, p) => fmt(p?.stats.mastery ?? c.mastery)],
+    ['Vers', (c, p) => fmt(p?.stats.vers ?? c.vers)],
   ];
-  return lines.join('\n');
+
+  const tableRows = rows.map(([label, fn]) => [
+    label,
+    label === 'DPS' && char.bossDps
+      ? `${fmt(char.dps)} (boss: ${fmt(char.bossDps)}, ${char.bossDpsPct}th)`
+      : fn(char, topPlayers[0]),
+    ...topPlayers.map((p) => fn(char, p)),
+  ]);
+
+  // Fix first column (character values use the char object directly)
+  const fixedRows = rows.map(([label, fn]) => {
+    const charVal =
+      label === 'DPS' && char.bossDps
+        ? `${fmt(char.dps)} (boss: ${fmt(char.bossDps)}, ${char.bossDpsPct}th)`
+        : label === 'DPS' ? fmt(char.dps)
+        : label === 'Kill time' ? char.killTime
+        : label === 'ilvl' ? char.avgIlvl.toFixed(1)
+        : label === 'Agility' ? fmt(char.agility)
+        : label === 'Crit' ? fmt(char.crit)
+        : label === 'Haste' ? fmt(char.haste)
+        : label === 'Mastery' ? fmt(char.mastery)
+        : fmt(char.vers);
+    return [label, charVal, ...topPlayers.map((p) => fn(char, p))];
+  });
+
+  void tableRows; // unused after refactor above
+  return mdTable(headers, fixedRows);
+}
+
+function spellUsageTable(
+  charRotation: RotationSummary,
+  topPlayers: TopPlayer[]
+): string {
+  const allAbilities = [
+    ...new Set([
+      ...Object.keys(charRotation.casts),
+      ...topPlayers.flatMap((p) => Object.keys(p.rotation.casts)),
+    ]),
+  ]
+    .filter((name) => {
+      const charCasts = charRotation.casts[name]?.casts ?? 0;
+      const topCasts = topPlayers.reduce((s, p) => s + (p.rotation.casts[name]?.casts ?? 0), 0);
+      return charCasts + topCasts > 0;
+    })
+    .sort((a, b) => (charRotation.casts[b]?.casts ?? 0) - (charRotation.casts[a]?.casts ?? 0));
+
+  if (allAbilities.length === 0) return '';
+
+  const headers = ['Ability (casts/min)', 'You', ...topPlayers.map((_, i) => `P${i + 1}`)];
+  const rows = allAbilities.map((name) => [
+    name,
+    charRotation.casts[name]?.perMin.toFixed(2) ?? '0',
+    ...topPlayers.map((p) => p.rotation.casts[name]?.perMin.toFixed(2) ?? '0'),
+  ]);
+
+  return mdTable(headers, rows);
+}
+
+function uptimeTable(
+  charRotation: RotationSummary,
+  topPlayers: TopPlayer[]
+): string {
+  const allBuffs = [
+    ...new Set([
+      ...Object.keys(charRotation.buffs),
+      ...topPlayers.flatMap((p) => Object.keys(p.rotation.buffs)),
+    ]),
+  ].filter((name) => {
+    const charPct = charRotation.buffs[name] ?? 0;
+    const topPct = topPlayers.reduce((s, p) => s + (p.rotation.buffs[name] ?? 0), 0);
+    return charPct + topPct > 0;
+  });
+
+  if (allBuffs.length === 0) return '';
+
+  const headers = ['Buff uptime (%)', 'You', ...topPlayers.map((_, i) => `P${i + 1}`)];
+  const rows = allBuffs.map((name) => [
+    name,
+    String(charRotation.buffs[name] ?? 0),
+    ...topPlayers.map((p) => String(p.rotation.buffs[name] ?? 0)),
+  ]);
+
+  return mdTable(headers, rows);
+}
+
+function damageTable(
+  charEntries: DamageEntry[],
+  topPlayers: TopPlayer[]
+): string {
+  const charTotal = charEntries.reduce((s, e) => s + e.total, 0);
+  if (charTotal === 0) return '';
+
+  const topTotals = topPlayers.map((p) =>
+    p.damageTable.entries.reduce((s, e) => s + e.total, 0)
+  );
+
+  const topAbilities = charEntries.slice(0, 10).map((e) => e.name);
+
+  const headers = ['Damage source', 'You %', ...topPlayers.map((_, i) => `P${i + 1} %`)];
+  const rows = topAbilities.map((name) => {
+    const charPct = ((charEntries.find((e) => e.name === name)?.total ?? 0) / charTotal * 100).toFixed(1);
+    const topPcts = topPlayers.map((p, i) => {
+      const entry = p.damageTable.entries.find((e) => e.name === name);
+      return topTotals[i] > 0
+        ? ((entry?.total ?? 0) / topTotals[i] * 100).toFixed(1)
+        : '—';
+    });
+    return [name, charPct, ...topPcts];
+  });
+
+  return mdTable(headers, rows);
 }
 
 const nodes = talentTree as TalentNode[];
@@ -99,7 +181,6 @@ function talentDiff(
 
   const lines: string[] = [];
 
-  // IDs only you have (none of the top players have it)
   const topAllIds = new Set(topPlayers.flatMap((p) => Object.keys(p.stats.talents).map(Number)));
   const onlyMe = Object.keys(myTalents)
     .map(Number)
@@ -107,7 +188,6 @@ function talentDiff(
   if (onlyMe.length > 0)
     lines.push(`You have, top players don't: ${onlyMe.map(talentName).join(', ')}`);
 
-  // IDs all top players have that you don't
   const myIds = new Set(Object.keys(myTalents).map(Number));
   const topShared = [...topAllIds].filter(
     (id) => !myIds.has(id) && topPlayers.every((p) => p.stats.talents[id] !== undefined)
@@ -115,7 +195,6 @@ function talentDiff(
   if (topShared.length > 0)
     lines.push(`Top players have, you don't: ${topShared.map(talentName).join(', ')}`);
 
-  // Rank differences on shared talents (e.g., you have rank 1, they have rank 2)
   const rankDiffs: string[] = [];
   for (const id of myIds) {
     if (!topAllIds.has(id)) continue;
@@ -133,49 +212,51 @@ function talentDiff(
 }
 
 export function buildAnalysisPrompt(result: AnalysisResult): string {
+  const difficultyLabel: Record<number, string> = { 3: 'Normal', 4: 'Heroic', 5: 'Mythic' };
+  const diff = difficultyLabel[result.input.difficulty] ?? `Difficulty ${result.input.difficulty}`;
+
   const bossSections = result.bosses
     .map((boss, i) => {
       if (!boss) return `## Boss ${i + 1}\nNo data available for this boss.`;
 
       const topPlayers = boss.topPlayers.slice(0, 3);
-
       const charStats = {
         ...boss.character.stats,
         dps: boss.character.dps,
         killTime: boss.character.killTime,
+        overallPct: boss.character.overallPct,
+        bossDps: boss.character.bossDps,
+        bossDpsPct: boss.character.bossDpsPct,
       };
 
-      const charBlock = playerBlock(
-        `You (${boss.character.overallPct}th percentile)`,
-        charStats,
-        boss.character.rotation,
-        boss.character.damageTable.entries,
-        boss.character.bossDps,
-        boss.character.bossDpsPct,
-      );
-
-      const topBlocks = topPlayers
-        .map((p, idx) =>
-          playerBlock(`Top Player ${idx + 1}`, p.stats, p.rotation, p.damageTable.entries)
-        )
-        .join('\n\n');
-
-      return [
+      const sections: string[] = [
         `## ${boss.encounter}`,
         `Fight targets: ${fightTargetsLine(boss.fightTargets)}`,
         '',
-        charBlock,
+        '### Gear & Stats',
+        statsTable(charStats, topPlayers),
         '',
-        topBlocks,
+        '### Spell Usage',
+        spellUsageTable(boss.character.rotation, topPlayers),
         '',
-        '### Talent differences',
+      ];
+
+      const uptimes = uptimeTable(boss.character.rotation, topPlayers);
+      if (uptimes) {
+        sections.push('### Buff Uptimes', uptimes, '');
+      }
+
+      sections.push(
+        '### Damage Breakdown',
+        damageTable(boss.character.damageTable.entries, topPlayers),
+        '',
+        '### Talent Differences',
         talentDiff(boss.character.stats.talents, topPlayers),
-      ].join('\n');
+      );
+
+      return sections.join('\n');
     })
     .join('\n\n---\n\n');
-
-  const difficultyLabel: Record<number, string> = { 3: 'Normal', 4: 'Heroic', 5: 'Mythic' };
-  const diff = difficultyLabel[result.input.difficulty] ?? `Difficulty ${result.input.difficulty}`;
 
   return [
     `# Feral Druid Performance Analysis — ${result.input.characterName}-${result.input.serverSlug} (${diff})`,

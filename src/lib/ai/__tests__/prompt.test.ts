@@ -104,7 +104,7 @@ describe('buildAnalysisPrompt', () => {
     expect(prompt).toContain('250,000');
     expect(prompt).toContain('95.5');
     expect(prompt).toContain("Tiger's Fury");
-    expect(prompt).toContain('Rip:');
+    expect(prompt).toContain('Damage Breakdown');
   });
 
   it('skips null boss results', () => {
@@ -140,7 +140,7 @@ describe('buildAnalysisPrompt', () => {
     };
 
     const prompt = buildAnalysisPrompt(input);
-    expect(prompt).toContain('Talent differences');
+    expect(prompt).toContain('Talent Differences');
   });
 });
 
