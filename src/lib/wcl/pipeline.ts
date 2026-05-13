@@ -1,14 +1,8 @@
 import type { WCLTable } from './parsers';
-import type { AnalysisInput, AnalysisResult, BossResult, CharacterStats } from '@/types';
+import type { AnalysisInput, AnalysisResult, BossResult, CharacterStats, FightTarget } from '@/types';
 import { getWCLToken } from './auth';
 import { gql } from './client';
-import {
-  FERAL_SPEC_ID,
-  KILL_TIME_TOLERANCE,
-  TOP_N,
-  UPTIME_BUFFS,
-  UPTIME_DEBUFFS,
-} from './constants';
+import { FERAL_SPEC_ID, KILL_TIME_TOLERANCE, TOP_N } from './constants';
 import { fmtMs, parseCasts, parseStats, parseUptime, summarizeRotation } from './parsers';
 import {
   Q_CHARACTER_RANKINGS,
@@ -114,12 +108,12 @@ export async function analyzeBoss(
   const [dmgData, rotData] = await Promise.all([
     gql<{
       reportData: {
-        report: { table: { data: { entries: { guid: number; name: string; total: number }[] } } };
+        report: { table: { data: { entries: { guid: number; name: string; total: number; targets?: { name: string; total: number; type: string }[] }[] } } };
       };
     }>(token, Q_DAMAGE, { code: bestCode, fightIDs: [bestFightId], sourceID: charEvent.sourceID }),
     gql<{
       reportData: {
-        report: { casts: WCLTable; buffs: WCLTable; debuffs: WCLTable };
+        report: { casts: WCLTable; buffs: WCLTable };
       };
     }>(token, Q_ROTATION, {
       code: bestCode,
@@ -132,21 +126,32 @@ export async function analyzeBoss(
   if (!charStats) return null;
 
   const charCasts = parseCasts(rotData.reportData.report.casts, bestKillMs);
-  const charBuffs = parseUptime(rotData.reportData.report.buffs, bestKillMs, UPTIME_BUFFS);
-  const charDebuffs = parseUptime(rotData.reportData.report.debuffs, bestKillMs, UPTIME_DEBUFFS);
-  const charRotation = summarizeRotation(
-    name,
-    charCasts,
-    charBuffs,
-    charDebuffs,
-    bestKillMs,
-    bestDps
-  );
+  const charBuffs = parseUptime(rotData.reportData.report.buffs, bestKillMs);
+  const charRotation = summarizeRotation(name, charCasts, charBuffs, bestKillMs, bestDps);
 
-  const damageEntries = (dmgData.reportData.report.table.data?.entries ?? []).map((e) => ({
-    name: e.name,
-    total: e.total,
-  }));
+  const allDmgEntries = dmgData.reportData.report.table.data?.entries ?? [];
+  const damageEntries = allDmgEntries
+    .map((e) => ({ name: e.name, total: e.total }))
+    .sort((a, b) => b.total - a.total);
+
+  const totalDamage = allDmgEntries.reduce((s, e) => s + e.total, 0);
+  const targetMap = new Map<string, { type: string; total: number }>();
+  for (const entry of allDmgEntries) {
+    for (const t of entry.targets ?? []) {
+      if (t.type === 'Player') continue;
+      const existing = targetMap.get(t.name);
+      if (existing) existing.total += t.total;
+      else targetMap.set(t.name, { type: t.type, total: t.total });
+    }
+  }
+  const fightTargets: FightTarget[] = [...targetMap.entries()]
+    .map(([name, { type, total }]) => ({
+      name,
+      type,
+      damagePct: totalDamage > 0 ? Math.round((total / totalDamage) * 1000) / 10 : 0,
+    }))
+    .filter((t) => t.damagePct >= 1)
+    .sort((a, b) => b.damagePct - a.damagePct);
 
   const worldData = await worldDataPromise;
 
@@ -165,23 +170,28 @@ export async function analyzeBoss(
     const pEvent = await getFeralEvent(token, pCode, pFight);
     if (!pEvent) continue;
 
-    const pRot = await gql<{
-      reportData: {
-        report: { casts: WCLTable; buffs: WCLTable; debuffs: WCLTable };
-      };
-    }>(token, Q_ROTATION, { code: pCode, fightIDs: [pFight], sourceID: pEvent.sourceID });
+    const [pRot, pDmg] = await Promise.all([
+      gql<{
+        reportData: {
+          report: { casts: WCLTable; buffs: WCLTable };
+        };
+      }>(token, Q_ROTATION, { code: pCode, fightIDs: [pFight], sourceID: pEvent.sourceID }),
+      gql<{
+        reportData: {
+          report: { table: { data: { entries: { guid: number; name: string; total: number }[] } } };
+        };
+      }>(token, Q_DAMAGE, { code: pCode, fightIDs: [pFight], sourceID: pEvent.sourceID }),
+    ]);
 
     const pStats = parseStats(pEvent, player.name);
     if (!pStats) continue;
 
     const pCasts = parseCasts(pRot.reportData.report.casts, player.duration);
-    const pBuffs = parseUptime(pRot.reportData.report.buffs, player.duration, UPTIME_BUFFS);
-    const pDebuffs = parseUptime(pRot.reportData.report.debuffs, player.duration, UPTIME_DEBUFFS);
+    const pBuffs = parseUptime(pRot.reportData.report.buffs, player.duration);
     const pRotation = summarizeRotation(
       player.name,
       pCasts,
       pBuffs,
-      pDebuffs,
       player.duration,
       Math.round(player.amount)
     );
@@ -192,12 +202,17 @@ export async function analyzeBoss(
       killTime: fmtMs(player.duration),
     };
 
-    topPlayers.push({ stats: pStatsWithMeta, rotation: pRotation });
+    const pDamageEntries = (pDmg.reportData.report.table.data?.entries ?? [])
+      .map((e) => ({ name: e.name, total: e.total }))
+      .sort((a, b) => b.total - a.total);
+
+    topPlayers.push({ stats: pStatsWithMeta, rotation: pRotation, damageTable: { entries: pDamageEntries } });
   }
 
   return {
     encounter: encounterName,
     encounterId,
+    fightTargets,
     character: {
       stats: charStats,
       rotation: charRotation,

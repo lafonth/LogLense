@@ -6,6 +6,7 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
   return {
     encounter: 'Chimaerus',
     encounterId: 3306,
+    fightTargets: [{ name: 'Chimaerus', type: 'Boss', damagePct: 95.0 }],
     character: {
       stats: {
         name: 'Jumbaa',
@@ -21,23 +22,14 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
         name: 'Jumbaa',
         dps: 250000,
         fightDurationMs: 180000,
-        cooldowns: {
+        casts: {
           "Tiger's Fury": { casts: 10, perMin: 3.33 },
           Berserk: { casts: 3, perMin: 1 },
-          Frenzy: { casts: 2, perMin: 0.67 },
-          Convoke: { casts: 2, perMin: 0.67 },
-        },
-        generators: {
           Shred: { casts: 60, perMin: 20 },
-          Swipe: { casts: 5, perMin: 1.67 },
-          Moonfire: { casts: 8, perMin: 2.67 },
-        },
-        finishers: {
           Rip: { casts: 9, perMin: 3 },
           'Ferocious Bite': { casts: 12, perMin: 4 },
-          'Primal Wrath': { casts: 0, perMin: 0 },
         },
-        uptime: { "Tiger's Fury %": 28, 'Rip %': 88, 'Rake %': 92 },
+        buffs: { "Tiger's Fury": 28 },
       },
       damageTable: {
         entries: [
@@ -73,23 +65,20 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
           name: 'TopPlayer1',
           dps: 290000,
           fightDurationMs: 175000,
-          cooldowns: {
+          casts: {
             "Tiger's Fury": { casts: 11, perMin: 3.77 },
-            Berserk: { casts: 3, perMin: 1.03 },
-            Frenzy: { casts: 3, perMin: 1.03 },
-            Convoke: { casts: 3, perMin: 1.03 },
-          },
-          generators: {
             Shred: { casts: 65, perMin: 22.29 },
-            Swipe: { casts: 2, perMin: 0.69 },
-            Moonfire: { casts: 10, perMin: 3.43 },
-          },
-          finishers: {
             Rip: { casts: 11, perMin: 3.77 },
             'Ferocious Bite': { casts: 14, perMin: 4.8 },
-            'Primal Wrath': { casts: 0, perMin: 0 },
           },
-          uptime: { "Tiger's Fury %": 35, 'Rip %': 95, 'Rake %': 97 },
+          buffs: { "Tiger's Fury": 35 },
+        },
+        damageTable: {
+          entries: [
+            { name: 'Rip', total: 4000000 },
+            { name: 'Rake', total: 2000000 },
+            { name: 'Shred', total: 1500000 },
+          ],
         },
       },
     ],
@@ -115,7 +104,7 @@ describe('buildAnalysisPrompt', () => {
     expect(prompt).toContain('250,000');
     expect(prompt).toContain('95.5');
     expect(prompt).toContain("Tiger's Fury");
-    expect(prompt).toContain('Rip %');
+    expect(prompt).toContain('Rip:');
   });
 
   it('skips null boss results', () => {

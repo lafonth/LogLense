@@ -37,10 +37,8 @@ export interface RotationSummary {
   name: string;
   dps?: number;
   fightDurationMs: number;
-  cooldowns: Record<string, CastEntry>;
-  generators: Record<string, CastEntry>;
-  finishers: Record<string, CastEntry>;
-  uptime: Record<string, number>;
+  casts: Record<string, CastEntry>;
+  buffs: Record<string, number>; // ability name → uptime %
 }
 
 export interface DamageEntry {
@@ -51,11 +49,19 @@ export interface DamageEntry {
 export interface TopPlayer {
   stats: CharacterStats & { dps: number; killTime: string };
   rotation: RotationSummary;
+  damageTable: { entries: DamageEntry[] };
+}
+
+export interface FightTarget {
+  name: string;
+  type: string;
+  damagePct: number;
 }
 
 export interface BossResult {
   encounter: string;
   encounterId: number;
+  fightTargets: FightTarget[];
   character: {
     stats: CharacterStats;
     rotation: RotationSummary;
