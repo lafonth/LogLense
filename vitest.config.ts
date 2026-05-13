@@ -5,9 +5,30 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'node',
     globals: true,
     exclude: ['node_modules/**', '.claude/**'],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: [
+            'src/lib/**/*.test.ts',
+            'src/app/api/**/*.test.ts',
+          ],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'dom',
+          environment: 'jsdom',
+          include: ['src/hooks/**/*.test.ts'],
+          setupFiles: ['./src/test-setup.ts'],
+        },
+      },
+    ],
   },
   resolve: {
     alias: {
