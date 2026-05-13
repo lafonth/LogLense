@@ -36,11 +36,15 @@ describe('claude provider', () => {
       chunks.push(value);
     }
 
-    const textChunks = chunks.filter((c) => c.type === 'text').map((c) => (c as { type: 'text'; content: string }).content);
+    const textChunks = chunks
+      .filter((c) => c.type === 'text')
+      .map((c) => (c as { type: 'text'; content: string }).content);
     const usageChunk = chunks.find((c) => c.type === 'usage');
 
     expect(textChunks).toEqual(['Hello ', 'world']);
     expect(usageChunk).toBeDefined();
-    expect((usageChunk as { type: 'usage'; data: { promptTokens: number } }).data.promptTokens).toBe(100);
+    expect(
+      (usageChunk as { type: 'usage'; data: { promptTokens: number } }).data.promptTokens
+    ).toBe(100);
   });
 });

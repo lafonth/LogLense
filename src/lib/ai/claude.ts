@@ -50,7 +50,10 @@ export class ClaudeProvider implements AIProvider {
             });
           }
         } catch (e) {
-          controller.enqueue({ type: 'text', content: `\n\n[Error: ${e instanceof Error ? e.message : 'Unknown error'}]` });
+          controller.enqueue({
+            type: 'text',
+            content: `\n\n[Error: ${e instanceof Error ? e.message : 'Unknown error'}]`,
+          });
         }
 
         controller.close();

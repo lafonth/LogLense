@@ -23,7 +23,10 @@ export async function GET(req: Request) {
   const sourceID = Number(searchParams.get('sourceID'));
 
   if (!code || !fightID || !sourceID) {
-    return NextResponse.json({ error: 'Required: ?code=XXX&fightID=N&sourceID=N' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Required: ?code=XXX&fightID=N&sourceID=N' },
+      { status: 400 }
+    );
   }
 
   const clientId = process.env.WCL_CLIENT_ID!;
@@ -43,13 +46,30 @@ export async function GET(req: Request) {
   const report = data.reportData.report;
 
   return NextResponse.json({
-    buffs_keys: Object.keys((report.buffs as Record<string, unknown>)?.data as object ?? {}),
-    debuffsWithSrc_keys: Object.keys((report.debuffsWithSrc as Record<string, unknown>)?.data as object ?? {}),
-    debuffsNoSrc_keys: Object.keys((report.debuffsNoSrc as Record<string, unknown>)?.data as object ?? {}),
-    buffs_auras_count: ((report.buffs as Record<string, {auras?: unknown[]}>)?.data?.auras ?? []).length,
-    debuffsWithSrc_auras: ((report.debuffsWithSrc as Record<string, {auras?: {name:string,totalUptime:number}[]}>)?.data?.auras ?? []).slice(0, 10),
-    debuffsNoSrc_auras: ((report.debuffsNoSrc as Record<string, {auras?: {name:string,totalUptime:number}[]}>)?.data?.auras ?? []).slice(0, 10),
-    debuffsWithSrc_entries: ((report.debuffsWithSrc as Record<string, {entries?: {name:string,total:number}[]}>)?.data?.entries ?? []).slice(0, 10),
-    debuffsNoSrc_entries: ((report.debuffsNoSrc as Record<string, {entries?: {name:string,total:number}[]}>)?.data?.entries ?? []).slice(0, 10),
+    buffs_keys: Object.keys(((report.buffs as Record<string, unknown>)?.data as object) ?? {}),
+    debuffsWithSrc_keys: Object.keys(
+      ((report.debuffsWithSrc as Record<string, unknown>)?.data as object) ?? {}
+    ),
+    debuffsNoSrc_keys: Object.keys(
+      ((report.debuffsNoSrc as Record<string, unknown>)?.data as object) ?? {}
+    ),
+    buffs_auras_count: ((report.buffs as Record<string, { auras?: unknown[] }>)?.data?.auras ?? [])
+      .length,
+    debuffsWithSrc_auras: (
+      (report.debuffsWithSrc as Record<string, { auras?: { name: string; totalUptime: number }[] }>)
+        ?.data?.auras ?? []
+    ).slice(0, 10),
+    debuffsNoSrc_auras: (
+      (report.debuffsNoSrc as Record<string, { auras?: { name: string; totalUptime: number }[] }>)
+        ?.data?.auras ?? []
+    ).slice(0, 10),
+    debuffsWithSrc_entries: (
+      (report.debuffsWithSrc as Record<string, { entries?: { name: string; total: number }[] }>)
+        ?.data?.entries ?? []
+    ).slice(0, 10),
+    debuffsNoSrc_entries: (
+      (report.debuffsNoSrc as Record<string, { entries?: { name: string; total: number }[] }>)?.data
+        ?.entries ?? []
+    ).slice(0, 10),
   });
 }

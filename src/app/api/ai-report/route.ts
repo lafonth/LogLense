@@ -1,12 +1,12 @@
-import type { AIStreamChunk } from '@/lib/ai/provider';
 import type { GroqModelId } from '@/lib/ai/groq';
+import type { AIStreamChunk } from '@/lib/ai/provider';
 import type { AnalysisResult, TalentNode } from '@/types';
 
+import feralTalents from '@/data/feral-druid-talents.json';
 import { ClaudeProvider } from '@/lib/ai/claude';
 import { GeminiProvider } from '@/lib/ai/gemini';
 import { DEFAULT_GROQ_MODEL, GroqProvider } from '@/lib/ai/groq';
 import { buildAnalysisPrompt, SYSTEM_PROMPT } from '@/lib/ai/prompt';
-import feralTalents from '@/data/feral-druid-talents.json';
 
 export const runtime = 'edge';
 
@@ -63,7 +63,9 @@ export async function POST(req: Request) {
         if (chunk.type === 'text') {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk.content)}\n\n`));
         } else {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ _meta: 'usage', ...chunk.data })}\n\n`));
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ _meta: 'usage', ...chunk.data })}\n\n`)
+          );
         }
       },
       flush(controller) {

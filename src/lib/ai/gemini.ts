@@ -56,14 +56,20 @@ export class GeminiProvider implements AIProvider {
             }),
           });
         } catch (e) {
-          controller.enqueue({ type: 'text', content: `\n\n[Error: ${e instanceof Error ? e.message : 'Network error'}]` });
+          controller.enqueue({
+            type: 'text',
+            content: `\n\n[Error: ${e instanceof Error ? e.message : 'Network error'}]`,
+          });
           controller.close();
           return;
         }
 
         if (!res.ok) {
           const body = await res.text();
-          controller.enqueue({ type: 'text', content: `\n\n[Gemini API error ${res.status}: ${extractGeminiError(body)}]` });
+          controller.enqueue({
+            type: 'text',
+            content: `\n\n[Gemini API error ${res.status}: ${extractGeminiError(body)}]`,
+          });
           controller.close();
           return;
         }

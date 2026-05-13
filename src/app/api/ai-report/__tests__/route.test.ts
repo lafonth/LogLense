@@ -10,7 +10,16 @@ vi.mock('@/lib/ai/claude', () => ({
         start(controller) {
           controller.enqueue({ type: 'text', content: 'Great rotation ' });
           controller.enqueue({ type: 'text', content: 'analysis here.' });
-          controller.enqueue({ type: 'usage', data: { promptTokens: 100, completionTokens: 20, totalTokens: 120, model: 'claude-sonnet-4-6', contextWindow: 200000 } });
+          controller.enqueue({
+            type: 'usage',
+            data: {
+              promptTokens: 100,
+              completionTokens: 20,
+              totalTokens: 120,
+              model: 'claude-sonnet-4-6',
+              contextWindow: 200000,
+            },
+          });
           controller.close();
         },
       })

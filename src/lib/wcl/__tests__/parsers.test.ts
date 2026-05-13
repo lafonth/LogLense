@@ -92,7 +92,7 @@ describe('summarizeRotation', () => {
 
     const summary = summarizeRotation('Jumbaa', casts, buffs, 120000, 250000);
 
-    expect(summary.casts['Shred'].casts).toBe(40);
+    expect(summary.casts.Shred.casts).toBe(40);
     expect(summary.casts["Tiger's Fury"].casts).toBe(10);
     expect(summary.buffs["Tiger's Fury"]).toBe(28);
     expect(summary.dps).toBe(250000);

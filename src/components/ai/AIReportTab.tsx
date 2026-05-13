@@ -247,7 +247,15 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
       )}
 
       {/* Key input + action */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: '12px',
+          marginBottom: '24px',
+          alignItems: 'flex-end',
+          flexWrap: 'wrap',
+        }}
+      >
         <div style={{ flex: 1 }}>
           {serverHasKey ? (
             <p
@@ -418,8 +426,7 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
 
             <span>Context window</span>
             <span style={{ color: 'var(--text)' }}>
-              {usage.contextWindow.toLocaleString()}
-              {' '}
+              {usage.contextWindow.toLocaleString()}{' '}
               <span style={{ color: 'var(--text-dim)' }}>
                 ({((usage.totalTokens / usage.contextWindow) * 100).toFixed(1)}% used)
               </span>

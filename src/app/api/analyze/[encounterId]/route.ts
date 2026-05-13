@@ -1,9 +1,9 @@
 import type { AnalysisInput } from '@/types';
 import { NextResponse } from 'next/server';
-
-export const runtime = 'edge';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { analyzeBoss } from '@/lib/wcl/pipeline';
+
+export const runtime = 'edge';
 
 interface AnalyzeBody {
   characterName: string;

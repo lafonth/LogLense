@@ -1,5 +1,11 @@
 import type { WCLTable } from './parsers';
-import type { AnalysisInput, AnalysisResult, BossResult, CharacterStats, FightTarget } from '@/types';
+import type {
+  AnalysisInput,
+  AnalysisResult,
+  BossResult,
+  CharacterStats,
+  FightTarget,
+} from '@/types';
 import { getWCLToken } from './auth';
 import { gql } from './client';
 import { FERAL_SPEC_ID, KILL_TIME_TOLERANCE, TOP_N } from './constants';
@@ -108,7 +114,18 @@ export async function analyzeBoss(
   const [dmgData, rotData] = await Promise.all([
     gql<{
       reportData: {
-        report: { table: { data: { entries: { guid: number; name: string; total: number; targets?: { name: string; total: number; type: string }[] }[] } } };
+        report: {
+          table: {
+            data: {
+              entries: {
+                guid: number;
+                name: string;
+                total: number;
+                targets?: { name: string; total: number; type: string }[];
+              }[];
+            };
+          };
+        };
       };
     }>(token, Q_DAMAGE, { code: bestCode, fightIDs: [bestFightId], sourceID: charEvent.sourceID }),
     gql<{
@@ -206,7 +223,11 @@ export async function analyzeBoss(
       .map((e) => ({ name: e.name, total: e.total }))
       .sort((a, b) => b.total - a.total);
 
-    topPlayers.push({ stats: pStatsWithMeta, rotation: pRotation, damageTable: { entries: pDamageEntries } });
+    topPlayers.push({
+      stats: pStatsWithMeta,
+      rotation: pRotation,
+      damageTable: { entries: pDamageEntries },
+    });
   }
 
   return {

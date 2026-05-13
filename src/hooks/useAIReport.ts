@@ -64,8 +64,7 @@ export function useAIReport() {
               const chunk = JSON.parse(raw) as string | UsageEvent;
               if (chunk === '[DONE]') break;
               if (typeof chunk === 'object' && chunk._meta === 'usage') {
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const { _meta, ...data } = chunk;
+                const { _meta: _, ...data } = chunk;
                 setUsage(data as UsageData);
               } else if (typeof chunk === 'string') {
                 setText((prev) => prev + chunk);

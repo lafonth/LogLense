@@ -7,9 +7,21 @@ interface OpenAIChunk {
 }
 
 export const GROQ_MODELS = [
-  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B — best quality (1k req/day)', contextWindow: 131072 },
-  { id: 'llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout 17B — balanced (1k req/day)', contextWindow: 131072 },
-  { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B — unlimited (14k req/day)', contextWindow: 131072 },
+  {
+    id: 'llama-3.3-70b-versatile',
+    label: 'Llama 3.3 70B — best quality (1k req/day)',
+    contextWindow: 131072,
+  },
+  {
+    id: 'llama-4-scout-17b-16e-instruct',
+    label: 'Llama 4 Scout 17B — balanced (1k req/day)',
+    contextWindow: 131072,
+  },
+  {
+    id: 'llama-3.1-8b-instant',
+    label: 'Llama 3.1 8B — unlimited (14k req/day)',
+    contextWindow: 131072,
+  },
 ] as const;
 
 export type GroqModelId = (typeof GROQ_MODELS)[number]['id'];
@@ -51,14 +63,20 @@ export class GroqProvider implements AIProvider {
             }),
           });
         } catch (e) {
-          controller.enqueue({ type: 'text', content: `\n\n[Error: ${e instanceof Error ? e.message : 'Network error'}]` });
+          controller.enqueue({
+            type: 'text',
+            content: `\n\n[Error: ${e instanceof Error ? e.message : 'Network error'}]`,
+          });
           controller.close();
           return;
         }
 
         if (!res.ok) {
           const body = await res.text();
-          controller.enqueue({ type: 'text', content: `\n\n[Groq API error ${res.status}: ${body}]` });
+          controller.enqueue({
+            type: 'text',
+            content: `\n\n[Groq API error ${res.status}: ${body}]`,
+          });
           controller.close();
           return;
         }

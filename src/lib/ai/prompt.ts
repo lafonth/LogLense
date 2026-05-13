@@ -1,4 +1,13 @@
-import type { AnalysisResult, BossResult, CharacterStats, DamageEntry, FightTarget, RotationSummary, TalentNode, TopPlayer } from '@/types';
+import type {
+  AnalysisResult,
+  BossResult,
+  CharacterStats,
+  DamageEntry,
+  FightTarget,
+  RotationSummary,
+  TalentNode,
+  TopPlayer,
+} from '@/types';
 
 export const SYSTEM_PROMPT = `You are a WarcraftLogs performance coach. Speak directly to the player. \
 Each ## section is one boss encounter — treat it as a single fight even if the name contains multiple names (council fights).
@@ -48,13 +57,19 @@ function mdTable(headers: string[], rows: string[][]): string {
   const cols = headers.length;
   const pad = (s: string) => ` ${s} `;
   const headerRow = `|${headers.map(pad).join('|')}|`;
-  const sepRow = `|${Array(cols).fill('---').join('|')}|`;
+  const sepRow = `|${Array.from({ length: cols }).fill('---').join('|')}|`;
   const dataRows = rows.map((r) => `|${r.map(pad).join('|')}|`);
   return [headerRow, sepRow, ...dataRows].join('\n');
 }
 
 function statsTable(
-  char: CharacterStats & { dps: number; killTime: string; overallPct: number; bossDps: number | null; bossDpsPct: number | null },
+  char: CharacterStats & {
+    dps: number;
+    killTime: string;
+    overallPct: number;
+    bossDps: number | null;
+    bossDpsPct: number | null;
+  },
   topPlayers: TopPlayer[]
 ): string {
   const headers = ['', `You (${char.overallPct}th pct)`, ...topPlayers.map((_, i) => `P${i + 1}`)];
@@ -83,14 +98,21 @@ function statsTable(
     const charVal =
       label === 'DPS' && char.bossDps
         ? `${fmt(char.dps)} (boss: ${fmt(char.bossDps)}, ${char.bossDpsPct}th)`
-        : label === 'DPS' ? fmt(char.dps)
-        : label === 'Kill time' ? char.killTime
-        : label === 'ilvl' ? char.avgIlvl.toFixed(1)
-        : label === 'Agility' ? fmt(char.agility)
-        : label === 'Crit' ? fmt(char.crit)
-        : label === 'Haste' ? fmt(char.haste)
-        : label === 'Mastery' ? fmt(char.mastery)
-        : fmt(char.vers);
+        : label === 'DPS'
+          ? fmt(char.dps)
+          : label === 'Kill time'
+            ? char.killTime
+            : label === 'ilvl'
+              ? char.avgIlvl.toFixed(1)
+              : label === 'Agility'
+                ? fmt(char.agility)
+                : label === 'Crit'
+                  ? fmt(char.crit)
+                  : label === 'Haste'
+                    ? fmt(char.haste)
+                    : label === 'Mastery'
+                      ? fmt(char.mastery)
+                      : fmt(char.vers);
     return [label, charVal, ...topPlayers.map((p) => fn(char, p))];
   });
 
@@ -98,10 +120,7 @@ function statsTable(
   return mdTable(headers, fixedRows);
 }
 
-function spellUsageTable(
-  charRotation: RotationSummary,
-  topPlayers: TopPlayer[]
-): string {
+function spellUsageTable(charRotation: RotationSummary, topPlayers: TopPlayer[]): string {
   const allAbilities = [
     ...new Set([
       ...Object.keys(charRotation.casts),
@@ -127,10 +146,7 @@ function spellUsageTable(
   return mdTable(headers, rows);
 }
 
-function uptimeTable(
-  charRotation: RotationSummary,
-  topPlayers: TopPlayer[]
-): string {
+function uptimeTable(charRotation: RotationSummary, topPlayers: TopPlayer[]): string {
   const allBuffs = [
     ...new Set([
       ...Object.keys(charRotation.buffs),
@@ -154,27 +170,23 @@ function uptimeTable(
   return mdTable(headers, rows);
 }
 
-function damageTable(
-  charEntries: DamageEntry[],
-  topPlayers: TopPlayer[]
-): string {
+function damageTable(charEntries: DamageEntry[], topPlayers: TopPlayer[]): string {
   const charTotal = charEntries.reduce((s, e) => s + e.total, 0);
   if (charTotal === 0) return '';
 
-  const topTotals = topPlayers.map((p) =>
-    p.damageTable.entries.reduce((s, e) => s + e.total, 0)
-  );
+  const topTotals = topPlayers.map((p) => p.damageTable.entries.reduce((s, e) => s + e.total, 0));
 
   const topAbilities = charEntries.slice(0, 10).map((e) => e.name);
 
   const headers = ['Damage source', 'You %', ...topPlayers.map((_, i) => `P${i + 1} %`)];
   const rows = topAbilities.map((name) => {
-    const charPct = ((charEntries.find((e) => e.name === name)?.total ?? 0) / charTotal * 100).toFixed(1);
+    const charPct = (
+      ((charEntries.find((e) => e.name === name)?.total ?? 0) / charTotal) *
+      100
+    ).toFixed(1);
     const topPcts = topPlayers.map((p, i) => {
       const entry = p.damageTable.entries.find((e) => e.name === name);
-      return topTotals[i] > 0
-        ? ((entry?.total ?? 0) / topTotals[i] * 100).toFixed(1)
-        : '—';
+      return topTotals[i] > 0 ? (((entry?.total ?? 0) / topTotals[i]) * 100).toFixed(1) : '—';
     });
     return [name, charPct, ...topPcts];
   });
@@ -197,7 +209,7 @@ function makeTalentNameFn(nodes: TalentNode[]) {
 function talentDiff(
   myTalents: Record<number, number>,
   topPlayers: BossResult['topPlayers'],
-  talentName: (id: number) => string,
+  talentName: (id: number) => string
 ): string {
   if (topPlayers.length === 0) return '';
 
@@ -233,7 +245,10 @@ function talentDiff(
   return lines.join('\n') || 'Talent builds are identical.';
 }
 
-export function buildAnalysisPrompt(result: AnalysisResult, talentNodes: TalentNode[] = []): string {
+export function buildAnalysisPrompt(
+  result: AnalysisResult,
+  talentNodes: TalentNode[] = []
+): string {
   const talentName = makeTalentNameFn(talentNodes);
   const difficultyLabel: Record<number, string> = { 3: 'Normal', 4: 'Heroic', 5: 'Mythic' };
   const diff = difficultyLabel[result.input.difficulty] ?? `Difficulty ${result.input.difficulty}`;
@@ -274,7 +289,7 @@ export function buildAnalysisPrompt(result: AnalysisResult, talentNodes: TalentN
         damageTable(boss.character.damageTable.entries, topPlayers),
         '',
         '### Talent Differences',
-        talentDiff(boss.character.stats.talents, topPlayers, talentName),
+        talentDiff(boss.character.stats.talents, topPlayers, talentName)
       );
 
       return sections.join('\n');
