@@ -10,7 +10,11 @@ export function useAIReport() {
   const abortRef = useRef<AbortController | null>(null);
 
   const start = useCallback(
-    async (result: AnalysisResult, apiKey: string, provider: 'claude' | 'gemini' = 'claude') => {
+    async (
+      result: AnalysisResult,
+      apiKey: string,
+      provider: 'claude' | 'gemini' | 'groq' = 'groq'
+    ) => {
       setText('');
       setError(null);
       setLoading(true);

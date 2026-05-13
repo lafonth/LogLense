@@ -13,7 +13,7 @@ interface AIReportTabProps {
   analysisResult: AnalysisResult;
 }
 
-type Provider = 'claude' | 'gemini';
+type Provider = 'claude' | 'gemini' | 'groq';
 
 const PROVIDERS: {
   id: Provider;
@@ -23,11 +23,11 @@ const PROVIDERS: {
   keyHint: string;
 }[] = [
   {
-    id: 'claude',
-    label: 'Claude',
-    keyLabel: 'Anthropic API Key',
-    placeholder: 'sk-ant-…',
-    keyHint: 'console.anthropic.com',
+    id: 'groq',
+    label: 'Groq',
+    keyLabel: 'Groq API Key',
+    placeholder: 'gsk_…',
+    keyHint: 'console.groq.com — free tier',
   },
   {
     id: 'gemini',
@@ -35,6 +35,13 @@ const PROVIDERS: {
     keyLabel: 'Google AI Studio Key',
     placeholder: 'AIza…',
     keyHint: 'aistudio.google.com — free tier',
+  },
+  {
+    id: 'claude',
+    label: 'Claude',
+    keyLabel: 'Anthropic API Key',
+    placeholder: 'sk-ant-…',
+    keyHint: 'console.anthropic.com',
   },
 ];
 
@@ -53,7 +60,7 @@ const inputStyle: React.CSSProperties = {
 function useProvider(): [Provider, (p: Provider) => void] {
   const [provider, setProvider] = useState<Provider>(() => {
     if (typeof window === 'undefined') return 'gemini';
-    return (localStorage.getItem('loglense_ai_provider') as Provider | null) ?? 'gemini';
+    return (localStorage.getItem('loglense_ai_provider') as Provider | null) ?? 'groq';
   });
 
   function persist(p: Provider) {
@@ -68,6 +75,7 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
   const [provider, setProvider] = useProvider();
   const [claudeKey, setClaudeKey] = useApiKey('loglense_api_key');
   const [geminiKey, setGeminiKey] = useApiKey('loglense_gemini_key');
+  const [groqKey, setGroqKey] = useApiKey('loglense_groq_key');
   const [serverProviders, setServerProviders] = useState<string[]>([]);
   const [selectedBossIdx, setSelectedBossIdx] = useState<number | 'all'>('all');
   const { text, loading, error, start, reset } = useAIReport();
@@ -81,8 +89,9 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
 
   const active = PROVIDERS.find((p) => p.id === provider)!;
   const serverHasKey = serverProviders.includes(provider);
-  const apiKey = provider === 'claude' ? claudeKey : geminiKey;
-  const setApiKey = provider === 'claude' ? setClaudeKey : setGeminiKey;
+  const apiKey = provider === 'claude' ? claudeKey : provider === 'groq' ? groqKey : geminiKey;
+  const setApiKey =
+    provider === 'claude' ? setClaudeKey : provider === 'groq' ? setGroqKey : setGeminiKey;
 
   const availableBosses = analysisResult.bosses
     .map((b, i) => ({ boss: b, idx: i }))

@@ -1,6 +1,7 @@
 import type { AnalysisResult } from '@/types';
 import { ClaudeProvider } from '@/lib/ai/claude';
 import { GeminiProvider } from '@/lib/ai/gemini';
+import { GroqProvider } from '@/lib/ai/groq';
 import { buildAnalysisPrompt, SYSTEM_PROMPT } from '@/lib/ai/prompt';
 
 export const runtime = 'edge';
@@ -15,6 +16,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 export async function GET() {
   const configured: string[] = [];
   if (process.env.GEMINI_API_KEY) configured.push('gemini');
+  if (process.env.GROQ_API_KEY) configured.push('groq');
   if (process.env.ANTHROPIC_API_KEY) configured.push('claude');
   return jsonResponse({ configuredProviders: configured });
 }
@@ -27,7 +29,9 @@ export async function POST(req: Request) {
     const envKey =
       providerName === 'gemini'
         ? (process.env.GEMINI_API_KEY ?? '')
-        : (process.env.ANTHROPIC_API_KEY ?? '');
+        : providerName === 'groq'
+          ? (process.env.GROQ_API_KEY ?? '')
+          : (process.env.ANTHROPIC_API_KEY ?? '');
 
     const apiKey = envKey || headerKey;
 
@@ -40,7 +44,11 @@ export async function POST(req: Request) {
 
     const result = (await req.json()) as AnalysisResult;
     const provider =
-      providerName === 'gemini' ? new GeminiProvider(apiKey) : new ClaudeProvider(apiKey);
+      providerName === 'gemini'
+        ? new GeminiProvider(apiKey)
+        : providerName === 'groq'
+          ? new GroqProvider(apiKey)
+          : new ClaudeProvider(apiKey);
     const prompt = buildAnalysisPrompt(result);
     const chunks = provider.stream(prompt, SYSTEM_PROMPT);
 
