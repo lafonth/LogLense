@@ -70,14 +70,10 @@ export function StatsTable({ character, topPlayers }: StatsTableProps) {
       <tbody>
         {STAT_ROWS.map(({ label, key, fmt }) => {
           const delta =
-            topPlayers.length > 0
-              ? (character[key] as number) - avgTopStat(topPlayers, key)
-              : null;
+            topPlayers.length > 0 ? (character[key] as number) - avgTopStat(topPlayers, key) : null;
           return (
             <tr key={label}>
-              <td style={{ ...cellStyle, textAlign: 'left', color: 'var(--text-dim)' }}>
-                {label}
-              </td>
+              <td style={{ ...cellStyle, textAlign: 'left', color: 'var(--text-dim)' }}>{label}</td>
               <td style={{ ...cellStyle, color: 'var(--text)' }}>
                 {fmt(character[key])}
                 {delta !== null && <DeltaBadge delta={delta} />}

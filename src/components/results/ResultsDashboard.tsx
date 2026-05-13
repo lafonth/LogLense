@@ -1,14 +1,14 @@
 'use client';
 
+import type { StepStatus } from '@/components/ui/ProgressSteps';
 import type { BossState } from '@/hooks/useAnalysis';
 import type { AnalysisInput, AnalysisResult } from '@/types';
 import { useState } from 'react';
 import { AIReportTab } from '@/components/ai/AIReportTab';
+import { ProgressSteps } from '@/components/ui/ProgressSteps';
 import { BossSidebar } from './BossSidebar';
 import { ComparisonTab } from './ComparisonTab';
 import { OverviewTab } from './OverviewTab';
-import { ProgressSteps } from '@/components/ui/ProgressSteps';
-import type { StepStatus } from '@/components/ui/ProgressSteps';
 
 interface ResultsDashboardProps {
   input: AnalysisInput;

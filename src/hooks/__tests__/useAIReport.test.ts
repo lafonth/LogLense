@@ -1,6 +1,6 @@
+import type { AnalysisResult } from '@/types';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AnalysisResult } from '@/types';
 import { useAIReport } from '@/hooks/useAIReport';
 
 const mockAnalysisResult: AnalysisResult = {
@@ -51,11 +51,7 @@ describe('useAIReport', () => {
 
   it('streams text chunks and sets loading=false when done', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      makeStreamResponse([
-        sseChunk('Hello '),
-        sseChunk('world'),
-        sseChunk('[DONE]'),
-      ])
+      makeStreamResponse([sseChunk('Hello '), sseChunk('world'), sseChunk('[DONE]')])
     );
 
     const { result } = renderHook(() => useAIReport());

@@ -1,6 +1,6 @@
+import type { BossResult } from '@/types';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BossResult } from '@/types';
 import { useAnalysis } from '@/hooks/useAnalysis';
 
 const mockBossResult: BossResult = {
@@ -8,7 +8,16 @@ const mockBossResult: BossResult = {
   encounterId: 3306,
   fightTargets: [],
   character: {
-    stats: { name: 'Jumbaa', avgIlvl: 635, agility: 13200, crit: 3890, haste: 3500, mastery: 5800, vers: 750, talents: {} },
+    stats: {
+      name: 'Jumbaa',
+      avgIlvl: 635,
+      agility: 13200,
+      crit: 3890,
+      haste: 3500,
+      mastery: 5800,
+      vers: 750,
+      talents: {},
+    },
     rotation: { name: 'Jumbaa', dps: 250000, fightDurationMs: 180000, casts: {}, buffs: {} },
     damageTable: { entries: [] },
     dps: 250000,

@@ -31,7 +31,11 @@ function dotColor(ratio: number | null): string | null {
   return 'var(--crimson)';
 }
 
-function castRatio(mine: CastEntry | undefined, topPlayers: TopPlayer[], ability: string): number | null {
+function castRatio(
+  mine: CastEntry | undefined,
+  topPlayers: TopPlayer[],
+  ability: string
+): number | null {
   const topVals = topPlayers.map((p) => p.rotation.casts[ability]?.perMin ?? 0);
   const topAvg = topVals.reduce((a, b) => a + b, 0) / topVals.length;
   if (topAvg === 0) return null; // tops don't use it
@@ -103,7 +107,13 @@ export function RotationTable({ character, topPlayers }: RotationTableProps) {
                   {ability}
                 </td>
                 <td style={{ ...cellStyle, color: 'var(--text)' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                    }}
+                  >
                     <StatusDot ratio={ratio} />
                     {mine ? mine.perMin.toFixed(2) : '—'}
                   </span>
@@ -144,17 +154,23 @@ export function RotationTable({ character, topPlayers }: RotationTableProps) {
                     {name}
                   </td>
                   <td style={{ ...cellStyle, color: 'var(--text)' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-end',
+                      }}
+                    >
                       <StatusDot ratio={ratio} />
                       {pct}%
                     </span>
                   </td>
-                {topPlayers.map((p) => (
-                  <td key={p.stats.name} style={{ ...cellStyle, color: 'var(--text-dim)' }}>
-                    {p.rotation.buffs[name] ?? 0}%
-                  </td>
-                ))}
-              </tr>
+                  {topPlayers.map((p) => (
+                    <td key={p.stats.name} style={{ ...cellStyle, color: 'var(--text-dim)' }}>
+                      {p.rotation.buffs[name] ?? 0}%
+                    </td>
+                  ))}
+                </tr>
               );
             })}
           </tbody>
