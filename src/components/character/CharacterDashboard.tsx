@@ -2,15 +2,17 @@
 
 import type { StepStatus } from '@/components/ui/ProgressSteps';
 import type { BossState } from '@/hooks/useAnalysis';
-import type { AnalysisInput, AnalysisResult } from '@/types';
-import { useState } from 'react';
-import { AIReportTab } from '@/components/ai/AIReportTab';
+import type { AnalysisInput } from '@/types';
+import { BossContentPanel } from '@/components/shared/BossContentPanel';
 import { ProgressSteps } from '@/components/ui/ProgressSteps';
-import { BossSidebar } from './BossSidebar';
-import { ComparisonTab } from './ComparisonTab';
-import { OverviewTab } from './OverviewTab';
 
-interface ResultsDashboardProps {
+const DIFFICULTIES = [
+  { id: 5, label: 'Mythic' },
+  { id: 4, label: 'Heroic' },
+  { id: 3, label: 'Normal' },
+] as const;
+
+interface CharacterDashboardProps {
   input: AnalysisInput;
   bossStates: BossState[];
   currentDifficulty: number;
@@ -20,15 +22,7 @@ interface ResultsDashboardProps {
   onReset: () => void;
 }
 
-const DIFFICULTIES = [
-  { id: 5, label: 'Mythic' },
-  { id: 4, label: 'Heroic' },
-  { id: 3, label: 'Normal' },
-] as const;
-
-type TabId = 'overview' | 'comparison' | 'ai-report';
-
-function buildAnalysisResult(input: AnalysisInput, bossStates: BossState[]): AnalysisResult {
+function buildAnalysisResult(input: AnalysisInput, bossStates: BossState[]) {
   return {
     input,
     bosses: bossStates.map((s) => (s.status === 'success' ? s.result : null)),
@@ -36,19 +30,7 @@ function buildAnalysisResult(input: AnalysisInput, bossStates: BossState[]): Ana
   };
 }
 
-const tabButtonStyle = (active: boolean): React.CSSProperties => ({
-  padding: '8px 20px',
-  background: 'transparent',
-  border: 'none',
-  borderBottom: active ? '2px solid var(--gold)' : '2px solid transparent',
-  color: active ? 'var(--gold)' : 'var(--text-dim)',
-  fontFamily: 'var(--font-display)',
-  fontSize: '1rem',
-  cursor: 'pointer',
-  letterSpacing: '0.04em',
-});
-
-export function ResultsDashboard({
+export function CharacterDashboard({
   input,
   bossStates,
   currentDifficulty,
@@ -56,11 +38,8 @@ export function ResultsDashboard({
   onDifficultyChange,
   onBossChange,
   onReset,
-}: ResultsDashboardProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
-
-  const activeEnc = input.encounters[activeBossIdx];
-  const activeBossState = bossStates[activeBossIdx] ?? { status: 'idle' as const };
+}: CharacterDashboardProps) {
+  const isLoading = bossStates.some((s) => s.status === 'loading' || s.status === 'idle');
   const analysisResult = buildAnalysisResult(input, bossStates);
 
   return (
@@ -133,7 +112,7 @@ export function ResultsDashboard({
         </button>
       </div>
 
-      {bossStates.some((s) => s.status === 'loading' || s.status === 'idle') && (
+      {isLoading && (
         <div
           style={{
             marginBottom: '20px',
@@ -172,38 +151,13 @@ export function ResultsDashboard({
         </div>
       )}
 
-      <div style={{ borderBottom: '1px solid var(--border)', marginBottom: '24px' }}>
-        {(['overview', 'comparison', 'ai-report'] as TabId[]).map((tab) => (
-          <button
-            key={tab}
-            style={tabButtonStyle(activeTab === tab)}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab === 'overview' ? 'Overview' : tab === 'comparison' ? 'Comparison' : 'AI Report'}
-          </button>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', gap: '24px' }}>
-        {activeTab !== 'ai-report' && (
-          <BossSidebar
-            encounters={input.encounters}
-            bossStates={bossStates}
-            activeIdx={activeBossIdx}
-            onSelect={onBossChange}
-          />
-        )}
-
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {activeTab === 'overview' && activeEnc && (
-            <OverviewTab encounter={activeEnc} bossState={activeBossState} />
-          )}
-          {activeTab === 'comparison' && activeEnc && (
-            <ComparisonTab encounter={activeEnc} bossState={activeBossState} />
-          )}
-          {activeTab === 'ai-report' && <AIReportTab analysisResult={analysisResult} />}
-        </div>
-      </div>
+      <BossContentPanel
+        encounters={input.encounters}
+        bossStates={bossStates}
+        activeBossIdx={activeBossIdx}
+        onBossChange={onBossChange}
+        analysisResult={analysisResult}
+      />
     </div>
   );
 }

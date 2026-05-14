@@ -2,32 +2,15 @@
 
 import type { BossState } from '@/hooks/useAnalysis';
 import type { AnalysisInput, AnalysisResult, ReportActor, ReportMeta } from '@/types';
-import { useMemo, useState } from 'react';
-import { AIReportTab } from '@/components/ai/AIReportTab';
-import { BossSidebar } from '@/components/results/BossSidebar';
-import { ComparisonTab } from '@/components/results/ComparisonTab';
-import { OverviewTab } from '@/components/results/OverviewTab';
+import { useMemo } from 'react';
+import { BossContentPanel } from '@/components/shared/BossContentPanel';
 import { CharacterSwitcher } from './CharacterSwitcher';
-
-type TabId = 'overview' | 'comparison' | 'ai-report';
 
 const DIFFICULTIES = [
   { id: 5, label: 'Mythic' },
   { id: 4, label: 'Heroic' },
   { id: 3, label: 'Normal' },
 ] as const;
-
-const tabButtonStyle = (active: boolean): React.CSSProperties => ({
-  padding: '8px 20px',
-  background: 'transparent',
-  border: 'none',
-  borderBottom: active ? '2px solid var(--gold)' : '2px solid transparent',
-  color: active ? 'var(--gold)' : 'var(--text-dim)',
-  fontFamily: 'var(--font-display)',
-  fontSize: '1rem',
-  cursor: 'pointer',
-  letterSpacing: '0.04em',
-});
 
 interface ReportDashboardProps {
   meta: ReportMeta;
@@ -58,9 +41,6 @@ export function ReportDashboard({
   onBossChange,
   onReset,
 }: ReportDashboardProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
-
-  // Which difficulty IDs have at least one kill in this report
   const availableDifficulties = useMemo(() => {
     const set = new Set<number>();
     for (const f of meta.fights) {
@@ -69,7 +49,6 @@ export function ReportDashboard({
     return set;
   }, [meta.fights]);
 
-  // Derive ordered unique encounters from meta (stable across loading states)
   const encounters = useMemo(() => {
     const seen = new Set<number>();
     const list: { id: number; name: string }[] = [];
@@ -82,18 +61,12 @@ export function ReportDashboard({
     return list;
   }, [meta.fights, difficulty]);
 
-  // Build BossState for each encounter — loading until result arrives
   const bossStates: BossState[] = encounters.map((enc) => {
     if (loading || !result) return { status: 'loading' };
     const bossResult = result.bosses.find((b) => b?.encounterId === enc.id) ?? null;
     return { status: 'success', result: bossResult };
   });
 
-  const safeIdx = Math.min(activeBossIdx, Math.max(0, encounters.length - 1));
-  const activeEnc = encounters[safeIdx];
-  const activeBossState: BossState = bossStates[safeIdx] ?? { status: 'loading' };
-
-  // Minimal AnalysisInput shape for AIReportTab
   const analysisInput: AnalysisInput = {
     characterName: actorName,
     serverSlug: '',
@@ -109,7 +82,6 @@ export function ReportDashboard({
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Left: character switcher */}
       <CharacterSwitcher
         actors={actors}
         selectedActorId={selectedActorId}
@@ -117,9 +89,7 @@ export function ReportDashboard({
         onSelect={onSwitchActor}
       />
 
-      {/* Right: main content */}
       <div style={{ flex: 1, minWidth: 0, padding: '24px 32px' }}>
-        {/* Header */}
         <div
           style={{
             display: 'flex',
@@ -209,39 +179,13 @@ export function ReportDashboard({
           </button>
         </div>
 
-        {/* Tab bar */}
-        <div style={{ borderBottom: '1px solid var(--border)', marginBottom: '24px' }}>
-          {(['overview', 'comparison', 'ai-report'] as TabId[]).map((tab) => (
-            <button
-              key={tab}
-              style={tabButtonStyle(activeTab === tab)}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab === 'overview' ? 'Overview' : tab === 'comparison' ? 'Comparison' : 'AI Report'}
-            </button>
-          ))}
-        </div>
-
-        {/* Content */}
-        <div style={{ display: 'flex', gap: '24px' }}>
-          {activeTab !== 'ai-report' && encounters.length > 0 && (
-            <BossSidebar
-              encounters={encounters}
-              bossStates={bossStates}
-              activeIdx={safeIdx}
-              onSelect={onBossChange}
-            />
-          )}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {activeTab === 'overview' && activeEnc && (
-              <OverviewTab encounter={activeEnc} bossState={activeBossState} />
-            )}
-            {activeTab === 'comparison' && activeEnc && (
-              <ComparisonTab encounter={activeEnc} bossState={activeBossState} />
-            )}
-            {activeTab === 'ai-report' && <AIReportTab analysisResult={analysisResult} />}
-          </div>
-        </div>
+        <BossContentPanel
+          encounters={encounters}
+          bossStates={bossStates}
+          activeBossIdx={activeBossIdx}
+          onBossChange={onBossChange}
+          analysisResult={analysisResult}
+        />
       </div>
     </div>
   );

@@ -3,10 +3,10 @@
 import type { AnalysisInput, ReportActor, ReportFight } from '@/types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { CharacterDashboard } from '@/components/character/CharacterDashboard';
 import { CharacterForm } from '@/components/forms/CharacterForm';
 import { ReportForm } from '@/components/forms/ReportForm';
 import { ReportDashboard } from '@/components/report/ReportDashboard';
-import { ResultsDashboard } from '@/components/results/ResultsDashboard';
 import { ModeSelector } from '@/components/ui/ModeSelector';
 import { useAnalysis } from '@/hooks/useAnalysis';
 import { useReportAnalysis } from '@/hooks/useReportAnalysis';
@@ -275,7 +275,7 @@ export function HomeClient() {
   // Character mode results
   if (input) {
     return (
-      <ResultsDashboard
+      <CharacterDashboard
         input={input}
         bossStates={bossStates}
         currentDifficulty={currentDifficulty ?? difficulty}
