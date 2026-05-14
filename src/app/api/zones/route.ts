@@ -6,8 +6,6 @@ import { getWCLToken } from '@/lib/wcl/auth';
 import { gql } from '@/lib/wcl/client';
 import { Q_ZONES } from '@/lib/wcl/queries';
 
-export const runtime = 'edge';
-
 const RAID_DIFFICULTY_IDS = new Set([3, 4, 5]);
 
 interface ZonesResponse {

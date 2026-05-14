@@ -5,8 +5,6 @@ import { NextResponse } from 'next/server';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { analyzeBoss } from '@/lib/wcl/pipeline';
 
-export const runtime = 'edge';
-
 interface AnalyzeBody {
   characterName: string;
   serverSlug: string;
