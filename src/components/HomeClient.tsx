@@ -1,11 +1,14 @@
 'use client';
 
-import type { AnalysisInput } from '@/types';
+import type { AnalysisInput, ReportActor, ReportFight } from '@/types';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useRef } from 'react';
 import { CharacterForm } from '@/components/forms/CharacterForm';
+import { ReportForm } from '@/components/forms/ReportForm';
 import { ResultsDashboard } from '@/components/results/ResultsDashboard';
+import { ModeSelector } from '@/components/ui/ModeSelector';
 import { useAnalysis } from '@/hooks/useAnalysis';
+import { useReportAnalysis } from '@/hooks/useReportAnalysis';
 import { useZones } from '@/hooks/useZones';
 
 function parseDifficulty(val: string | null): AnalysisInput['difficulty'] {
@@ -18,6 +21,10 @@ export function HomeClient() {
   const searchParams = useSearchParams();
   const { zones, loading: zonesLoading, error: zonesError } = useZones();
   const { bossStates, currentDifficulty, isAnyLoading, input, start, reset } = useAnalysis();
+  const { result: reportResult, loading: reportLoading, start: startReport, reset: resetReport } =
+    useReportAnalysis();
+
+  const [mode, setMode] = useState<'character' | 'report' | null>(null);
 
   const char = searchParams.get('char');
   const server = searchParams.get('server');
@@ -38,6 +45,7 @@ export function HomeClient() {
     if (lastKeyRef.current === key) return;
     lastKeyRef.current = key;
 
+    setMode('character');
     void start({
       characterName: char,
       serverSlug: server,
@@ -56,23 +64,42 @@ export function HomeClient() {
       zone: String(selectedZoneId),
     });
     router.push(`/?${params.toString()}`);
-    // useEffect handles start() when URL updates
   }
 
   function handleDifficultyChange(newDifficulty: AnalysisInput['difficulty']) {
     const params = new URLSearchParams(searchParams.toString());
     params.set('difficulty', String(newDifficulty));
     router.push(`/?${params.toString()}`);
-    // useEffect handles changeDifficulty via start() with cache check
   }
 
   function handleReset() {
     reset();
     lastKeyRef.current = null;
     router.push('/');
+    setMode(null);
   }
 
-  // Show results when analysis is active (input set) or URL has char param (auto-starting)
+  // Report mode results
+  if (reportResult) {
+    const reportBossStates = reportResult.bosses.map((b) => ({
+      status: 'success' as const,
+      result: b ?? null,
+    }));
+    return (
+      <ResultsDashboard
+        input={reportResult.input}
+        bossStates={reportBossStates}
+        currentDifficulty={reportResult.input.difficulty}
+        onDifficultyChange={() => {}}
+        onReset={() => {
+          resetReport();
+          setMode(null);
+        }}
+      />
+    );
+  }
+
+  // Character mode results
   if (input) {
     return (
       <ResultsDashboard
@@ -104,6 +131,23 @@ export function HomeClient() {
     );
   }
 
+  if (mode === null) {
+    return <ModeSelector onSelect={setMode} />;
+  }
+
+  if (mode === 'report') {
+    return (
+      <ReportForm
+        onSubmit={(code: string, actor: ReportActor, diff: number, fights: ReportFight[]) => {
+          void startReport({ code, actor, difficulty: diff, fights });
+        }}
+        loading={reportLoading}
+        onBack={() => setMode(null)}
+      />
+    );
+  }
+
+  // mode === 'character'
   return (
     <CharacterForm
       onSubmit={handleSubmit}
