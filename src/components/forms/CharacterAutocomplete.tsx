@@ -48,7 +48,7 @@ export function CharacterAutocomplete({
     setOpen(false);
   }
 
-  const showDropdown = open && query.trim().length >= 2 && (loading || suggestions.length > 0);
+  const showDropdown = open && query.trim().length >= 2;
 
   // Show the confirmed selection label when value is set and input hasn't been touched since
   const displayValue = value && query.includes(value.name) ? query : query;
@@ -85,7 +85,7 @@ export function CharacterAutocomplete({
             zIndex: 100,
           }}
         >
-          {loading && suggestions.length === 0 && (
+          {loading && (
             <div
               style={{
                 padding: '8px 12px',
@@ -95,6 +95,18 @@ export function CharacterAutocomplete({
               }}
             >
               Searching…
+            </div>
+          )}
+          {!loading && suggestions.length === 0 && (
+            <div
+              style={{
+                padding: '8px 12px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.78rem',
+                color: 'var(--text-dim)',
+              }}
+            >
+              No characters found
             </div>
           )}
           {suggestions.map((s) => (
