@@ -49,8 +49,8 @@ export function CharacterForm({
   zones,
   zonesLoading,
   zonesError,
-  defaultChar = 'Jumbaa',
-  defaultServer = 'ysondre',
+  defaultChar = '',
+  defaultServer = '',
   defaultRegion = 'EU',
   defaultDifficulty = 4,
 }: CharacterFormProps) {
