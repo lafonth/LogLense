@@ -47,7 +47,8 @@ interface ReportFormProps {
     actor: ReportActor,
     difficulty: number,
     fights: ReportFight[],
-    actors: ReportActor[]
+    actors: ReportActor[],
+    title: string
   ) => void;
   loading: boolean;
   onBack: () => void;
@@ -70,7 +71,7 @@ export function ReportForm({ onSubmit, loading, onBack }: ReportFormProps) {
     if (!meta || selectedActorId === '') return;
     const actor = meta.actors.find((a) => a.id === selectedActorId);
     if (!actor) return;
-    onSubmit(code.trim(), actor, difficulty, meta.fights, meta.actors);
+    onSubmit(code.trim(), actor, difficulty, meta.fights, meta.actors, meta.title);
   }
 
   return (

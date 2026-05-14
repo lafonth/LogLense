@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { CharacterForm } from '@/components/forms/CharacterForm';
 import { ReportForm } from '@/components/forms/ReportForm';
-import { CharacterSwitcher } from '@/components/report/CharacterSwitcher';
+import { ReportDashboard } from '@/components/report/ReportDashboard';
 import { ResultsDashboard } from '@/components/results/ResultsDashboard';
 import { ModeSelector } from '@/components/ui/ModeSelector';
 import { useAnalysis } from '@/hooks/useAnalysis';
@@ -18,9 +18,10 @@ function parseDifficulty(val: string | null): AnalysisInput['difficulty'] {
   return n === 3 || n === 4 || n === 5 ? n : 4;
 }
 
-// Actors + fights cached from the last submit/switch (event-handler only, never set in an effect)
+// Cached from the last submit/switch — event-handler only, never set in an effect
 interface ReportContext {
   code: string;
+  title: string;
   difficulty: number;
   fights: ReportFight[];
   actors: ReportActor[];
@@ -116,7 +117,7 @@ export function HomeClient() {
     startReport,
   ]);
 
-  // Derive active boss index from URL for both modes
+  // Character mode: active boss index from URL
   const charActiveBossIdx =
     bossParam && input
       ? Math.max(
@@ -124,18 +125,29 @@ export function HomeClient() {
           input.encounters.findIndex((e) => e.id === bossParam)
         )
       : 0;
+
+  // Report mode: derive shell data from context (fresh submit) or fetched meta (URL restore)
+  const reportShellMeta = reportContext
+    ? { title: reportContext.title, fights: reportContext.fights, actors: reportContext.actors }
+    : fetchedCode === reportCode && reportMeta
+      ? reportMeta
+      : null;
+  const reportShellActorId = reportContext?.selectedActorId ?? reportActorId ?? 0;
+  const reportShellActorName =
+    reportShellMeta?.actors.find((a) => a.id === reportShellActorId)?.name ?? '';
   const reportActiveBossIdx =
-    bossParam && reportResult
+    bossParam && reportShellMeta
       ? Math.max(
           0,
-          reportResult.input.encounters.findIndex((e) => e.id === bossParam)
+          reportShellMeta.fights
+            .filter((f) => f.kill && f.difficulty === reportDifficulty && f.encounterID > 0)
+            .reduce<number[]>(
+              (acc, f) => (acc.includes(f.encounterID) ? acc : [...acc, f.encounterID]),
+              []
+            )
+            .indexOf(bossParam)
         )
       : 0;
-
-  // Actors for CharacterSwitcher: prefer event-set context, fall back to fetched meta (URL restore path)
-  const switcherActors =
-    reportContext?.actors ?? (fetchedCode === reportCode ? (reportMeta?.actors ?? []) : []);
-  const switcherSelectedId = reportContext?.selectedActorId ?? reportActorId ?? 0;
 
   function handleSubmit(analysisInput: AnalysisInput, selectedZoneId: number) {
     const params = new URLSearchParams({
@@ -175,12 +187,13 @@ export function HomeClient() {
     actor: ReportActor,
     diff: number,
     fights: ReportFight[],
-    actors: ReportActor[]
+    actors: ReportActor[],
+    title: string
   ) {
     // Set key before URL push so the URL-restore effect skips the double-fire
     const key = `${code}|${actor.id}|${diff}`;
     lastReportKeyRef.current = key;
-    setReportContext({ code, difficulty: diff, fights, actors, selectedActorId: actor.id });
+    setReportContext({ code, title, difficulty: diff, fights, actors, selectedActorId: actor.id });
     const params = new URLSearchParams({
       report: code,
       actor: String(actor.id),
@@ -208,11 +221,16 @@ export function HomeClient() {
   }
 
   function handleReportBossChange(idx: number) {
-    if (!reportResult) return;
-    const enc = reportResult.input.encounters[idx];
-    if (!enc) return;
+    if (!reportShellMeta) return;
+    const uniqueEncIds = reportShellMeta.fights
+      .filter((f) => f.kill && f.difficulty === reportDifficulty && f.encounterID > 0)
+      .reduce<
+        number[]
+      >((acc, f) => (acc.includes(f.encounterID) ? acc : [...acc, f.encounterID]), []);
+    const encId = uniqueEncIds[idx];
+    if (!encId) return;
     const params = new URLSearchParams(searchParams.toString());
-    params.set('boss', String(enc.id));
+    params.set('boss', String(encId));
     router.replace(`/?${params.toString()}`);
   }
 
@@ -224,32 +242,22 @@ export function HomeClient() {
     setMode(null);
   }
 
-  // Report mode results
-  if (reportResult && (reportContext ?? (reportCode && reportActorId))) {
-    const reportBossStates = reportResult.bosses.map((b) => ({
-      status: 'success' as const,
-      result: b ?? null,
-    }));
+  // Report mode: show shell as soon as meta is available — content loads in place
+  if (reportShellMeta && reportShellActorName && (reportResult || reportLoading)) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
-        <CharacterSwitcher
-          actors={switcherActors}
-          selectedActorId={switcherSelectedId}
-          loading={reportLoading}
-          onSelect={handleSwitchActor}
-        />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <ResultsDashboard
-            input={reportResult.input}
-            bossStates={reportBossStates}
-            currentDifficulty={reportResult.input.difficulty}
-            activeBossIdx={reportActiveBossIdx}
-            onDifficultyChange={() => {}}
-            onBossChange={handleReportBossChange}
-            onReset={handleReportReset}
-          />
-        </div>
-      </div>
+      <ReportDashboard
+        meta={reportShellMeta}
+        actors={reportShellMeta.actors}
+        selectedActorId={reportShellActorId}
+        actorName={reportShellActorName}
+        difficulty={reportDifficulty}
+        activeBossIdx={reportActiveBossIdx}
+        result={reportResult}
+        loading={reportLoading}
+        onSwitchActor={handleSwitchActor}
+        onBossChange={handleReportBossChange}
+        onReset={handleReportReset}
+      />
     );
   }
 

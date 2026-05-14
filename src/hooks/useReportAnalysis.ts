@@ -16,7 +16,6 @@ export function useReportAnalysis() {
   const start = useCallback(async ({ code, actor, difficulty, fights }: ReportAnalysisParams) => {
     setLoading(true);
     setError(null);
-    setResult(null);
 
     // For each encounter, collect kills at the given difficulty and pick the last one
     const encounterMap = new Map<
