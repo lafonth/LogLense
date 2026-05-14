@@ -39,6 +39,7 @@ interface ReportDashboardProps {
   result: AnalysisResult | null;
   loading: boolean;
   onSwitchActor: (actor: ReportActor) => void;
+  onDifficultyChange: (diff: number) => void;
   onBossChange: (idx: number) => void;
   onReset: () => void;
 }
@@ -53,10 +54,20 @@ export function ReportDashboard({
   result,
   loading,
   onSwitchActor,
+  onDifficultyChange,
   onBossChange,
   onReset,
 }: ReportDashboardProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+
+  // Which difficulty IDs have at least one kill in this report
+  const availableDifficulties = useMemo(() => {
+    const set = new Set<number>();
+    for (const f of meta.fights) {
+      if (f.kill && f.encounterID > 0) set.add(f.difficulty);
+    }
+    return set;
+  }, [meta.fights]);
 
   // Derive ordered unique encounters from meta (stable across loading states)
   const encounters = useMemo(() => {
@@ -139,23 +150,46 @@ export function ReportDashboard({
                 {meta.title}
               </span>
               <span style={{ color: 'var(--border)' }}>·</span>
-              {DIFFICULTIES.map(({ id, label }) => (
-                <span
-                  key={id}
-                  style={{
-                    padding: '2px 10px',
-                    borderRadius: '999px',
-                    border: `1px solid ${difficulty === id ? 'var(--gold)' : 'var(--border)'}`,
-                    background: difficulty === id ? 'rgba(198,168,74,0.12)' : 'transparent',
-                    color: difficulty === id ? 'var(--gold)' : 'var(--text-dim)',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.72rem',
-                    letterSpacing: '0.04em',
-                  }}
-                >
-                  {label}
-                </span>
-              ))}
+              {DIFFICULTIES.map(({ id, label }) => {
+                const available = availableDifficulties.has(id);
+                const active = difficulty === id;
+                return available ? (
+                  <button
+                    key={id}
+                    onClick={() => !active && onDifficultyChange(id)}
+                    style={{
+                      padding: '2px 10px',
+                      borderRadius: '999px',
+                      border: `1px solid ${active ? 'var(--gold)' : 'var(--border)'}`,
+                      background: active ? 'rgba(198,168,74,0.12)' : 'transparent',
+                      color: active ? 'var(--gold)' : 'var(--text-dim)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.72rem',
+                      letterSpacing: '0.04em',
+                      cursor: active ? 'default' : 'pointer',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ) : (
+                  <span
+                    key={id}
+                    title="No kills at this difficulty"
+                    style={{
+                      padding: '2px 10px',
+                      borderRadius: '999px',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-dim)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.72rem',
+                      letterSpacing: '0.04em',
+                      opacity: 0.3,
+                    }}
+                  >
+                    {label}
+                  </span>
+                );
+              })}
             </div>
           </div>
           <button

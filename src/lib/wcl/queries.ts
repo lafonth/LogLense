@@ -80,11 +80,21 @@ export const Q_ROTATION = `
   }
 `;
 
-export const Q_REPORT_RANKINGS = `
-  query ReportRankings($code: String!, $fightIDs: [Int]!, $playerMetric: PlayerMetric) {
+export const Q_REPORT_RANKINGS_DPS = `
+  query ReportRankingsDPS($code: String!, $fightIDs: [Int]!) {
     reportData {
       report(code: $code) {
-        rankings(fightIDs: $fightIDs, playerMetric: $playerMetric)
+        rankings(fightIDs: $fightIDs, playerMetric: dps)
+      }
+    }
+  }
+`;
+
+export const Q_REPORT_RANKINGS_BOSSDPS = `
+  query ReportRankingsBossDPS($code: String!, $fightIDs: [Int]!) {
+    reportData {
+      report(code: $code) {
+        rankings(fightIDs: $fightIDs, playerMetric: bossdps)
       }
     }
   }

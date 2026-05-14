@@ -204,20 +204,30 @@ export function HomeClient() {
   }
 
   function handleSwitchActor(actor: ReportActor) {
-    if (!reportContext || reportLoading) return;
-    const key = `${reportContext.code}|${actor.id}|${reportContext.difficulty}`;
+    if (reportLoading) return;
+    // reportContext is null on URL-restored sessions — fall back to URL params + shell meta
+    const code = reportContext?.code ?? reportCode;
+    const diff = reportContext?.difficulty ?? reportDifficulty;
+    const fights = reportContext?.fights ?? reportShellMeta?.fights;
+    if (!code || !fights) return;
+
+    const key = `${code}|${actor.id}|${diff}`;
     lastReportKeyRef.current = key;
-    setReportContext((prev) => prev && { ...prev, selectedActorId: actor.id });
+    setReportContext((prev) => (prev ? { ...prev, selectedActorId: actor.id } : null));
     const params = new URLSearchParams(searchParams.toString());
     params.set('actor', String(actor.id));
     params.delete('boss');
     router.push(`/?${params.toString()}`);
-    void startReport({
-      code: reportContext.code,
-      actor,
-      difficulty: reportContext.difficulty,
-      fights: reportContext.fights,
-    });
+    void startReport({ code, actor, difficulty: diff, fights });
+  }
+
+  function handleReportDifficultyChange(diff: number) {
+    // Update context so shell immediately shows new difficulty's encounters
+    setReportContext((prev) => (prev ? { ...prev, difficulty: diff } : null));
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('difficulty', String(diff));
+    params.delete('boss');
+    router.push(`/?${params.toString()}`);
   }
 
   function handleReportBossChange(idx: number) {
@@ -255,6 +265,7 @@ export function HomeClient() {
         result={reportResult}
         loading={reportLoading}
         onSwitchActor={handleSwitchActor}
+        onDifficultyChange={handleReportDifficultyChange}
         onBossChange={handleReportBossChange}
         onReset={handleReportReset}
       />
