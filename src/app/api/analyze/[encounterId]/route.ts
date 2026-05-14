@@ -1,3 +1,5 @@
+export const runtime = 'nodejs';
+
 import type { AnalysisInput } from '@/types';
 import { NextResponse } from 'next/server';
 import { getWCLToken } from '@/lib/wcl/auth';

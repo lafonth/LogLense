@@ -1,3 +1,5 @@
+export const runtime = 'nodejs';
+
 import type { GroqModelId } from '@/lib/ai/groq';
 import type { AIStreamChunk } from '@/lib/ai/provider';
 import type { AnalysisResult, TalentNode } from '@/types';
