@@ -30,10 +30,9 @@ export function useCharacterSearch(query: string, region: string) {
       abortRef.current = controller;
       setLoading(true);
 
-      void fetch(
-        `/api/search/character?q=${encodeURIComponent(trimmed)}&region=${region}`,
-        { signal: controller.signal }
-      )
+      void fetch(`/api/search/character?q=${encodeURIComponent(trimmed)}&region=${region}`, {
+        signal: controller.signal,
+      })
         .then((r) => (r.ok ? r.json() : []))
         .then((data) => setResult({ query: trimmed, items: data as CharacterSuggestion[] }))
         .catch((e) => {
