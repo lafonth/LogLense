@@ -14,7 +14,9 @@ interface ResultsDashboardProps {
   input: AnalysisInput;
   bossStates: BossState[];
   currentDifficulty: number;
+  activeBossIdx: number;
   onDifficultyChange: (difficulty: AnalysisInput['difficulty']) => void;
+  onBossChange: (idx: number) => void;
   onReset: () => void;
 }
 
@@ -50,11 +52,12 @@ export function ResultsDashboard({
   input,
   bossStates,
   currentDifficulty,
+  activeBossIdx,
   onDifficultyChange,
+  onBossChange,
   onReset,
 }: ResultsDashboardProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
-  const [activeBossIdx, setActiveBossIdx] = useState(0);
 
   const activeEnc = input.encounters[activeBossIdx];
   const activeBossState = bossStates[activeBossIdx] ?? { status: 'idle' as const };
@@ -187,7 +190,7 @@ export function ResultsDashboard({
             encounters={input.encounters}
             bossStates={bossStates}
             activeIdx={activeBossIdx}
-            onSelect={setActiveBossIdx}
+            onSelect={onBossChange}
           />
         )}
 

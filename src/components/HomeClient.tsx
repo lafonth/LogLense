@@ -10,6 +10,7 @@ import { ResultsDashboard } from '@/components/results/ResultsDashboard';
 import { ModeSelector } from '@/components/ui/ModeSelector';
 import { useAnalysis } from '@/hooks/useAnalysis';
 import { useReportAnalysis } from '@/hooks/useReportAnalysis';
+import { useReportMeta } from '@/hooks/useReportMeta';
 import { useZones } from '@/hooks/useZones';
 
 function parseDifficulty(val: string | null): AnalysisInput['difficulty'] {
@@ -17,6 +18,7 @@ function parseDifficulty(val: string | null): AnalysisInput['difficulty'] {
   return n === 3 || n === 4 || n === 5 ? n : 4;
 }
 
+// Actors + fights cached from the last submit/switch (event-handler only, never set in an effect)
 interface ReportContext {
   code: string;
   difficulty: number;
@@ -36,18 +38,31 @@ export function HomeClient() {
     start: startReport,
     reset: resetReport,
   } = useReportAnalysis();
+  const { meta: reportMeta, fetchedCode, loading: reportMetaLoading, fetchMeta } = useReportMeta();
 
   const [mode, setMode] = useState<'character' | 'report' | null>(null);
+  // Set only from event handlers (handleReportSubmit / handleSwitchActor), never from an effect
   const [reportContext, setReportContext] = useState<ReportContext | null>(null);
 
+  // Character mode URL params
   const char = searchParams.get('char');
   const server = searchParams.get('server');
   const region = (searchParams.get('region') ?? 'EU') as AnalysisInput['region'];
   const difficulty = parseDifficulty(searchParams.get('difficulty'));
   const zoneId = Number(searchParams.get('zone')) || null;
 
-  const lastKeyRef = useRef<string | null>(null);
+  // Report mode URL params
+  const reportCode = searchParams.get('report');
+  const reportActorId = Number(searchParams.get('actor')) || null;
+  const reportDifficulty = parseDifficulty(searchParams.get('difficulty'));
 
+  // Shared boss param
+  const bossParam = Number(searchParams.get('boss')) || null;
+
+  const lastKeyRef = useRef<string | null>(null);
+  const lastReportKeyRef = useRef<string | null>(null);
+
+  // Character mode: restore from URL
   useEffect(() => {
     if (!char || !server || zonesLoading || zones.length === 0) return;
 
@@ -66,6 +81,61 @@ export function HomeClient() {
       encounters: zone.encounters,
     });
   }, [char, server, region, difficulty, zoneId, zones, zonesLoading, start]);
+
+  // Report mode: restore from URL — only calls startReport, never setState
+  useEffect(() => {
+    if (!reportCode || !reportActorId) return;
+    if (reportMetaLoading) return;
+
+    const key = `${reportCode}|${reportActorId}|${reportDifficulty}`;
+    if (lastReportKeyRef.current === key) return;
+
+    if (!reportMeta || fetchedCode !== reportCode) {
+      void fetchMeta(reportCode);
+      return;
+    }
+
+    const actor = reportMeta.actors.find((a) => a.id === reportActorId);
+    if (!actor) return;
+
+    lastReportKeyRef.current = key;
+    void startReport({
+      code: reportCode,
+      actor,
+      difficulty: reportDifficulty,
+      fights: reportMeta.fights,
+    });
+  }, [
+    reportCode,
+    reportActorId,
+    reportDifficulty,
+    reportMeta,
+    fetchedCode,
+    reportMetaLoading,
+    fetchMeta,
+    startReport,
+  ]);
+
+  // Derive active boss index from URL for both modes
+  const charActiveBossIdx =
+    bossParam && input
+      ? Math.max(
+          0,
+          input.encounters.findIndex((e) => e.id === bossParam)
+        )
+      : 0;
+  const reportActiveBossIdx =
+    bossParam && reportResult
+      ? Math.max(
+          0,
+          reportResult.input.encounters.findIndex((e) => e.id === bossParam)
+        )
+      : 0;
+
+  // Actors for CharacterSwitcher: prefer event-set context, fall back to fetched meta (URL restore path)
+  const switcherActors =
+    reportContext?.actors ?? (fetchedCode === reportCode ? (reportMeta?.actors ?? []) : []);
+  const switcherSelectedId = reportContext?.selectedActorId ?? reportActorId ?? 0;
 
   function handleSubmit(analysisInput: AnalysisInput, selectedZoneId: number) {
     const params = new URLSearchParams({
@@ -91,6 +161,15 @@ export function HomeClient() {
     setMode(null);
   }
 
+  function handleCharBossChange(idx: number) {
+    if (!input) return;
+    const enc = input.encounters[idx];
+    if (!enc) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('boss', String(enc.id));
+    router.replace(`/?${params.toString()}`);
+  }
+
   function handleReportSubmit(
     code: string,
     actor: ReportActor,
@@ -98,13 +177,28 @@ export function HomeClient() {
     fights: ReportFight[],
     actors: ReportActor[]
   ) {
+    // Set key before URL push so the URL-restore effect skips the double-fire
+    const key = `${code}|${actor.id}|${diff}`;
+    lastReportKeyRef.current = key;
     setReportContext({ code, difficulty: diff, fights, actors, selectedActorId: actor.id });
+    const params = new URLSearchParams({
+      report: code,
+      actor: String(actor.id),
+      difficulty: String(diff),
+    });
+    router.push(`/?${params.toString()}`);
     void startReport({ code, actor, difficulty: diff, fights });
   }
 
   function handleSwitchActor(actor: ReportActor) {
     if (!reportContext || reportLoading) return;
+    const key = `${reportContext.code}|${actor.id}|${reportContext.difficulty}`;
+    lastReportKeyRef.current = key;
     setReportContext((prev) => prev && { ...prev, selectedActorId: actor.id });
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('actor', String(actor.id));
+    params.delete('boss');
+    router.push(`/?${params.toString()}`);
     void startReport({
       code: reportContext.code,
       actor,
@@ -113,8 +207,25 @@ export function HomeClient() {
     });
   }
 
+  function handleReportBossChange(idx: number) {
+    if (!reportResult) return;
+    const enc = reportResult.input.encounters[idx];
+    if (!enc) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('boss', String(enc.id));
+    router.replace(`/?${params.toString()}`);
+  }
+
+  function handleReportReset() {
+    resetReport();
+    setReportContext(null);
+    lastReportKeyRef.current = null;
+    router.push('/');
+    setMode(null);
+  }
+
   // Report mode results
-  if (reportResult && reportContext) {
+  if (reportResult && (reportContext ?? (reportCode && reportActorId))) {
     const reportBossStates = reportResult.bosses.map((b) => ({
       status: 'success' as const,
       result: b ?? null,
@@ -122,8 +233,8 @@ export function HomeClient() {
     return (
       <div style={{ display: 'flex', minHeight: '100vh' }}>
         <CharacterSwitcher
-          actors={reportContext.actors}
-          selectedActorId={reportContext.selectedActorId}
+          actors={switcherActors}
+          selectedActorId={switcherSelectedId}
           loading={reportLoading}
           onSelect={handleSwitchActor}
         />
@@ -132,12 +243,10 @@ export function HomeClient() {
             input={reportResult.input}
             bossStates={reportBossStates}
             currentDifficulty={reportResult.input.difficulty}
+            activeBossIdx={reportActiveBossIdx}
             onDifficultyChange={() => {}}
-            onReset={() => {
-              resetReport();
-              setReportContext(null);
-              setMode(null);
-            }}
+            onBossChange={handleReportBossChange}
+            onReset={handleReportReset}
           />
         </div>
       </div>
@@ -151,14 +260,16 @@ export function HomeClient() {
         input={input}
         bossStates={bossStates}
         currentDifficulty={currentDifficulty ?? difficulty}
+        activeBossIdx={charActiveBossIdx}
         onDifficultyChange={handleDifficultyChange}
+        onBossChange={handleCharBossChange}
         onReset={handleReset}
       />
     );
   }
 
-  // URL has params but zones still loading — brief transition state
-  if (char && server) {
+  // URL has params but data still loading
+  if ((char && server) || (reportCode && reportActorId)) {
     return (
       <div
         style={{

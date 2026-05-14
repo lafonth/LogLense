@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 export function useReportMeta() {
   const [meta, setMeta] = useState<ReportMeta | null>(null);
+  const [fetchedCode, setFetchedCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -10,6 +11,7 @@ export function useReportMeta() {
     setLoading(true);
     setError(null);
     setMeta(null);
+    setFetchedCode(null);
     try {
       const res = await fetch(`/api/report/${code}`);
       if (!res.ok) {
@@ -18,6 +20,7 @@ export function useReportMeta() {
       }
       const data = (await res.json()) as ReportMeta;
       setMeta(data);
+      setFetchedCode(code);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
     } finally {
@@ -27,8 +30,9 @@ export function useReportMeta() {
 
   function reset() {
     setMeta(null);
+    setFetchedCode(null);
     setError(null);
   }
 
-  return { meta, loading, error, fetchMeta, reset };
+  return { meta, fetchedCode, loading, error, fetchMeta, reset };
 }
