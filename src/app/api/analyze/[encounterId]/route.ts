@@ -1,9 +1,9 @@
-export const runtime = 'nodejs';
-
 import type { AnalysisInput } from '@/types';
 import { NextResponse } from 'next/server';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { analyzeBoss } from '@/lib/wcl/pipeline';
+
+export const runtime = 'nodejs';
 
 interface AnalyzeBody {
   characterName: string;

@@ -1,5 +1,3 @@
-export const runtime = 'nodejs';
-
 import type { GroqModelId } from '@/lib/ai/groq';
 import type { AIStreamChunk } from '@/lib/ai/provider';
 import type { AnalysisResult, TalentNode } from '@/types';
@@ -9,6 +7,8 @@ import { ClaudeProvider } from '@/lib/ai/claude';
 import { GeminiProvider } from '@/lib/ai/gemini';
 import { DEFAULT_GROQ_MODEL, GroqProvider } from '@/lib/ai/groq';
 import { buildAnalysisPrompt, SYSTEM_PROMPT } from '@/lib/ai/prompt';
+
+export const runtime = 'nodejs';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
