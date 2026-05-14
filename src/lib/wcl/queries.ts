@@ -79,3 +79,31 @@ export const Q_ROTATION = `
     }
   }
 `;
+
+export const Q_REPORT_META = `
+  query ReportMeta($code: String!) {
+    reportData {
+      report(code: $code) {
+        title
+        fights {
+          id
+          name
+          encounterID
+          kill
+          startTime
+          endTime
+          difficulty
+        }
+        masterData {
+          actors {
+            id
+            name
+            type
+            subType
+            server
+          }
+        }
+      }
+    }
+  }
+`;
