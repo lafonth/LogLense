@@ -42,7 +42,13 @@ const btnStyle: React.CSSProperties = {
 };
 
 interface ReportFormProps {
-  onSubmit: (code: string, actor: ReportActor, difficulty: number, fights: ReportFight[]) => void;
+  onSubmit: (
+    code: string,
+    actor: ReportActor,
+    difficulty: number,
+    fights: ReportFight[],
+    actors: ReportActor[]
+  ) => void;
   loading: boolean;
   onBack: () => void;
 }
@@ -50,7 +56,7 @@ interface ReportFormProps {
 export function ReportForm({ onSubmit, loading, onBack }: ReportFormProps) {
   const [code, setCode] = useState('');
   const [selectedActorId, setSelectedActorId] = useState<number | ''>('');
-  const [difficulty, setDifficulty] = useState<number>(4);
+  const [difficulty, setDifficulty] = useState<number>(5);
   const { meta, loading: metaLoading, error: metaError, fetchMeta } = useReportMeta();
 
   function handleLoadReport(e: React.FormEvent) {
@@ -64,7 +70,7 @@ export function ReportForm({ onSubmit, loading, onBack }: ReportFormProps) {
     if (!meta || selectedActorId === '') return;
     const actor = meta.actors.find((a) => a.id === selectedActorId);
     if (!actor) return;
-    onSubmit(code.trim(), actor, difficulty, meta.fights);
+    onSubmit(code.trim(), actor, difficulty, meta.fights, meta.actors);
   }
 
   return (
