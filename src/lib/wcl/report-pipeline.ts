@@ -3,7 +3,14 @@ import type { BossResult, CharacterStats, FightTarget } from '@/types';
 import { gql } from './client';
 import { KILL_TIME_TOLERANCE, TOP_N } from './constants';
 import { fmtMs, parseCasts, parseStats, parseUptime, summarizeRotation } from './parsers';
-import { Q_COMBATANT, Q_DAMAGE, Q_REPORT_RANKINGS, Q_ROTATION, Q_WORLD_RANKINGS } from './queries';
+import {
+  Q_COMBATANT,
+  Q_DAMAGE,
+  Q_REPORT_RANKINGS_BOSSDPS,
+  Q_REPORT_RANKINGS_DPS,
+  Q_ROTATION,
+  Q_WORLD_RANKINGS,
+} from './queries';
 
 interface CombatantEvent {
   sourceID: number;
@@ -90,14 +97,14 @@ export async function analyzeReportBoss(
 
   const dpsRankingsPromise = gql<{ reportData: { report: { rankings: unknown } } }>(
     token,
-    Q_REPORT_RANKINGS,
-    { code, fightIDs: [fightId], playerMetric: 'dps' }
+    Q_REPORT_RANKINGS_DPS,
+    { code, fightIDs: [fightId] }
   );
 
   const bossRankingsPromise = gql<{ reportData: { report: { rankings: unknown } } }>(
     token,
-    Q_REPORT_RANKINGS,
-    { code, fightIDs: [fightId], playerMetric: 'bossdps' }
+    Q_REPORT_RANKINGS_BOSSDPS,
+    { code, fightIDs: [fightId] }
   );
 
   const charEvent = await getCombatantByActor(token, code, fightId, actorId);
