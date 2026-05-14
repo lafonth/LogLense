@@ -61,8 +61,10 @@ export function ReportDashboard({
     return list;
   }, [meta.fights, difficulty]);
 
+  const resultIsStale = result !== null && result.input.characterName !== actorName;
+
   const bossStates: BossState[] = encounters.map((enc) => {
-    if (loading || !result) return { status: 'loading' };
+    if (loading || !result || resultIsStale) return { status: 'loading' };
     const bossResult = result.bosses.find((b) => b?.encounterId === enc.id) ?? null;
     return { status: 'success', result: bossResult };
   });
