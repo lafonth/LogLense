@@ -69,13 +69,37 @@ export interface BossResult {
     dps: number;
     bossDps: number | null;
     killTime: string;
-    overallPct: number;
-    overallPctOf: number | '?';
-    todayPct: number;
+    overallPct: number | null;
+    overallPctOf: number | '?' | null;
+    todayPct: number | null;
     bossDpsPct: number | null;
-    bracket: number;
+    bracket: number | null;
   };
   topPlayers: TopPlayer[];
+}
+
+export interface ReportFight {
+  id: number;
+  name: string;
+  encounterID: number;
+  kill: boolean;
+  startTime: number;
+  endTime: number;
+  difficulty: number;
+}
+
+export interface ReportActor {
+  id: number;
+  name: string;
+  type: string;
+  subType: string;
+  server: string | null;
+}
+
+export interface ReportMeta {
+  title: string;
+  fights: ReportFight[];
+  actors: ReportActor[];
 }
 
 export interface AnalysisResult {

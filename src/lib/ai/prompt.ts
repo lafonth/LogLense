@@ -66,13 +66,14 @@ function statsTable(
   char: CharacterStats & {
     dps: number;
     killTime: string;
-    overallPct: number;
+    overallPct: number | null;
     bossDps: number | null;
     bossDpsPct: number | null;
   },
   topPlayers: TopPlayer[]
 ): string {
-  const headers = ['', `You (${char.overallPct}th pct)`, ...topPlayers.map((_, i) => `P${i + 1}`)];
+  const youLabel = char.overallPct != null ? `You (${char.overallPct}th pct)` : 'You';
+  const headers = ['', youLabel, ...topPlayers.map((_, i) => `P${i + 1}`)];
 
   const rows: [string, (c: typeof char, p: TopPlayer) => string][] = [
     ['DPS', (c, p) => fmt(p?.stats.dps ?? c.dps)],

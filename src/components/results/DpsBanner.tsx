@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/Badge';
 
 interface DpsBannerProps {
   dps: number;
-  overallPct: number;
+  overallPct: number | null;
   killTime: string;
   bossDps: number | null;
   bossDpsPct: number | null;
@@ -31,7 +31,7 @@ export function DpsBanner({ dps, overallPct, killTime, bossDps, bossDpsPct }: Dp
         {dps.toLocaleString('en-US')}
         <span style={{ fontSize: '0.9rem', color: 'var(--text-dim)', marginLeft: '4px' }}>dps</span>
       </span>
-      <Badge pct={overallPct} size="lg" />
+      {overallPct != null && <Badge pct={overallPct} size="lg" />}
       <span
         style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-dim)' }}
       >
