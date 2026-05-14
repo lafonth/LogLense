@@ -3,12 +3,20 @@ import { Badge } from '@/components/ui/Badge';
 interface DpsBannerProps {
   dps: number;
   overallPct: number | null;
+  bracket: number | null;
   killTime: string;
   bossDps: number | null;
   bossDpsPct: number | null;
 }
 
-export function DpsBanner({ dps, overallPct, killTime, bossDps, bossDpsPct }: DpsBannerProps) {
+export function DpsBanner({
+  dps,
+  overallPct,
+  bracket,
+  killTime,
+  bossDps,
+  bossDpsPct,
+}: DpsBannerProps) {
   return (
     <div
       style={{
@@ -32,6 +40,21 @@ export function DpsBanner({ dps, overallPct, killTime, bossDps, bossDpsPct }: Dp
         <span style={{ fontSize: '0.9rem', color: 'var(--text-dim)', marginLeft: '4px' }}>dps</span>
       </span>
       {overallPct != null && <Badge pct={overallPct} size="lg" />}
+      {bracket != null && (
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.78rem',
+            color: 'var(--text-dim)',
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: '5px',
+          }}
+        >
+          <span style={{ opacity: 0.6 }}>ilvl</span>
+          <Badge pct={bracket} size="sm" />
+        </span>
+      )}
       <span
         style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-dim)' }}
       >

@@ -60,6 +60,7 @@ export function ComparisonTab({ encounter, bossState }: ComparisonTabProps) {
       <DpsBanner
         dps={result.character.dps}
         overallPct={result.character.overallPct}
+        bracket={result.character.bracket}
         killTime={result.character.killTime}
         bossDps={result.character.bossDps}
         bossDpsPct={result.character.bossDpsPct}

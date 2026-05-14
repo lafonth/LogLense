@@ -3,7 +3,7 @@ import type { BossResult, CharacterStats, FightTarget } from '@/types';
 import { gql } from './client';
 import { KILL_TIME_TOLERANCE, TOP_N } from './constants';
 import { fmtMs, parseCasts, parseStats, parseUptime, summarizeRotation } from './parsers';
-import { Q_COMBATANT, Q_DAMAGE, Q_ROTATION, Q_WORLD_RANKINGS } from './queries';
+import { Q_COMBATANT, Q_DAMAGE, Q_REPORT_RANKINGS, Q_ROTATION, Q_WORLD_RANKINGS } from './queries';
 
 interface CombatantEvent {
   sourceID: number;
@@ -15,6 +15,37 @@ interface CombatantEvent {
   mastery?: number;
   versatilityDamageDone?: number;
   talentTree?: { id: number; rank?: number }[];
+}
+
+interface RankingChar {
+  name: string;
+  amount: number;
+  rankPercent: number;
+  todayPercent: number;
+  bracketData: number;
+  rankTotalParses?: number | '?';
+}
+
+interface RankingsPayload {
+  data: Array<{
+    roles: {
+      dps?: { characters: RankingChar[] };
+      healers?: { characters: RankingChar[] };
+      tanks?: { characters: RankingChar[] };
+    };
+  }>;
+}
+
+function findInRankings(payload: unknown, name: string): RankingChar | null {
+  const p = payload as RankingsPayload | null;
+  if (!p?.data?.[0]) return null;
+  const { roles } = p.data[0];
+  const all = [
+    ...(roles.dps?.characters ?? []),
+    ...(roles.healers?.characters ?? []),
+    ...(roles.tanks?.characters ?? []),
+  ];
+  return all.find((c) => c.name === name) ?? null;
 }
 
 async function getCombatantByActor(
@@ -41,6 +72,7 @@ export async function analyzeReportBoss(
   fightMs: number,
   difficulty: number
 ): Promise<BossResult | null> {
+  // Kick off all independent fetches in parallel
   const worldDataPromise = gql<{
     worldData: {
       encounter: {
@@ -55,6 +87,18 @@ export async function analyzeReportBoss(
       };
     };
   }>(token, Q_WORLD_RANKINGS, { encounterID: encounterId, difficulty });
+
+  const dpsRankingsPromise = gql<{ reportData: { report: { rankings: unknown } } }>(
+    token,
+    Q_REPORT_RANKINGS,
+    { code, fightIDs: [fightId], playerMetric: 'dps' }
+  );
+
+  const bossRankingsPromise = gql<{ reportData: { report: { rankings: unknown } } }>(
+    token,
+    Q_REPORT_RANKINGS,
+    { code, fightIDs: [fightId], playerMetric: 'bossdps' }
+  );
 
   const charEvent = await getCombatantByActor(token, code, fightId, actorId);
   if (!charEvent) return null;
@@ -88,8 +132,7 @@ export async function analyzeReportBoss(
   const charBuffs = parseUptime(rotData.reportData.report.buffs, fightMs);
 
   const allDmgEntries = dmgData.reportData.report.table.data?.entries ?? [];
-  // When Q_DAMAGE is filtered by sourceID, entries are per-ability for that player.
-  // Sum all abilities to get total damage dealt, then derive DPS from fight duration.
+  // Q_DAMAGE filtered by sourceID returns per-ability entries for the player — sum for total DPS
   const totalPlayerDamage = allDmgEntries.reduce((s, e) => s + e.total, 0);
   const bestDps = fightMs > 0 ? Math.round(totalPlayerDamage / (fightMs / 1000)) : 0;
 
@@ -118,7 +161,23 @@ export async function analyzeReportBoss(
     .filter((t) => t.damagePct >= 1)
     .sort((a, b) => b.damagePct - a.damagePct);
 
-  const worldData = await worldDataPromise;
+  const [worldData, dpsRankingsRaw, bossRankingsRaw] = await Promise.all([
+    worldDataPromise,
+    dpsRankingsPromise,
+    bossRankingsPromise,
+  ]);
+
+  // Extract per-player parse data from the report's own rankings
+  const myDpsRank = findInRankings(dpsRankingsRaw.reportData.report.rankings, actorName);
+  const myBossRank = findInRankings(bossRankingsRaw.reportData.report.rankings, actorName);
+
+  const overallPct = myDpsRank ? Math.round(myDpsRank.rankPercent * 10) / 10 : null;
+  const todayPct = myDpsRank ? Math.round(myDpsRank.todayPercent * 10) / 10 : null;
+  const bracket = myDpsRank ? Math.round(myDpsRank.bracketData * 10) / 10 : null;
+  const overallPctOf = myDpsRank ? (myDpsRank.rankTotalParses ?? null) : null;
+  const bossDps = myBossRank ? Math.round(myBossRank.amount) : null;
+  const bossDpsPct = myBossRank ? Math.round(myBossRank.rankPercent * 10) / 10 : null;
+
   const allWorld = worldData.worldData.encounter.characterRankings.rankings ?? [];
   const lo = fightMs * (1 - KILL_TIME_TOLERANCE);
   const hi = fightMs * (1 + KILL_TIME_TOLERANCE);
@@ -186,13 +245,13 @@ export async function analyzeReportBoss(
       rotation: charRotation,
       damageTable: { entries: damageEntries },
       dps: bestDps,
-      bossDps: null,
+      bossDps,
       killTime: fmtMs(fightMs),
-      overallPct: null,
-      overallPctOf: null,
-      todayPct: null,
-      bossDpsPct: null,
-      bracket: null,
+      overallPct,
+      overallPctOf,
+      todayPct,
+      bossDpsPct,
+      bracket,
     },
     topPlayers,
   };

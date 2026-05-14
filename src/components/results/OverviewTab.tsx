@@ -49,6 +49,7 @@ export function OverviewTab({ encounter, bossState }: OverviewTabProps) {
       <DpsBanner
         dps={result.character.dps}
         overallPct={result.character.overallPct}
+        bracket={result.character.bracket}
         killTime={result.character.killTime}
         bossDps={result.character.bossDps}
         bossDpsPct={result.character.bossDpsPct}

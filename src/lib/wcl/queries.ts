@@ -80,6 +80,16 @@ export const Q_ROTATION = `
   }
 `;
 
+export const Q_REPORT_RANKINGS = `
+  query ReportRankings($code: String!, $fightIDs: [Int]!, $playerMetric: PlayerMetric) {
+    reportData {
+      report(code: $code) {
+        rankings(fightIDs: $fightIDs, playerMetric: $playerMetric)
+      }
+    }
+  }
+`;
+
 export const Q_REPORT_META = `
   query ReportMeta($code: String!) {
     reportData {
