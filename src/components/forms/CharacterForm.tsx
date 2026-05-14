@@ -1,7 +1,9 @@
 'use client';
 
+import type { CharacterSelection } from '@/components/forms/CharacterAutocomplete';
 import type { AnalysisInput, Zone } from '@/types';
 import { useState } from 'react';
+import { CharacterAutocomplete } from '@/components/forms/CharacterAutocomplete';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { EncounterSelector } from './EncounterSelector';
 
@@ -11,10 +13,6 @@ interface CharacterFormProps {
   zones: Zone[];
   zonesLoading: boolean;
   zonesError: string | null;
-  defaultChar?: string;
-  defaultServer?: string;
-  defaultRegion?: AnalysisInput['region'];
-  defaultDifficulty?: AnalysisInput['difficulty'];
 }
 
 const inputStyle: React.CSSProperties = {
@@ -49,20 +47,13 @@ export function CharacterForm({
   zones,
   zonesLoading,
   zonesError,
-  defaultChar = '',
-  defaultServer = '',
-  defaultRegion = 'EU',
-  defaultDifficulty = 4,
 }: CharacterFormProps) {
-  const [characterName, setCharacterName] = useState(defaultChar);
-  const [serverSlug, setServerSlug] = useState(defaultServer);
-  const [region, setRegion] = useState<AnalysisInput['region']>(defaultRegion);
-  const [difficulty, setDifficulty] = useState<AnalysisInput['difficulty']>(defaultDifficulty);
-  // null = "all bosses in zone"; set = user explicitly toggled some off
+  const [character, setCharacter] = useState<CharacterSelection | null>(null);
+  const [region, setRegion] = useState<AnalysisInput['region']>('EU');
+  const [difficulty, setDifficulty] = useState<AnalysisInput['difficulty']>(4);
   const [selectedEncounterIds, setSelectedEncounterIds] = useState<Set<number> | null>(null);
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
 
-  // Derive active zone without an effect — falls back to first zone when none selected
   const activeZoneId = selectedZoneId ?? zones[0]?.id ?? null;
   const currentZone = zones.find((z) => z.id === activeZoneId) ?? null;
   const encounters =
@@ -72,17 +63,21 @@ export function CharacterForm({
 
   function handleZoneChange(zoneId: number) {
     setSelectedZoneId(zoneId);
-    setSelectedEncounterIds(null); // reset to all bosses on zone switch
+    setSelectedEncounterIds(null);
+  }
+
+  function handleRegionChange(r: AnalysisInput['region']) {
+    setRegion(r);
+    setCharacter(null); // clear selection — different region, different realm list
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!characterName.trim() || !serverSlug.trim() || !activeZoneId || encounters.length === 0)
-      return;
+    if (!character || !activeZoneId || encounters.length === 0) return;
     onSubmit(
       {
-        characterName: characterName.trim(),
-        serverSlug: serverSlug.trim(),
+        characterName: character.name,
+        serverSlug: character.realmSlug,
         region,
         difficulty,
         encounters,
@@ -90,6 +85,8 @@ export function CharacterForm({
       activeZoneId
     );
   }
+
+  const canSubmit = !!character && encounters.length > 0 && !zonesLoading && !loading;
 
   return (
     <div
@@ -136,37 +133,24 @@ export function CharacterForm({
           padding: '32px',
         }}
       >
+        <div style={fieldStyle}>
+          <label style={labelStyle}>Character</label>
+          <CharacterAutocomplete
+            key={region}
+            region={region}
+            value={character}
+            onChange={setCharacter}
+            inputStyle={inputStyle}
+          />
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Character</label>
-            <input
-              style={inputStyle}
-              type="text"
-              placeholder="Jumbaa"
-              value={characterName}
-              onChange={(e) => setCharacterName(e.target.value)}
-              required
-            />
-          </div>
-
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Realm</label>
-            <input
-              style={inputStyle}
-              type="text"
-              placeholder="ysondre"
-              value={serverSlug}
-              onChange={(e) => setServerSlug(e.target.value)}
-              required
-            />
-          </div>
-
           <div style={fieldStyle}>
             <label style={labelStyle}>Region</label>
             <select
               style={inputStyle}
               value={region}
-              onChange={(e) => setRegion(e.target.value as AnalysisInput['region'])}
+              onChange={(e) => handleRegionChange(e.target.value as AnalysisInput['region'])}
             >
               {(['US', 'EU', 'KR', 'TW', 'CN'] as const).map((r) => (
                 <option key={r} value={r}>
@@ -235,17 +219,17 @@ export function CharacterForm({
 
         <button
           type="submit"
-          disabled={loading || encounters.length === 0 || zonesLoading}
+          disabled={!canSubmit}
           style={{
             width: '100%',
             padding: '12px',
-            background: loading || zonesLoading ? 'var(--border)' : 'var(--crimson)',
+            background: canSubmit ? 'var(--crimson)' : 'var(--border)',
             color: 'var(--text)',
             border: 'none',
             borderRadius: '4px',
             fontFamily: 'var(--font-display)',
             fontSize: '1rem',
-            cursor: loading || zonesLoading ? 'not-allowed' : 'pointer',
+            cursor: canSubmit ? 'pointer' : 'not-allowed',
             letterSpacing: '0.06em',
             marginTop: '8px',
           }}
