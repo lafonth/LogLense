@@ -1,7 +1,7 @@
 import type { WCLTable } from './parsers';
 import type { BossResult, CharacterStats, FightTarget } from '@/types';
 import { gql } from './client';
-import { TOP_N, KILL_TIME_TOLERANCE } from './constants';
+import { KILL_TIME_TOLERANCE, TOP_N } from './constants';
 import { fmtMs, parseCasts, parseStats, parseUptime, summarizeRotation } from './parsers';
 import { Q_COMBATANT, Q_DAMAGE, Q_ROTATION, Q_WORLD_RANKINGS } from './queries';
 
@@ -136,11 +136,11 @@ export async function analyzeReportBoss(
     if (!pEvent) continue;
 
     const [pRot, pDmg] = await Promise.all([
-      gql<{ reportData: { report: { casts: WCLTable; buffs: WCLTable } } }>(
-        token,
-        Q_ROTATION,
-        { code: pCode, fightIDs: [pFight], sourceID: pEvent.sourceID }
-      ),
+      gql<{ reportData: { report: { casts: WCLTable; buffs: WCLTable } } }>(token, Q_ROTATION, {
+        code: pCode,
+        fightIDs: [pFight],
+        sourceID: pEvent.sourceID,
+      }),
       gql<{
         reportData: {
           report: { table: { data: { entries: { guid: number; name: string; total: number }[] } } };

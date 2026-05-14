@@ -1,5 +1,5 @@
 import type { AnalysisResult, ReportActor, ReportFight } from '@/types';
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 interface ReportAnalysisParams {
   code: string;

@@ -1,8 +1,8 @@
 'use client';
 
 import type { AnalysisInput, ReportActor, ReportFight } from '@/types';
-import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import { CharacterForm } from '@/components/forms/CharacterForm';
 import { ReportForm } from '@/components/forms/ReportForm';
 import { ResultsDashboard } from '@/components/results/ResultsDashboard';
@@ -21,8 +21,12 @@ export function HomeClient() {
   const searchParams = useSearchParams();
   const { zones, loading: zonesLoading, error: zonesError } = useZones();
   const { bossStates, currentDifficulty, isAnyLoading, input, start, reset } = useAnalysis();
-  const { result: reportResult, loading: reportLoading, start: startReport, reset: resetReport } =
-    useReportAnalysis();
+  const {
+    result: reportResult,
+    loading: reportLoading,
+    start: startReport,
+    reset: resetReport,
+  } = useReportAnalysis();
 
   const [mode, setMode] = useState<'character' | 'report' | null>(null);
 
@@ -45,7 +49,6 @@ export function HomeClient() {
     if (lastKeyRef.current === key) return;
     lastKeyRef.current = key;
 
-    setMode('character');
     void start({
       characterName: char,
       serverSlug: server,

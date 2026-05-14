@@ -1,5 +1,6 @@
+import type { NextRequest } from 'next/server';
 import type { ReportMeta } from '@/types';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { gql } from '@/lib/wcl/client';
 import { Q_REPORT_META } from '@/lib/wcl/queries';
@@ -32,12 +33,9 @@ interface RawReportMeta {
   };
 }
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ code: string }> }
-) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  if (!code || !/^[a-zA-Z0-9]{16}$/.test(code)) {
+  if (!code || !/^[a-z0-9]{16}$/i.test(code)) {
     return NextResponse.json({ error: 'Invalid report code' }, { status: 400 });
   }
 
