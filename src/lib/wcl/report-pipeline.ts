@@ -88,8 +88,10 @@ export async function analyzeReportBoss(
   const charBuffs = parseUptime(rotData.reportData.report.buffs, fightMs);
 
   const allDmgEntries = dmgData.reportData.report.table.data?.entries ?? [];
-  const myEntry = allDmgEntries.find((e) => e.guid === actorId || e.name === actorName);
-  const bestDps = myEntry && fightMs > 0 ? Math.round(myEntry.total / (fightMs / 1000)) : 0;
+  // When Q_DAMAGE is filtered by sourceID, entries are per-ability for that player.
+  // Sum all abilities to get total damage dealt, then derive DPS from fight duration.
+  const totalPlayerDamage = allDmgEntries.reduce((s, e) => s + e.total, 0);
+  const bestDps = fightMs > 0 ? Math.round(totalPlayerDamage / (fightMs / 1000)) : 0;
 
   const charRotation = summarizeRotation(actorName, charCasts, charBuffs, fightMs, bestDps);
 
