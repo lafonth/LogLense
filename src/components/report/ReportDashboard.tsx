@@ -4,13 +4,8 @@ import type { BossState } from '@/hooks/useAnalysis';
 import type { AnalysisInput, AnalysisResult, ReportActor, ReportMeta } from '@/types';
 import { useMemo } from 'react';
 import { BossContentPanel } from '@/components/shared/BossContentPanel';
+import { DashboardHeader, LoadingProgress } from '@/components/shared/DashboardHeader';
 import { CharacterSwitcher } from './CharacterSwitcher';
-
-const DIFFICULTIES = [
-  { id: 5, label: 'Mythic' },
-  { id: 4, label: 'Heroic' },
-  { id: 3, label: 'Normal' },
-] as const;
 
 interface ReportDashboardProps {
   meta: ReportMeta;
@@ -69,10 +64,12 @@ export function ReportDashboard({
     return { status: 'success', result: bossResult };
   });
 
+  const region = (result?.input.region ?? 'EU') as AnalysisInput['region'];
+
   const analysisInput: AnalysisInput = {
     characterName: actorName,
     serverSlug: '',
-    region: 'EU',
+    region,
     difficulty: difficulty as AnalysisInput['difficulty'],
     encounters,
   };
@@ -92,96 +89,15 @@ export function ReportDashboard({
       />
 
       <div style={{ flex: 1, minWidth: 0, padding: '24px 32px' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'baseline',
-            justifyContent: 'space-between',
-            marginBottom: '24px',
-            paddingRight: '170px',
-          }}
-        >
-          <div>
-            <h1
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: '1.8rem',
-                color: 'var(--gold)',
-                margin: 0,
-              }}
-            >
-              {actorName}
-            </h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.78rem',
-                  color: 'var(--text-dim)',
-                }}
-              >
-                {meta.title}
-              </span>
-              <span style={{ color: 'var(--border)' }}>·</span>
-              {DIFFICULTIES.map(({ id, label }) => {
-                const available = availableDifficulties.has(id);
-                const active = difficulty === id;
-                return available ? (
-                  <button
-                    key={id}
-                    onClick={() => !active && onDifficultyChange(id)}
-                    style={{
-                      padding: '2px 10px',
-                      borderRadius: '999px',
-                      border: `1px solid ${active ? 'var(--gold)' : 'var(--border)'}`,
-                      background: active ? 'rgba(198,168,74,0.12)' : 'transparent',
-                      color: active ? 'var(--gold)' : 'var(--text-dim)',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.72rem',
-                      letterSpacing: '0.04em',
-                      cursor: active ? 'default' : 'pointer',
-                    }}
-                  >
-                    {label}
-                  </button>
-                ) : (
-                  <span
-                    key={id}
-                    title="No kills at this difficulty"
-                    style={{
-                      padding: '2px 10px',
-                      borderRadius: '999px',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-dim)',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.72rem',
-                      letterSpacing: '0.04em',
-                      opacity: 0.3,
-                    }}
-                  >
-                    {label}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-          <button
-            onClick={onReset}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border)',
-              borderRadius: '4px',
-              color: 'var(--text-dim)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.8rem',
-              padding: '6px 14px',
-              cursor: 'pointer',
-            }}
-          >
-            ← New search
-          </button>
-        </div>
-
+        <DashboardHeader
+          title={actorName}
+          subtitle={meta.title}
+          difficulty={difficulty}
+          availableDifficulties={availableDifficulties}
+          onDifficultyChange={onDifficultyChange}
+          onReset={onReset}
+        />
+        <LoadingProgress encounters={encounters} bossStates={bossStates} />
         <BossContentPanel
           encounters={encounters}
           bossStates={bossStates}
