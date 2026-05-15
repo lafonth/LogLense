@@ -24,7 +24,12 @@ export default defineConfig({
         test: {
           name: 'dom',
           environment: 'jsdom',
-          include: ['src/hooks/**/*.test.ts'],
+          include: [
+            'src/hooks/**/*.test.ts',
+            'src/hooks/**/*.test.tsx',
+            'src/components/**/*.test.tsx',
+            'src/integration/**/*.test.tsx',
+          ],
           setupFiles: ['./src/test-setup.ts'],
         },
       },

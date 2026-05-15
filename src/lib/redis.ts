@@ -1,10 +1,9 @@
-const BASE = process.env.UPSTASH_REDIS_REST_URL ?? '';
-const TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN ?? '';
-
 async function exec<T>(cmd: unknown[]): Promise<T> {
-  const res = await fetch(BASE, {
+  const base = process.env.UPSTASH_REDIS_REST_URL ?? '';
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? '';
+  const res = await fetch(base, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(cmd),
     cache: 'no-store',
   });

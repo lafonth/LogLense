@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getWCLToken } from '../auth';
+import { getWCLToken, clearTokenCache } from '../auth';
 
 describe('getWCLToken', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    clearTokenCache();
   });
 
   it('returns access token on success', async () => {

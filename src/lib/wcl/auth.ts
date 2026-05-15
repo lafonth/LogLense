@@ -3,6 +3,11 @@ import { TOKEN_URL } from './constants';
 let cachedToken: string | null = null;
 let cacheExpiresAt = 0;
 
+export function clearTokenCache() {
+  cachedToken = null;
+  cacheExpiresAt = 0;
+}
+
 export async function getWCLToken(clientId: string, clientSecret: string): Promise<string> {
   const now = Date.now();
   if (cachedToken && now < cacheExpiresAt) return cachedToken;

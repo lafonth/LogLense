@@ -17,8 +17,9 @@ export function DifficultyRegionFields({
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
       <div style={fieldStyle}>
-        <label style={labelStyle}>Region</label>
+        <label style={labelStyle} htmlFor="df-region">Region</label>
         <select
+          id="df-region"
           style={inputStyle}
           value={region}
           onChange={(e) => onRegionChange(e.target.value as AnalysisInput['region'])}
@@ -29,8 +30,9 @@ export function DifficultyRegionFields({
         </select>
       </div>
       <div style={fieldStyle}>
-        <label style={labelStyle}>Difficulty</label>
+        <label style={labelStyle} htmlFor="df-difficulty">Difficulty</label>
         <select
+          id="df-difficulty"
           style={inputStyle}
           value={difficulty}
           onChange={(e) =>
