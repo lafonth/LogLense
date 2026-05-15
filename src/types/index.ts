@@ -1,3 +1,11 @@
+export interface StoredCharacter {
+  name: string;
+  realmName: string;
+  realmSlug: string;
+  region: string;
+  class: string;
+}
+
 export interface Encounter {
   id: number;
   name: string;

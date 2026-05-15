@@ -1,9 +1,10 @@
 'use client';
 
-import type { AnalysisInput, Zone } from '@/types';
+import type { AnalysisInput, StoredCharacter, Zone } from '@/types';
 import { useEffect, useState } from 'react';
 import { EncounterSelector } from '@/components/forms/EncounterSelector';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
+import { usePreferences } from '@/hooks/usePreferences';
 
 interface WowCharacter {
   id: number;
@@ -46,6 +47,104 @@ const labelStyle: React.CSSProperties = {
 
 const fieldStyle: React.CSSProperties = { marginBottom: '18px' };
 
+const sectionLabelStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-mono)',
+  fontSize: '0.62rem',
+  color: 'var(--text-dim)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.1em',
+  marginBottom: '6px',
+  opacity: 0.6,
+};
+
+function toStored(c: WowCharacter, region: string): StoredCharacter {
+  return { name: c.name, realmName: c.realmName, realmSlug: c.realmSlug, region, class: c.class };
+}
+
+function charKey(c: StoredCharacter) {
+  return `${c.name.toLowerCase()}-${c.realmSlug.toLowerCase()}-${c.region.toLowerCase()}`;
+}
+
+function CharacterCard({
+  char,
+  isActive,
+  isFav,
+  onSelect,
+  onToggleFav,
+}: {
+  char: WowCharacter | StoredCharacter;
+  isActive: boolean;
+  isFav: boolean;
+  onSelect: () => void;
+  onToggleFav: (e: React.MouseEvent) => void;
+}) {
+  const name = char.name;
+  const realmName = char.realmName;
+  const cls = char.class;
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={onSelect}
+        style={{
+          width: '100%',
+          padding: '8px 28px 8px 10px',
+          background: isActive ? 'rgba(198,168,74,0.08)' : 'transparent',
+          border: isActive ? '1px solid var(--gold-dim)' : '1px solid var(--border)',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <div
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.82rem',
+            color: isActive ? 'var(--gold)' : 'var(--text)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {name}-{realmName}
+        </div>
+        <div
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.68rem',
+            color: 'var(--text-dim)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {cls}
+        </div>
+      </button>
+      <button
+        type="button"
+        onClick={onToggleFav}
+        title={isFav ? 'Remove from favourites' : 'Add to favourites'}
+        style={{
+          position: 'absolute',
+          top: '6px',
+          right: '6px',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: '0.82rem',
+          color: isFav ? 'var(--gold)' : 'var(--border)',
+          lineHeight: 1,
+          padding: '2px',
+        }}
+      >
+        ★
+      </button>
+    </div>
+  );
+}
+
 export function LoggedInCharacterForm({
   onSubmit,
   loading,
@@ -56,10 +155,12 @@ export function LoggedInCharacterForm({
   const [region, setRegion] = useState<AnalysisInput['region']>('EU');
   const [characters, setCharacters] = useState<WowCharacter[]>([]);
   const [charsLoading, setCharsLoading] = useState(false);
-  const [selectedChar, setSelectedChar] = useState<WowCharacter | null>(null);
+  const [selectedCharKey, setSelectedCharKey] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<AnalysisInput['difficulty']>(4);
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
   const [selectedEncounterIds, setSelectedEncounterIds] = useState<Set<number> | null>(null);
+
+  const { favourites, recents, isFavourite, toggleFavourite, addRecent } = usePreferences();
 
   const activeZoneId = selectedZoneId ?? zones[0]?.id ?? null;
   const currentZone = zones.find((z) => z.id === activeZoneId) ?? null;
@@ -70,13 +171,37 @@ export function LoggedInCharacterForm({
 
   useEffect(() => {
     setCharsLoading(true);
-    setSelectedChar(null);
+    setSelectedCharKey(null);
     void fetch(`/api/user/characters?region=${region}`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data: unknown) => { setCharacters(data as WowCharacter[]); })
       .catch(() => { setCharacters([]); })
       .finally(() => { setCharsLoading(false); });
   }, [region]);
+
+  // Build display sections
+  const favKeys = new Set(favourites.map(charKey));
+  const recentsForRegion = recents.filter(
+    (c) => c.region.toLowerCase() === region.toLowerCase() && !favKeys.has(charKey(c))
+  );
+  const favsForRegion = favourites.filter(
+    (c) => c.region.toLowerCase() === region.toLowerCase()
+  );
+  const shownKeys = new Set([...favsForRegion.map(charKey), ...recentsForRegion.map(charKey)]);
+  const rest = characters.filter((c) => !shownKeys.has(charKey(toStored(c, region))));
+
+  function resolveChar(): WowCharacter | StoredCharacter | null {
+    if (!selectedCharKey) return null;
+    const fromApi = characters.find((c) => charKey(toStored(c, region)) === selectedCharKey);
+    if (fromApi) return fromApi;
+    const fromFav = favsForRegion.find((c) => charKey(c) === selectedCharKey);
+    if (fromFav) return fromFav;
+    return recentsForRegion.find((c) => charKey(c) === selectedCharKey) ?? null;
+  }
+
+  function handleSelect(stored: StoredCharacter) {
+    setSelectedCharKey(charKey(stored));
+  }
 
   function handleZoneChange(zoneId: number) {
     setSelectedZoneId(zoneId);
@@ -85,11 +210,17 @@ export function LoggedInCharacterForm({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedChar || !activeZoneId || encounters.length === 0) return;
+    const char = resolveChar();
+    if (!char || !activeZoneId || encounters.length === 0) return;
+    const stored = toStored(
+      'id' in char ? char : { id: 0, level: 0, ...char },
+      region
+    );
+    addRecent(stored);
     onSubmit(
       {
-        characterName: selectedChar.name,
-        serverSlug: selectedChar.realmSlug,
+        characterName: char.name,
+        serverSlug: char.realmSlug,
         region,
         difficulty,
         encounters,
@@ -98,7 +229,33 @@ export function LoggedInCharacterForm({
     );
   }
 
-  const canSubmit = !!selectedChar && encounters.length > 0 && !zonesLoading && !loading;
+  const canSubmit = !!selectedCharKey && encounters.length > 0 && !zonesLoading && !loading;
+
+  function renderGrid(chars: StoredCharacter[]) {
+    return (
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+          gap: '6px',
+        }}
+      >
+        {chars.map((c) => {
+          const k = charKey(c);
+          return (
+            <CharacterCard
+              key={k}
+              char={c}
+              isActive={selectedCharKey === k}
+              isFav={isFavourite(c)}
+              onSelect={() => handleSelect(c)}
+              onToggleFav={(ev) => { ev.stopPropagation(); toggleFavourite(c); }}
+            />
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -131,7 +288,7 @@ export function LoggedInCharacterForm({
           fontFamily: 'var(--font-mono)',
         }}
       >
-        Feral Druid · WarcraftLogs analyser
+        WarcraftLogs analyser
       </p>
 
       <form
@@ -184,85 +341,58 @@ export function LoggedInCharacterForm({
               </span>
             )}
           </label>
-          {!charsLoading && characters.length === 0 ? (
-            <div
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.82rem',
-                color: 'var(--text-dim)',
-                padding: '8px 0',
-              }}
-            >
-              No characters found for this region.
-            </div>
-          ) : (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-                gap: '6px',
-                maxHeight: '210px',
-                overflowY: 'auto',
-              }}
-            >
-              {characters.map((c) => {
-                const isActive = selectedChar?.id === c.id;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setSelectedChar(c)}
-                    style={{
-                      padding: '8px 10px',
-                      background: isActive ? 'rgba(198,168,74,0.08)' : 'transparent',
-                      border: isActive ? '1px solid var(--gold-dim)' : '1px solid var(--border)',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.82rem',
-                        color: isActive ? 'var(--gold)' : 'var(--text)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {c.name}-{c.realmName}
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.68rem',
-                        color: 'var(--text-dim)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {c.class}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+
+          <div
+            style={{
+              maxHeight: '260px',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+            }}
+          >
+            {favsForRegion.length > 0 && (
+              <div>
+                <div style={sectionLabelStyle}>★ Starred</div>
+                {renderGrid(favsForRegion)}
+              </div>
+            )}
+
+            {recentsForRegion.length > 0 && (
+              <div>
+                <div style={sectionLabelStyle}>Recent</div>
+                {renderGrid(recentsForRegion)}
+              </div>
+            )}
+
+            {rest.length > 0 && (
+              <div>
+                {(favsForRegion.length > 0 || recentsForRegion.length > 0) && (
+                  <div style={sectionLabelStyle}>All</div>
+                )}
+                {renderGrid(rest.map((c) => toStored(c, region)))}
+              </div>
+            )}
+
+            {!charsLoading && characters.length === 0 && favsForRegion.length === 0 && (
+              <div
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.82rem',
+                  color: 'var(--text-dim)',
+                  padding: '8px 0',
+                }}
+              >
+                No characters found for this region.
+              </div>
+            )}
+          </div>
         </div>
 
         <div style={fieldStyle}>
           <label style={labelStyle}>Raid</label>
           {zonesLoading ? (
-            <div
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.82rem',
-                color: 'var(--text-dim)',
-                padding: '8px 0',
-              }}
-            >
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--text-dim)', padding: '8px 0' }}>
               Loading raids…
             </div>
           ) : zonesError ? (
