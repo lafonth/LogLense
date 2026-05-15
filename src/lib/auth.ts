@@ -23,9 +23,23 @@ export const authOptions: NextAuthOptions = {
   ],
   session: { strategy: 'jwt' },
   callbacks: {
-    jwt({ token, account }) {
-      if (account) {
+    async jwt({ token, account }) {
+      if (account?.access_token) {
         token.accessToken = account.access_token;
+        // Fetch battletag directly from userinfo — profile() may not receive it
+        // depending on which claims Battle.net includes in the OIDC token
+        try {
+          const res = await fetch('https://eu.battle.net/oauth/userinfo', {
+            headers: { Authorization: `Bearer ${account.access_token}` },
+          });
+          if (res.ok) {
+            const data = (await res.json()) as { battletag?: string; battleTag?: string };
+            const tag = data.battletag ?? data.battleTag;
+            if (tag) token.name = tag;
+          }
+        } catch {
+          // Non-fatal — name falls back to whatever profile() set
+        }
       }
       return token;
     },
