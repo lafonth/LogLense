@@ -1,9 +1,9 @@
 'use client';
 
-import type { CharacterSelection } from '@/components/forms/CharacterAutocomplete';
+import type { RealmSelection } from '@/components/forms/RealmAutocomplete';
 import type { AnalysisInput, Zone } from '@/types';
 import { useState } from 'react';
-import { CharacterAutocomplete } from '@/components/forms/CharacterAutocomplete';
+import { RealmAutocomplete } from '@/components/forms/RealmAutocomplete';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { EncounterSelector } from './EncounterSelector';
 
@@ -37,9 +37,7 @@ const labelStyle: React.CSSProperties = {
   marginBottom: '6px',
 };
 
-const fieldStyle: React.CSSProperties = {
-  marginBottom: '18px',
-};
+const fieldStyle: React.CSSProperties = { marginBottom: '18px' };
 
 export function CharacterForm({
   onSubmit,
@@ -48,7 +46,8 @@ export function CharacterForm({
   zonesLoading,
   zonesError,
 }: CharacterFormProps) {
-  const [character, setCharacter] = useState<CharacterSelection | null>(null);
+  const [characterName, setCharacterName] = useState('');
+  const [realm, setRealm] = useState<RealmSelection | null>(null);
   const [region, setRegion] = useState<AnalysisInput['region']>('EU');
   const [difficulty, setDifficulty] = useState<AnalysisInput['difficulty']>(4);
   const [selectedEncounterIds, setSelectedEncounterIds] = useState<Set<number> | null>(null);
@@ -68,16 +67,16 @@ export function CharacterForm({
 
   function handleRegionChange(r: AnalysisInput['region']) {
     setRegion(r);
-    setCharacter(null); // clear selection — different region, different realm list
+    setRealm(null);
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!character || !activeZoneId || encounters.length === 0) return;
+    if (!characterName.trim() || !realm || !activeZoneId || encounters.length === 0) return;
     onSubmit(
       {
-        characterName: character.name,
-        serverSlug: character.realmSlug,
+        characterName: characterName.trim(),
+        serverSlug: realm.slug,
         region,
         difficulty,
         encounters,
@@ -86,7 +85,7 @@ export function CharacterForm({
     );
   }
 
-  const canSubmit = !!character && encounters.length > 0 && !zonesLoading && !loading;
+  const canSubmit = !!characterName.trim() && !!realm && encounters.length > 0 && !zonesLoading && !loading;
 
   return (
     <div
@@ -133,17 +132,6 @@ export function CharacterForm({
           padding: '32px',
         }}
       >
-        <div style={fieldStyle}>
-          <label style={labelStyle}>Character</label>
-          <CharacterAutocomplete
-            key={region}
-            region={region}
-            value={character}
-            onChange={setCharacter}
-            inputStyle={inputStyle}
-          />
-        </div>
-
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
           <div style={fieldStyle}>
             <label style={labelStyle}>Region</label>
@@ -173,6 +161,31 @@ export function CharacterForm({
               <option value={4}>Heroic</option>
               <option value={3}>Normal</option>
             </select>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Character</label>
+            <input
+              style={inputStyle}
+              type="text"
+              value={characterName}
+              onChange={(e) => setCharacterName(e.target.value)}
+              placeholder="Jumbaa"
+              autoComplete="off"
+            />
+          </div>
+
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Realm</label>
+            <RealmAutocomplete
+              key={region}
+              region={region}
+              value={realm}
+              onChange={setRealm}
+              inputStyle={inputStyle}
+            />
           </div>
         </div>
 

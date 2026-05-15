@@ -39,42 +39,43 @@ const REGION_HOSTS: Record<string, string> = {
   EU: 'eu.api.blizzard.com',
   KR: 'kr.api.blizzard.com',
   TW: 'tw.api.blizzard.com',
-  CN: 'gateway.battlenet.com.cn',
 };
 
-interface BnetSearchResult {
-  results: Array<{
-    data: {
-      name: string;
-      realm: { slug: string; name: { en_US: string } };
-    };
-  }>;
+interface BnetRealmIndex {
+  realms: Array<{ id: number; name: string; slug: string }>;
 }
 
+// Cache realm lists per region — they rarely change
+const realmCache: Record<string, { items: { id: number; name: string; slug: string }[]; at: number }> = {};
+const REALM_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
+
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const q = searchParams.get('q')?.trim() ?? '';
-  const region = (searchParams.get('region') ?? 'EU').toUpperCase();
-
-  if (q.length < 2) return NextResponse.json([]);
-
+  const region = (new URL(req.url).searchParams.get('region') ?? 'EU').toUpperCase();
   const host = REGION_HOSTS[region] ?? REGION_HOSTS.EU;
-  const namespace = `profile-${region.toLowerCase()}`;
+  const namespace = `dynamic-${region.toLowerCase()}`;
+
+  const cached = realmCache[region];
+  if (cached && Date.now() - cached.at < REALM_CACHE_TTL) {
+    return NextResponse.json(cached.items);
+  }
 
   try {
     const token = await getBnetToken();
-    const url = `https://${host}/profile/wow/search/character?namespace=${namespace}&name.en_US=${encodeURIComponent(q)}&orderby=name&_page=1&access_token=${token}`;
-    const res = await fetch(url);
+    const url = `https://${host}/data/wow/realm/index?namespace=${namespace}&locale=en_US`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    });
+
     if (!res.ok) return NextResponse.json([]);
 
-    const data = (await res.json()) as BnetSearchResult;
-    const suggestions = (data.results ?? []).slice(0, 10).map((r) => ({
-      name: r.data.name,
-      realmSlug: r.data.realm.slug,
-      realmName: r.data.realm.name.en_US,
-    }));
+    const data = (await res.json()) as BnetRealmIndex;
+    const items = (data.realms ?? [])
+      .map((r) => ({ id: r.id, name: r.name, slug: r.slug }))
+      .sort((a, b) => a.name.localeCompare(b.name));
 
-    return NextResponse.json(suggestions);
+    realmCache[region] = { items, at: Date.now() };
+    return NextResponse.json(items);
   } catch {
     return NextResponse.json([]);
   }

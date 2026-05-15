@@ -1,30 +1,38 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useCharacterSearch } from '@/hooks/useCharacterSearch';
 
-export interface CharacterSelection {
+interface Realm {
+  id: number;
   name: string;
-  realmSlug: string;
+  slug: string;
 }
 
-interface CharacterAutocompleteProps {
+export interface RealmSelection {
+  name: string;
+  slug: string;
+}
+
+interface RealmAutocompleteProps {
   region: string;
-  value: CharacterSelection | null;
-  onChange: (selection: CharacterSelection | null) => void;
+  value: RealmSelection | null;
+  onChange: (selection: RealmSelection | null) => void;
   inputStyle: React.CSSProperties;
 }
 
-export function CharacterAutocomplete({
-  region,
-  value,
-  onChange,
-  inputStyle,
-}: CharacterAutocompleteProps) {
+export function RealmAutocomplete({ region, value, onChange, inputStyle }: RealmAutocompleteProps) {
+  const [allRealms, setAllRealms] = useState<Realm[]>([]);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { suggestions, loading } = useCharacterSearch(query, region);
+
+  // Load realm list when region changes
+  useEffect(() => {
+    void fetch(`/api/search/realm?region=${region}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setAllRealms(data as Realm[]))
+      .catch(() => {});
+  }, [region]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -36,22 +44,24 @@ export function CharacterAutocomplete({
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  const filtered =
+    query.trim().length >= 1
+      ? allRealms.filter((r) => r.name.toLowerCase().startsWith(query.trim().toLowerCase())).slice(0, 10)
+      : [];
+
+  const showDropdown = open && query.trim().length >= 1 && filtered.length > 0;
+
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     setQuery(e.target.value);
     onChange(null);
     setOpen(true);
   }
 
-  function handleSelect(s: { name: string; realmSlug: string; realmName: string }) {
-    setQuery(`${s.name} — ${s.realmName}`);
-    onChange({ name: s.name, realmSlug: s.realmSlug });
+  function handleSelect(r: Realm) {
+    setQuery(r.name);
+    onChange({ name: r.name, slug: r.slug });
     setOpen(false);
   }
-
-  const showDropdown = open && query.trim().length >= 2;
-
-  // Show the confirmed selection label when value is set and input hasn't been touched since
-  const displayValue = value && query.includes(value.name) ? query : query;
 
   return (
     <div ref={containerRef} style={{ position: 'relative' }}>
@@ -62,10 +72,10 @@ export function CharacterAutocomplete({
           borderColor: value ? 'var(--gold-dim)' : undefined,
         }}
         type="text"
-        value={displayValue}
+        value={query}
         onChange={handleInputChange}
-        onFocus={() => suggestions.length > 0 && setOpen(true)}
-        placeholder="Search character name…"
+        onFocus={() => filtered.length > 0 && setOpen(true)}
+        placeholder={allRealms.length === 0 ? 'Loading realms…' : 'Search realm…'}
         autoComplete="off"
         spellCheck={false}
       />
@@ -85,36 +95,12 @@ export function CharacterAutocomplete({
             zIndex: 100,
           }}
         >
-          {loading && (
-            <div
-              style={{
-                padding: '8px 12px',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.78rem',
-                color: 'var(--text-dim)',
-              }}
-            >
-              Searching…
-            </div>
-          )}
-          {!loading && suggestions.length === 0 && (
-            <div
-              style={{
-                padding: '8px 12px',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.78rem',
-                color: 'var(--text-dim)',
-              }}
-            >
-              No characters found
-            </div>
-          )}
-          {suggestions.map((s) => (
+          {filtered.map((r) => (
             <button
-              key={`${s.name}-${s.realmSlug}`}
+              key={r.id}
               type="button"
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => handleSelect(s)}
+              onClick={() => handleSelect(r)}
               style={{
                 display: 'block',
                 width: '100%',
@@ -129,8 +115,7 @@ export function CharacterAutocomplete({
                 cursor: 'pointer',
               }}
             >
-              {s.name}{' '}
-              <span style={{ color: 'var(--text-dim)', fontSize: '0.78rem' }}>— {s.realmName}</span>
+              {r.name}
             </button>
           ))}
         </div>
