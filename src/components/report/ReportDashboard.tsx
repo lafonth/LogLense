@@ -98,6 +98,7 @@ export function ReportDashboard({
             alignItems: 'baseline',
             justifyContent: 'space-between',
             marginBottom: '24px',
+            paddingRight: '170px',
           }}
         >
           <div>

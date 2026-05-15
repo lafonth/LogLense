@@ -1,22 +1,47 @@
 'use client';
 
-import type { ReportActor } from '@/types';
+import { useSession } from 'next-auth/react';
+import { useEffect, useState } from 'react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
-interface CharacterSwitcherProps {
-  actors: ReportActor[];
-  selectedActorId: number;
-  loading: boolean;
-  onSelect: (actor: ReportActor) => void;
+interface WowCharacter {
+  id: number;
+  name: string;
+  realmName: string;
+  realmSlug: string;
+  class: string;
+  level: number;
 }
 
-export function CharacterSwitcher({
-  actors,
-  selectedActorId,
+interface UserCharacterSwitcherProps {
+  region: string;
+  currentCharacterName: string;
+  currentRealmSlug: string;
+  loading: boolean;
+  onSelect: (name: string, realmSlug: string) => void;
+}
+
+export function UserCharacterSwitcher({
+  region,
+  currentCharacterName,
+  currentRealmSlug,
   loading,
   onSelect,
-}: CharacterSwitcherProps) {
-  const sorted = actors.slice().sort((a, b) => a.name.localeCompare(b.name));
+}: UserCharacterSwitcherProps) {
+  const { data: session } = useSession();
+  const [characters, setCharacters] = useState<WowCharacter[]>([]);
+
+  useEffect(() => {
+    if (!session) return;
+    void fetch(`/api/user/characters?region=${region}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: unknown) => { setCharacters(data as WowCharacter[]); })
+      .catch(() => {});
+  }, [session, region]);
+
+  if (!session || characters.length === 0) return null;
+
+  const sorted = characters.slice().sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div
@@ -41,13 +66,15 @@ export function CharacterSwitcher({
       >
         Characters
       </div>
-      {sorted.map((actor) => {
-        const isActive = actor.id === selectedActorId;
+      {sorted.map((char) => {
+        const isActive =
+          char.name.toLowerCase() === currentCharacterName.toLowerCase() &&
+          char.realmSlug.toLowerCase() === currentRealmSlug.toLowerCase();
         const isLoading = isActive && loading;
         return (
           <button
-            key={actor.id}
-            onClick={() => !isLoading && onSelect(actor)}
+            key={char.id}
+            onClick={() => !isLoading && onSelect(char.name, char.realmSlug)}
             disabled={isLoading}
             style={{
               display: 'flex',
@@ -75,7 +102,7 @@ export function CharacterSwitcher({
                   whiteSpace: 'nowrap',
                 }}
               >
-                {actor.name}{actor.server ? `-${actor.server}` : ''}
+                {char.name}-{char.realmName}
               </div>
               <div
                 style={{
@@ -85,7 +112,7 @@ export function CharacterSwitcher({
                   opacity: 0.6,
                 }}
               >
-                {actor.subType}
+                {char.class}
               </div>
             </div>
             {isLoading && <LoadingSpinner />}

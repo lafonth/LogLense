@@ -5,6 +5,7 @@ import type { BossState } from '@/hooks/useAnalysis';
 import type { AnalysisInput } from '@/types';
 import { BossContentPanel } from '@/components/shared/BossContentPanel';
 import { ProgressSteps } from '@/components/ui/ProgressSteps';
+import { UserCharacterSwitcher } from './UserCharacterSwitcher';
 
 const DIFFICULTIES = [
   { id: 5, label: 'Mythic' },
@@ -20,6 +21,7 @@ interface CharacterDashboardProps {
   onDifficultyChange: (difficulty: AnalysisInput['difficulty']) => void;
   onBossChange: (idx: number) => void;
   onReset: () => void;
+  onSwitchCharacter?: (name: string, realmSlug: string) => void;
 }
 
 function buildAnalysisResult(input: AnalysisInput, bossStates: BossState[]) {
@@ -38,18 +40,30 @@ export function CharacterDashboard({
   onDifficultyChange,
   onBossChange,
   onReset,
+  onSwitchCharacter,
 }: CharacterDashboardProps) {
   const isLoading = bossStates.some((s) => s.status === 'loading' || s.status === 'idle');
   const analysisResult = buildAnalysisResult(input, bossStates);
 
   return (
-    <div style={{ minHeight: '100vh', padding: '24px 32px' }}>
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      {onSwitchCharacter && (
+        <UserCharacterSwitcher
+          region={input.region}
+          currentCharacterName={input.characterName}
+          currentRealmSlug={input.serverSlug}
+          loading={isLoading}
+          onSelect={onSwitchCharacter}
+        />
+      )}
+      <div style={{ flex: 1, minWidth: 0, padding: '24px 32px' }}>
       <div
         style={{
           display: 'flex',
           alignItems: 'baseline',
           justifyContent: 'space-between',
           marginBottom: '24px',
+          paddingRight: '170px',
         }}
       >
         <div>
@@ -158,6 +172,7 @@ export function CharacterDashboard({
         onBossChange={onBossChange}
         analysisResult={analysisResult}
       />
+      </div>
     </div>
   );
 }

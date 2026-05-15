@@ -10,9 +10,10 @@ export type BossState =
   | { status: 'error'; message: string };
 
 export function useAnalysis() {
-  // Keyed by difficulty — survives difficulty switches
+  // Keyed by difficulty — survives difficulty switches within the same character
   const cacheRef = useRef<Partial<Record<number, BossState[]>>>({});
   const activeDiffRef = useRef<number | null>(null);
+  const inputRef = useRef<AnalysisInput | null>(null);
 
   const [bossStates, setBossStates] = useState<BossState[]>([]);
   const [currentDifficulty, setCurrentDifficulty] = useState<number | null>(null);
@@ -22,6 +23,13 @@ export function useAnalysis() {
     const diff = analysisInput.difficulty;
     activeDiffRef.current = diff;
     setCurrentDifficulty(diff);
+
+    // Bust cache when character or server changes
+    const prev = inputRef.current;
+    if (prev?.characterName !== analysisInput.characterName || prev?.serverSlug !== analysisInput.serverSlug) {
+      cacheRef.current = {};
+    }
+    inputRef.current = analysisInput;
     setInput(analysisInput);
 
     // Cache hit — instant display
