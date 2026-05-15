@@ -1,3 +1,12 @@
+export interface WowCharacter {
+  id: number;
+  name: string;
+  realmName: string;
+  realmSlug: string;
+  class: string;
+  level: number;
+}
+
 export interface StoredCharacter {
   name: string;
   realmName: string;

@@ -5,7 +5,9 @@ import type { AnalysisInput, Zone } from '@/types';
 import { useState } from 'react';
 import { RealmAutocomplete } from '@/components/forms/RealmAutocomplete';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
+import { DifficultyRegionFields } from './DifficultyRegionFields';
 import { EncounterSelector } from './EncounterSelector';
+import { fieldStyle, inputStyle, labelStyle } from './formStyles';
 
 interface CharacterFormProps {
   onSubmit: (input: AnalysisInput, zoneId: number) => void;
@@ -14,30 +16,6 @@ interface CharacterFormProps {
   zonesLoading: boolean;
   zonesError: string | null;
 }
-
-const inputStyle: React.CSSProperties = {
-  background: 'var(--surface)',
-  border: '1px solid var(--border)',
-  borderRadius: '4px',
-  color: 'var(--text)',
-  fontFamily: 'var(--font-mono)',
-  fontSize: '0.9rem',
-  padding: '8px 12px',
-  width: '100%',
-  outline: 'none',
-};
-
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  fontFamily: 'var(--font-mono)',
-  fontSize: '0.75rem',
-  color: 'var(--gold-dim)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  marginBottom: '6px',
-};
-
-const fieldStyle: React.CSSProperties = { marginBottom: '18px' };
 
 export function CharacterForm({
   onSubmit,
@@ -74,13 +52,7 @@ export function CharacterForm({
     e.preventDefault();
     if (!characterName.trim() || !realm || !activeZoneId || encounters.length === 0) return;
     onSubmit(
-      {
-        characterName: characterName.trim(),
-        serverSlug: realm.slug,
-        region,
-        difficulty,
-        encounters,
-      },
+      { characterName: characterName.trim(), serverSlug: realm.slug, region, difficulty, encounters },
       activeZoneId
     );
   }
@@ -99,26 +71,11 @@ export function CharacterForm({
         background: 'radial-gradient(ellipse at 50% 0%, rgba(198,168,74,0.06) 0%, var(--bg) 60%)',
       }}
     >
-      <h1
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '3rem',
-          color: 'var(--gold)',
-          marginBottom: '8px',
-          letterSpacing: '0.04em',
-        }}
-      >
+      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '3rem', color: 'var(--gold)', marginBottom: '8px', letterSpacing: '0.04em' }}>
         LogLense
       </h1>
-      <p
-        style={{
-          color: 'var(--text-dim)',
-          fontSize: '0.85rem',
-          marginBottom: '40px',
-          fontFamily: 'var(--font-mono)',
-        }}
-      >
-        Feral Druid · WarcraftLogs analyser
+      <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginBottom: '40px', fontFamily: 'var(--font-mono)' }}>
+        WarcraftLogs analyser
       </p>
 
       <form
@@ -132,37 +89,12 @@ export function CharacterForm({
           padding: '32px',
         }}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Region</label>
-            <select
-              style={inputStyle}
-              value={region}
-              onChange={(e) => handleRegionChange(e.target.value as AnalysisInput['region'])}
-            >
-              {(['US', 'EU', 'KR', 'TW', 'CN'] as const).map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Difficulty</label>
-            <select
-              style={inputStyle}
-              value={difficulty}
-              onChange={(e) =>
-                setDifficulty(Number.parseInt(e.target.value, 10) as AnalysisInput['difficulty'])
-              }
-            >
-              <option value={5}>Mythic</option>
-              <option value={4}>Heroic</option>
-              <option value={3}>Normal</option>
-            </select>
-          </div>
-        </div>
+        <DifficultyRegionFields
+          region={region}
+          difficulty={difficulty}
+          onRegionChange={handleRegionChange}
+          onDifficultyChange={setDifficulty}
+        />
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
           <div style={fieldStyle}>
@@ -176,45 +108,23 @@ export function CharacterForm({
               autoComplete="off"
             />
           </div>
-
           <div style={fieldStyle}>
             <label style={labelStyle}>Realm</label>
-            <RealmAutocomplete
-              key={region}
-              region={region}
-              value={realm}
-              onChange={setRealm}
-              inputStyle={inputStyle}
-            />
+            <RealmAutocomplete key={region} region={region} value={realm} onChange={setRealm} inputStyle={inputStyle} />
           </div>
         </div>
 
         <div style={fieldStyle}>
           <label style={labelStyle}>Raid</label>
           {zonesLoading ? (
-            <div
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.82rem',
-                color: 'var(--text-dim)',
-                padding: '8px 0',
-              }}
-            >
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--text-dim)', padding: '8px 0' }}>
               Loading raids…
             </div>
           ) : zonesError ? (
             <ErrorBanner message={zonesError} />
           ) : (
-            <select
-              style={inputStyle}
-              value={selectedZoneId ?? ''}
-              onChange={(e) => handleZoneChange(Number.parseInt(e.target.value, 10))}
-            >
-              {zones.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.name}
-                </option>
-              ))}
+            <select style={inputStyle} value={selectedZoneId ?? ''} onChange={(e) => handleZoneChange(Number.parseInt(e.target.value, 10))}>
+              {zones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
             </select>
           )}
         </div>
@@ -234,17 +144,12 @@ export function CharacterForm({
           type="submit"
           disabled={!canSubmit}
           style={{
-            width: '100%',
-            padding: '12px',
+            width: '100%', padding: '12px',
             background: canSubmit ? 'var(--crimson)' : 'var(--border)',
-            color: 'var(--text)',
-            border: 'none',
-            borderRadius: '4px',
-            fontFamily: 'var(--font-display)',
-            fontSize: '1rem',
+            color: 'var(--text)', border: 'none', borderRadius: '4px',
+            fontFamily: 'var(--font-display)', fontSize: '1rem',
             cursor: canSubmit ? 'pointer' : 'not-allowed',
-            letterSpacing: '0.06em',
-            marginTop: '8px',
+            letterSpacing: '0.06em', marginTop: '8px',
           }}
         >
           {loading ? 'Analysing…' : 'Analyse'}

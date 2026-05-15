@@ -1,19 +1,12 @@
 'use client';
 
-import type { AnalysisInput, StoredCharacter, Zone } from '@/types';
+import type { AnalysisInput, StoredCharacter, WowCharacter, Zone } from '@/types';
 import { useEffect, useState } from 'react';
 import { EncounterSelector } from '@/components/forms/EncounterSelector';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { usePreferences } from '@/hooks/usePreferences';
-
-interface WowCharacter {
-  id: number;
-  name: string;
-  realmName: string;
-  realmSlug: string;
-  class: string;
-  level: number;
-}
+import { DifficultyRegionFields } from './DifficultyRegionFields';
+import { fieldStyle, inputStyle, labelStyle } from './formStyles';
 
 interface LoggedInCharacterFormProps {
   onSubmit: (input: AnalysisInput, zoneId: number) => void;
@@ -22,30 +15,6 @@ interface LoggedInCharacterFormProps {
   zonesLoading: boolean;
   zonesError: string | null;
 }
-
-const inputStyle: React.CSSProperties = {
-  background: 'var(--surface)',
-  border: '1px solid var(--border)',
-  borderRadius: '4px',
-  color: 'var(--text)',
-  fontFamily: 'var(--font-mono)',
-  fontSize: '0.9rem',
-  padding: '8px 12px',
-  width: '100%',
-  outline: 'none',
-};
-
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  fontFamily: 'var(--font-mono)',
-  fontSize: '0.75rem',
-  color: 'var(--gold-dim)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  marginBottom: '6px',
-};
-
-const fieldStyle: React.CSSProperties = { marginBottom: '18px' };
 
 const sectionLabelStyle: React.CSSProperties = {
   fontFamily: 'var(--font-mono)',
@@ -302,35 +271,12 @@ export function LoggedInCharacterForm({
           padding: '32px',
         }}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Region</label>
-            <select
-              style={inputStyle}
-              value={region}
-              onChange={(e) => setRegion(e.target.value as AnalysisInput['region'])}
-            >
-              {(['US', 'EU', 'KR', 'TW', 'CN'] as const).map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Difficulty</label>
-            <select
-              style={inputStyle}
-              value={difficulty}
-              onChange={(e) =>
-                setDifficulty(Number.parseInt(e.target.value, 10) as AnalysisInput['difficulty'])
-              }
-            >
-              <option value={5}>Mythic</option>
-              <option value={4}>Heroic</option>
-              <option value={3}>Normal</option>
-            </select>
-          </div>
-        </div>
+        <DifficultyRegionFields
+          region={region}
+          difficulty={difficulty}
+          onRegionChange={setRegion}
+          onDifficultyChange={setDifficulty}
+        />
 
         <div style={fieldStyle}>
           <label style={labelStyle}>
