@@ -1,5 +1,29 @@
 import type { NextAuthOptions } from 'next-auth';
 import BattleNetProvider from 'next-auth/providers/battlenet';
+import { redisGet } from '@/lib/redis';
+
+const WHITELIST_KEY = 'app:whitelist';
+
+async function fetchBattletag(accessToken: string): Promise<string | null> {
+  try {
+    const res = await fetch('https://eu.battle.net/oauth/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { battletag?: string; battleTag?: string };
+    return data.battletag ?? data.battleTag ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function isAllowed(battletag: string): Promise<boolean> {
+  const raw = await redisGet(WHITELIST_KEY);
+  // No whitelist key = open access (lets you log in before configuring)
+  if (!raw) return true;
+  const list = JSON.parse(raw) as string[];
+  return list.some((t) => t.toLowerCase() === battletag.toLowerCase());
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -23,23 +47,17 @@ export const authOptions: NextAuthOptions = {
   ],
   session: { strategy: 'jwt' },
   callbacks: {
+    async signIn({ account }) {
+      if (!account?.access_token) return false;
+      const battletag = await fetchBattletag(account.access_token);
+      if (!battletag) return false;
+      return isAllowed(battletag);
+    },
     async jwt({ token, account }) {
       if (account?.access_token) {
         token.accessToken = account.access_token;
-        // Fetch battletag directly from userinfo — profile() may not receive it
-        // depending on which claims Battle.net includes in the OIDC token
-        try {
-          const res = await fetch('https://eu.battle.net/oauth/userinfo', {
-            headers: { Authorization: `Bearer ${account.access_token}` },
-          });
-          if (res.ok) {
-            const data = (await res.json()) as { battletag?: string; battleTag?: string };
-            const tag = data.battletag ?? data.battleTag;
-            if (tag) token.name = tag;
-          }
-        } catch {
-          // Non-fatal — name falls back to whatever profile() set
-        }
+        const tag = await fetchBattletag(account.access_token);
+        if (tag) token.name = tag;
       }
       return token;
     },
