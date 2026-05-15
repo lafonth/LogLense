@@ -28,8 +28,12 @@ async function isAllowed(battletag: string): Promise<boolean> {
 export const authOptions: NextAuthOptions = {
   providers: [
     BattleNetProvider({
-      clientId: process.env.BLIZZARD_CLIENT_ID!,
-      clientSecret: process.env.BLIZZARD_CLIENT_SECRET!,
+      clientId: (process.env.VERCEL_ENV === 'production'
+        ? process.env.BLIZZARD_CLIENT_ID_PROD
+        : process.env.BLIZZARD_CLIENT_ID_DEV)!,
+      clientSecret: (process.env.VERCEL_ENV === 'production'
+        ? process.env.BLIZZARD_CLIENT_SECRET_PROD
+        : process.env.BLIZZARD_CLIENT_SECRET_DEV)!,
       issuer: 'https://eu.battle.net/oauth',
       authorization: {
         params: { scope: 'openid wow.profile' },
