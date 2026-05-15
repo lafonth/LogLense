@@ -40,7 +40,14 @@ interface SidebarItemProps {
   action?: React.ReactNode;
 }
 
-export function SidebarItem({ name, subtitle, isActive, isLoading, onClick, action }: SidebarItemProps) {
+export function SidebarItem({
+  name,
+  subtitle,
+  isActive,
+  isLoading,
+  onClick,
+  action,
+}: SidebarItemProps) {
   return (
     <div style={{ position: 'relative', marginBottom: '3px' }}>
       <button
@@ -73,17 +80,20 @@ export function SidebarItem({ name, subtitle, isActive, isLoading, onClick, acti
           >
             {name}
           </div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-dim)', opacity: 0.6 }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.65rem',
+              color: 'var(--text-dim)',
+              opacity: 0.6,
+            }}
+          >
             {subtitle}
           </div>
         </div>
         {isLoading && <LoadingSpinner />}
       </button>
-      {action && (
-        <div style={{ position: 'absolute', top: '6px', right: '6px' }}>
-          {action}
-        </div>
-      )}
+      {action && <div style={{ position: 'absolute', top: '6px', right: '6px' }}>{action}</div>}
     </div>
   );
 }

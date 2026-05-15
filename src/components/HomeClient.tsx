@@ -1,15 +1,15 @@
 'use client';
 
 import type { AnalysisInput, ReportActor, ReportFight } from '@/types';
+import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { CharacterDashboard } from '@/components/character/CharacterDashboard';
 import { CharacterForm } from '@/components/forms/CharacterForm';
 import { LoggedInCharacterForm } from '@/components/forms/LoggedInCharacterForm';
 import { ReportForm } from '@/components/forms/ReportForm';
-import { ReportDashboard } from '@/components/report/ReportDashboard';
 import { MarketingLanding } from '@/components/landing/MarketingLanding';
+import { ReportDashboard } from '@/components/report/ReportDashboard';
 import { ModeSelector } from '@/components/ui/ModeSelector';
 import { useAnalysis } from '@/hooks/useAnalysis';
 import { useReportAnalysis } from '@/hooks/useReportAnalysis';
@@ -32,21 +32,47 @@ export function HomeClient() {
   const { data: session, status: sessionStatus } = useSession();
   const { zones, loading: zonesLoading, error: zonesError } = useZones();
   const { bossStates, currentDifficulty, isAnyLoading, input, start, reset } = useAnalysis();
-  const { result: reportResult, loading: reportLoading, start: startReport, reset: resetReport } = useReportAnalysis();
+  const {
+    result: reportResult,
+    loading: reportLoading,
+    start: startReport,
+    reset: resetReport,
+  } = useReportAnalysis();
   const { meta: reportMeta, fetchedCode, loading: reportMetaLoading, fetchMeta } = useReportMeta();
 
   const [mode, setMode] = useState<'character' | 'report' | null>(null);
   const [reportContext, setReportContext] = useState<ReportContext | null>(null);
 
   const {
-    char, server, region, difficulty, zoneId,
-    reportCode, reportActorId, reportDifficulty, bossParam,
-    clearCharKey, clearReportKey, setReportKey,
-  } = useRouteSync({ zones, zonesLoading, reportMeta, fetchedCode, reportMetaLoading, start, startReport, fetchMeta });
+    char,
+    server,
+    difficulty,
+    reportCode,
+    reportActorId,
+    reportDifficulty,
+    bossParam,
+    clearCharKey,
+    clearReportKey,
+    setReportKey,
+  } = useRouteSync({
+    zones,
+    zonesLoading,
+    reportMeta,
+    fetchedCode,
+    reportMetaLoading,
+    start,
+    startReport,
+    fetchMeta,
+  });
 
   // Derived: character mode active boss
   const charActiveBossIdx =
-    bossParam && input ? Math.max(0, input.encounters.findIndex((e) => e.id === bossParam)) : 0;
+    bossParam && input
+      ? Math.max(
+          0,
+          input.encounters.findIndex((e) => e.id === bossParam)
+        )
+      : 0;
 
   // Derived: report mode shell (context from fresh submit, or meta from URL restore)
   const reportShellMeta = reportContext
@@ -55,26 +81,32 @@ export function HomeClient() {
       ? reportMeta
       : null;
   const reportShellActorId = reportContext?.selectedActorId ?? reportActorId ?? 0;
-  const reportShellActorName = reportShellMeta?.actors.find((a) => a.id === reportShellActorId)?.name ?? '';
+  const reportShellActorName =
+    reportShellMeta?.actors.find((a) => a.id === reportShellActorId)?.name ?? '';
   const reportActiveBossIdx =
     bossParam && reportShellMeta
       ? Math.max(
           0,
           reportShellMeta.fights
             .filter((f) => f.kill && f.difficulty === reportDifficulty && f.encounterID > 0)
-            .reduce<number[]>((acc, f) => (acc.includes(f.encounterID) ? acc : [...acc, f.encounterID]), [])
+            .reduce<number[]>(
+              (acc, f) => (acc.includes(f.encounterID) ? acc : [...acc, f.encounterID]),
+              []
+            )
             .indexOf(bossParam)
         )
       : 0;
 
   function handleSubmit(analysisInput: AnalysisInput, selectedZoneId: number) {
-    router.push(`/?${new URLSearchParams({
-      char: analysisInput.characterName,
-      server: analysisInput.serverSlug,
-      region: analysisInput.region,
-      difficulty: String(analysisInput.difficulty),
-      zone: String(selectedZoneId),
-    }).toString()}`);
+    router.push(
+      `/?${new URLSearchParams({
+        char: analysisInput.characterName,
+        server: analysisInput.serverSlug,
+        region: analysisInput.region,
+        difficulty: String(analysisInput.difficulty),
+        zone: String(selectedZoneId),
+      }).toString()}`
+    );
   }
 
   function handleDifficultyChange(newDifficulty: AnalysisInput['difficulty']) {
@@ -109,12 +141,18 @@ export function HomeClient() {
   }
 
   function handleReportSubmit(
-    code: string, actor: ReportActor, diff: number,
-    fights: ReportFight[], actors: ReportActor[], title: string
+    code: string,
+    actor: ReportActor,
+    diff: number,
+    fights: ReportFight[],
+    actors: ReportActor[],
+    title: string
   ) {
     setReportKey(`${code}|${actor.id}|${diff}`);
     setReportContext({ code, title, difficulty: diff, fights, actors, selectedActorId: actor.id });
-    router.push(`/?${new URLSearchParams({ report: code, actor: String(actor.id), difficulty: String(diff) }).toString()}`);
+    router.push(
+      `/?${new URLSearchParams({ report: code, actor: String(actor.id), difficulty: String(diff) }).toString()}`
+    );
     void startReport({ code, actor, difficulty: diff, fights });
   }
 
@@ -145,7 +183,9 @@ export function HomeClient() {
     if (!reportShellMeta) return;
     const uniqueEncIds = reportShellMeta.fights
       .filter((f) => f.kill && f.difficulty === reportDifficulty && f.encounterID > 0)
-      .reduce<number[]>((acc, f) => (acc.includes(f.encounterID) ? acc : [...acc, f.encounterID]), []);
+      .reduce<
+        number[]
+      >((acc, f) => (acc.includes(f.encounterID) ? acc : [...acc, f.encounterID]), []);
     const encId = uniqueEncIds[idx];
     if (!encId) return;
     const params = new URLSearchParams(searchParams.toString());
@@ -197,7 +237,17 @@ export function HomeClient() {
 
   if ((char && server) || (reportCode && reportActorId)) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-dim)' }}>
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '0.85rem',
+          color: 'var(--text-dim)',
+        }}
+      >
         Loading…
       </div>
     );
@@ -208,12 +258,34 @@ export function HomeClient() {
   if (mode === null) return <ModeSelector onSelect={setMode} />;
 
   if (mode === 'report') {
-    return <ReportForm onSubmit={handleReportSubmit} loading={reportLoading} onBack={() => setMode(null)} />;
+    return (
+      <ReportForm
+        onSubmit={handleReportSubmit}
+        loading={reportLoading}
+        onBack={() => setMode(null)}
+      />
+    );
   }
 
   if (session) {
-    return <LoggedInCharacterForm onSubmit={handleSubmit} loading={isAnyLoading} zones={zones} zonesLoading={zonesLoading} zonesError={zonesError} />;
+    return (
+      <LoggedInCharacterForm
+        onSubmit={handleSubmit}
+        loading={isAnyLoading}
+        zones={zones}
+        zonesLoading={zonesLoading}
+        zonesError={zonesError}
+      />
+    );
   }
 
-  return <CharacterForm onSubmit={handleSubmit} loading={isAnyLoading} zones={zones} zonesLoading={zonesLoading} zonesError={zonesError} />;
+  return (
+    <CharacterForm
+      onSubmit={handleSubmit}
+      loading={isAnyLoading}
+      zones={zones}
+      zonesLoading={zonesLoading}
+      zonesError={zonesError}
+    />
+  );
 }

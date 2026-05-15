@@ -33,7 +33,9 @@ export function UserCharacterSwitcher({
     if (!session) return;
     void fetch(`/api/user/characters?region=${region}`)
       .then((r) => (r.ok ? r.json() : []))
-      .then((data: unknown) => { setCharacters(data as WowCharacter[]); })
+      .then((data: unknown) => {
+        setCharacters(data as WowCharacter[]);
+      })
       .catch(() => {});
   }, [session, region]);
 
@@ -64,9 +66,20 @@ export function UserCharacterSwitcher({
             onClick={() => onSelect(char.name, char.realmSlug)}
             action={
               <button
-                onClick={(e) => { e.stopPropagation(); toggleFavourite(stored); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFavourite(stored);
+                }}
                 title={isFav ? 'Remove from favourites' : 'Add to favourites'}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: isFav ? 'var(--gold)' : 'var(--border)', lineHeight: 1, padding: '2px' }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem',
+                  color: isFav ? 'var(--gold)' : 'var(--border)',
+                  lineHeight: 1,
+                  padding: '2px',
+                }}
               >
                 ★
               </button>

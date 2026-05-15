@@ -52,7 +52,6 @@ const ctaBtnStyle: React.CSSProperties = {
 export function MarketingLanding() {
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
-
       {/* ── Nav — overlays the global AuthHeader ── */}
       <nav
         style={{
@@ -103,7 +102,8 @@ export function MarketingLanding() {
         style={{
           padding: '100px 24px 80px',
           textAlign: 'center',
-          background: 'radial-gradient(ellipse at 50% 0%, rgba(198,168,74,0.07) 0%, transparent 65%)',
+          background:
+            'radial-gradient(ellipse at 50% 0%, rgba(198,168,74,0.07) 0%, transparent 65%)',
         }}
       >
         <div
@@ -143,8 +143,8 @@ export function MarketingLanding() {
           Stop reading raw logs.{' '}
           <span style={{ color: 'var(--text)' }}>Understand your performance.</span>
           <br />
-          Compare your rotation, talents and stats against the players at the top of the
-          leaderboard — and get AI coaching on exactly what to fix.
+          Compare your rotation, talents and stats against the players at the top of the leaderboard
+          — and get AI coaching on exactly what to fix.
         </p>
         <button onClick={() => void signIn('battlenet')} style={ctaBtnStyle}>
           Sign in with Battle.net
@@ -265,8 +265,8 @@ export function MarketingLanding() {
                 lineHeight: 1.65,
               }}
             >
-              Paste any WarcraftLogs report code. Analyse any player in the raid — your character
-              or anyone else&apos;s kills.
+              Paste any WarcraftLogs report code. Analyse any player in the raid — your character or
+              anyone else&apos;s kills.
             </p>
           </div>
 
@@ -322,8 +322,7 @@ export function MarketingLanding() {
                   lineHeight: 1.75,
                 }}
               >
-                An AI reads your parse and writes a personalised coaching report. Not generic tips
-                —{' '}
+                An AI reads your parse and writes a personalised coaching report. Not generic tips —{' '}
                 <span style={{ color: 'var(--text)' }}>
                   specific actions ranked by impact for your character, your boss, your kill.
                 </span>{' '}
@@ -457,10 +456,14 @@ export function MarketingLanding() {
           alignItems: 'center',
         }}
       >
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--border)' }}>
+        <span
+          style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--border)' }}
+        >
           LogLense © 2025
         </span>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--border)' }}>
+        <span
+          style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--border)' }}
+        >
           Not affiliated with Blizzard Entertainment or WarcraftLogs
         </span>
       </footer>

@@ -1,8 +1,8 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { DifficultyRegionFields } from '../DifficultyRegionFields';
 
-describe('DifficultyRegionFields', () => {
+describe('difficultyRegionFields', () => {
   it('renders region and difficulty selects', () => {
     render(
       <DifficultyRegionFields

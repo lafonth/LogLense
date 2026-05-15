@@ -46,7 +46,9 @@ export function RealmAutocomplete({ region, value, onChange, inputStyle }: Realm
 
   const filtered =
     query.trim().length >= 1
-      ? allRealms.filter((r) => r.name.toLowerCase().startsWith(query.trim().toLowerCase())).slice(0, 10)
+      ? allRealms
+          .filter((r) => r.name.toLowerCase().startsWith(query.trim().toLowerCase()))
+          .slice(0, 10)
       : [];
 
   const showDropdown = open && query.trim().length >= 1 && filtered.length > 0;

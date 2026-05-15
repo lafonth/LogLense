@@ -46,7 +46,10 @@ interface BnetRealmIndex {
 }
 
 // Cache realm lists per region — they rarely change
-const realmCache: Record<string, { items: { id: number; name: string; slug: string }[]; at: number }> = {};
+const realmCache: Record<
+  string,
+  { items: { id: number; name: string; slug: string }[]; at: number }
+> = {};
 const REALM_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
 
 export async function GET(req: NextRequest) {

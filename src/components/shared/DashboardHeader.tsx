@@ -1,3 +1,4 @@
+import type { AnalysisInput } from '@/types';
 import type { StepStatus } from '@/components/ui/ProgressSteps';
 import type { BossState } from '@/hooks/useAnalysis';
 import { ProgressSteps } from '@/components/ui/ProgressSteps';
@@ -13,7 +14,7 @@ interface DashboardHeaderProps {
   subtitle: string;
   difficulty: number;
   availableDifficulties?: Set<number>;
-  onDifficultyChange: (diff: number) => void;
+  onDifficultyChange: (diff: AnalysisInput['difficulty']) => void;
   onReset: () => void;
 }
 

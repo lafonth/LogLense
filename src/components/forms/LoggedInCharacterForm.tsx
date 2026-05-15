@@ -143,9 +143,15 @@ export function LoggedInCharacterForm({
     setSelectedCharKey(null);
     void fetch(`/api/user/characters?region=${region}`)
       .then((r) => (r.ok ? r.json() : []))
-      .then((data: unknown) => { setCharacters(data as WowCharacter[]); })
-      .catch(() => { setCharacters([]); })
-      .finally(() => { setCharsLoading(false); });
+      .then((data: unknown) => {
+        setCharacters(data as WowCharacter[]);
+      })
+      .catch(() => {
+        setCharacters([]);
+      })
+      .finally(() => {
+        setCharsLoading(false);
+      });
   }, [region]);
 
   // Build display sections
@@ -153,9 +159,7 @@ export function LoggedInCharacterForm({
   const recentsForRegion = recents.filter(
     (c) => c.region.toLowerCase() === region.toLowerCase() && !favKeys.has(charKey(c))
   );
-  const favsForRegion = favourites.filter(
-    (c) => c.region.toLowerCase() === region.toLowerCase()
-  );
+  const favsForRegion = favourites.filter((c) => c.region.toLowerCase() === region.toLowerCase());
   const shownKeys = new Set([...favsForRegion.map(charKey), ...recentsForRegion.map(charKey)]);
   const rest = characters.filter((c) => !shownKeys.has(charKey(toStored(c, region))));
 
@@ -181,10 +185,7 @@ export function LoggedInCharacterForm({
     e.preventDefault();
     const char = resolveChar();
     if (!char || !activeZoneId || encounters.length === 0) return;
-    const stored = toStored(
-      'id' in char ? char : { id: 0, level: 0, ...char },
-      region
-    );
+    const stored = toStored('id' in char ? char : { id: 0, level: 0, ...char }, region);
     addRecent(stored);
     onSubmit(
       {
@@ -218,7 +219,10 @@ export function LoggedInCharacterForm({
               isActive={selectedCharKey === k}
               isFav={isFavourite(c)}
               onSelect={() => handleSelect(c)}
-              onToggleFav={(ev) => { ev.stopPropagation(); toggleFavourite(c); }}
+              onToggleFav={(ev) => {
+                ev.stopPropagation();
+                toggleFavourite(c);
+              }}
             />
           );
         })}
@@ -282,7 +286,14 @@ export function LoggedInCharacterForm({
           <label style={labelStyle}>
             Your Characters
             {charsLoading && (
-              <span style={{ marginLeft: '8px', color: 'var(--text-dim)', opacity: 0.6, textTransform: 'none' }}>
+              <span
+                style={{
+                  marginLeft: '8px',
+                  color: 'var(--text-dim)',
+                  opacity: 0.6,
+                  textTransform: 'none',
+                }}
+              >
                 Loading…
               </span>
             )}
@@ -338,7 +349,14 @@ export function LoggedInCharacterForm({
         <div style={fieldStyle}>
           <label style={labelStyle}>Raid</label>
           {zonesLoading ? (
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--text-dim)', padding: '8px 0' }}>
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.82rem',
+                color: 'var(--text-dim)',
+                padding: '8px 0',
+              }}
+            >
               Loading raids…
             </div>
           ) : zonesError ? (
@@ -350,7 +368,9 @@ export function LoggedInCharacterForm({
               onChange={(e) => handleZoneChange(Number.parseInt(e.target.value, 10))}
             >
               {zones.map((z) => (
-                <option key={z.id} value={z.id}>{z.name}</option>
+                <option key={z.id} value={z.id}>
+                  {z.name}
+                </option>
               ))}
             </select>
           )}

@@ -1,13 +1,13 @@
 import type { WowCharacter, Zone } from '@/types';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LoggedInCharacterForm } from '@/components/forms/LoggedInCharacterForm';
+
+import { usePreferences } from '@/hooks/usePreferences';
 
 vi.mock('@/hooks/usePreferences', () => ({
   usePreferences: vi.fn(),
 }));
-
-import { usePreferences } from '@/hooks/usePreferences';
 
 const chars: WowCharacter[] = [
   { id: 1, name: 'Jumbaa', realmName: 'Ysondre', realmSlug: 'ysondre', class: 'Druid', level: 80 },
@@ -62,7 +62,7 @@ const defaultProps = {
   zonesError: null,
 };
 
-describe('LoggedInCharacterForm integration', () => {
+describe('loggedInCharacterForm integration', () => {
   it('fetches and displays characters for the default EU region', async () => {
     render(<LoggedInCharacterForm {...defaultProps} />);
     await waitFor(() => expect(screen.getByText('Jumbaa-Ysondre')).toBeInTheDocument());
@@ -71,7 +71,15 @@ describe('LoggedInCharacterForm integration', () => {
 
   it('displays Starred section when favourites exist for the region', async () => {
     mockPreferences({
-      favourites: [{ name: 'Jumbaa', realmName: 'Ysondre', realmSlug: 'ysondre', region: 'EU', class: 'Druid' }],
+      favourites: [
+        {
+          name: 'Jumbaa',
+          realmName: 'Ysondre',
+          realmSlug: 'ysondre',
+          region: 'EU',
+          class: 'Druid',
+        },
+      ],
       isFavourite: vi.fn().mockReturnValue(true),
     });
     render(<LoggedInCharacterForm {...defaultProps} />);
@@ -80,7 +88,9 @@ describe('LoggedInCharacterForm integration', () => {
 
   it('displays Recent section when recents exist for the region', async () => {
     mockPreferences({
-      recents: [{ name: 'Altchar', realmName: 'Hyjal', realmSlug: 'hyjal', region: 'EU', class: 'Hunter' }],
+      recents: [
+        { name: 'Altchar', realmName: 'Hyjal', realmSlug: 'hyjal', region: 'EU', class: 'Hunter' },
+      ],
     });
     render(<LoggedInCharacterForm {...defaultProps} />);
     await waitFor(() => expect(screen.getByText(/recent/i)).toBeInTheDocument());
@@ -96,9 +106,7 @@ describe('LoggedInCharacterForm integration', () => {
   it('displays "No characters found" when API returns empty list and no favourites', async () => {
     mockCharFetch([]);
     render(<LoggedInCharacterForm {...defaultProps} />);
-    await waitFor(() =>
-      expect(screen.getByText(/no characters found/i)).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText(/no characters found/i)).toBeInTheDocument());
   });
 
   it('selecting a character and submitting calls onSubmit with correct input', async () => {
@@ -110,7 +118,10 @@ describe('LoggedInCharacterForm integration', () => {
     fireEvent.click(screen.getByRole('button', { name: /^analyse$/i }));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
-    const [input, zoneId] = onSubmit.mock.calls[0] as [Parameters<typeof defaultProps.onSubmit>[0], number];
+    const [input, zoneId] = onSubmit.mock.calls[0] as [
+      Parameters<typeof defaultProps.onSubmit>[0],
+      number,
+    ];
     expect(input.characterName).toBe('Jumbaa');
     expect(input.serverSlug).toBe('ysondre');
     expect(input.region).toBe('EU');
@@ -129,7 +140,7 @@ describe('LoggedInCharacterForm integration', () => {
     expect(addRecent).toHaveBeenCalledTimes(1);
   });
 
-  it('Analyse button is disabled when no character is selected', async () => {
+  it('analyse button is disabled when no character is selected', async () => {
     render(<LoggedInCharacterForm {...defaultProps} />);
     await waitFor(() => screen.getByText('Jumbaa-Ysondre'));
     expect(screen.getByRole('button', { name: /^analyse$/i })).toBeDisabled();

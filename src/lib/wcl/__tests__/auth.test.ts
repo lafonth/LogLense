@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getWCLToken, clearTokenCache } from '../auth';
+import { clearTokenCache, getWCLToken } from '../auth';
 
 describe('getWCLToken', () => {
   beforeEach(() => {

@@ -10,7 +10,12 @@ interface CharacterSwitcherProps {
   onSelect: (actor: ReportActor) => void;
 }
 
-export function CharacterSwitcher({ actors, selectedActorId, loading, onSelect }: CharacterSwitcherProps) {
+export function CharacterSwitcher({
+  actors,
+  selectedActorId,
+  loading,
+  onSelect,
+}: CharacterSwitcherProps) {
   const sorted = actors.slice().sort((a, b) => a.name.localeCompare(b.name));
   return (
     <SidebarSwitcher>

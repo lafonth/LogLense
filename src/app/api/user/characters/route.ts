@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 
 export const runtime = 'nodejs';
@@ -36,10 +36,9 @@ export async function GET(req: Request) {
   const host = REGION_HOSTS[region] ?? REGION_HOSTS.EU;
   const namespace = `profile-${region.toLowerCase()}`;
 
-  const res = await fetch(
-    `https://${host}/profile/user/wow?namespace=${namespace}&locale=en_US`,
-    { headers: { Authorization: `Bearer ${session.accessToken}` } }
-  );
+  const res = await fetch(`https://${host}/profile/user/wow?namespace=${namespace}&locale=en_US`, {
+    headers: { Authorization: `Bearer ${session.accessToken}` },
+  });
 
   if (!res.ok) return NextResponse.json([]);
 

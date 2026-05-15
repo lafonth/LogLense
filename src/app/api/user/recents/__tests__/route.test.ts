@@ -1,14 +1,14 @@
 import type { StoredCharacter } from '@/types';
+import { getServerSession } from 'next-auth/next';
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { redisGet, redisSet } from '@/lib/redis';
 import { POST } from '../route';
 
 vi.mock('next-auth/next', () => ({ getServerSession: vi.fn() }));
 vi.mock('@/lib/redis', () => ({ redisGet: vi.fn(), redisSet: vi.fn() }));
 vi.mock('@/lib/auth', () => ({ authOptions: {} }));
-
-import { getServerSession } from 'next-auth/next';
-import { redisGet, redisSet } from '@/lib/redis';
 
 function makeChar(name: string, realmSlug = 'ysondre'): StoredCharacter {
   return { name, realmName: 'Ysondre', realmSlug, region: 'EU', class: 'Druid' };
@@ -28,7 +28,7 @@ beforeEach(() => {
   vi.mocked(redisSet).mockResolvedValue(undefined);
 });
 
-describe('POST /api/user/recents', () => {
+describe('pOST /api/user/recents', () => {
   it('returns 401 when not authenticated', async () => {
     vi.mocked(getServerSession).mockResolvedValue(null);
     const res = await POST(makeRequest(makeChar('Jumbaa')));
@@ -37,7 +37,7 @@ describe('POST /api/user/recents', () => {
 
   it('prepends character to empty recents', async () => {
     const res = await POST(makeRequest(makeChar('Jumbaa')));
-    const body = await res.json() as { recents: StoredCharacter[] };
+    const body = (await res.json()) as { recents: StoredCharacter[] };
     expect(body.recents[0].name).toBe('Jumbaa');
   });
 
@@ -45,7 +45,7 @@ describe('POST /api/user/recents', () => {
     const existing = [makeChar('Jumbaa'), makeChar('Altchar')];
     vi.mocked(redisGet).mockResolvedValue(JSON.stringify(existing));
     const res = await POST(makeRequest(makeChar('Altchar')));
-    const body = await res.json() as { recents: StoredCharacter[] };
+    const body = (await res.json()) as { recents: StoredCharacter[] };
     expect(body.recents[0].name).toBe('Altchar');
     expect(body.recents).toHaveLength(2);
   });
@@ -54,7 +54,7 @@ describe('POST /api/user/recents', () => {
     const existing = Array.from({ length: 5 }, (_, i) => makeChar(`Char${i}`));
     vi.mocked(redisGet).mockResolvedValue(JSON.stringify(existing));
     const res = await POST(makeRequest(makeChar('NewChar')));
-    const body = await res.json() as { recents: StoredCharacter[] };
+    const body = (await res.json()) as { recents: StoredCharacter[] };
     expect(body.recents).toHaveLength(5);
     expect(body.recents[0].name).toBe('NewChar');
   });

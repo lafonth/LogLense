@@ -26,7 +26,10 @@ export function useAnalysis() {
 
     // Bust cache when character or server changes
     const prev = inputRef.current;
-    if (prev?.characterName !== analysisInput.characterName || prev?.serverSlug !== analysisInput.serverSlug) {
+    if (
+      prev?.characterName !== analysisInput.characterName ||
+      prev?.serverSlug !== analysisInput.serverSlug
+    ) {
       cacheRef.current = {};
     }
     inputRef.current = analysisInput;

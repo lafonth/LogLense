@@ -80,7 +80,9 @@ export function ReportForm({ onSubmit, loading, onBack }: ReportFormProps) {
 
         <form onSubmit={handleLoadReport}>
           <div style={fieldStyle}>
-            <label style={labelStyle} htmlFor="rf-code">WarcraftLogs Report Code</label>
+            <label style={labelStyle} htmlFor="rf-code">
+              WarcraftLogs Report Code
+            </label>
             <input
               id="rf-code"
               style={inputStyle}
@@ -120,7 +122,9 @@ export function ReportForm({ onSubmit, loading, onBack }: ReportFormProps) {
               </div>
             </div>
             <div style={fieldStyle}>
-              <label style={labelStyle} htmlFor="rf-actor">Character</label>
+              <label style={labelStyle} htmlFor="rf-actor">
+                Character
+              </label>
               <select
                 id="rf-actor"
                 style={inputStyle}
@@ -139,7 +143,9 @@ export function ReportForm({ onSubmit, loading, onBack }: ReportFormProps) {
               </select>
             </div>
             <div style={fieldStyle}>
-              <label style={labelStyle} htmlFor="rf-difficulty">Difficulty</label>
+              <label style={labelStyle} htmlFor="rf-difficulty">
+                Difficulty
+              </label>
               <select
                 id="rf-difficulty"
                 style={inputStyle}

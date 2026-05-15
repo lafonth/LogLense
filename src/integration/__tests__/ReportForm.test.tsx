@@ -1,10 +1,24 @@
 import type { ReportActor, ReportFight, ReportMeta } from '@/types';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReportForm } from '@/components/forms/ReportForm';
 
-const actor: ReportActor = { id: 7, name: 'Jumbaa', type: 'Player', subType: 'Druid', server: 'Ysondre' };
-const fight: ReportFight = { id: 1, name: 'Gallywix', encounterID: 100, kill: true, startTime: 0, endTime: 30000, difficulty: 5 };
+const actor: ReportActor = {
+  id: 7,
+  name: 'Jumbaa',
+  type: 'Player',
+  subType: 'Druid',
+  server: 'Ysondre',
+};
+const fight: ReportFight = {
+  id: 1,
+  name: 'Gallywix',
+  encounterID: 100,
+  kill: true,
+  startTime: 0,
+  endTime: 30000,
+  difficulty: 5,
+};
 const meta: ReportMeta = { title: 'Weekly Mythic Run', actors: [actor], fights: [fight] };
 
 function mockFetchForMeta(result: ReportMeta | null, ok = true) {
@@ -25,7 +39,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('ReportForm integration', () => {
+describe('reportForm integration', () => {
   it('renders report code input and Load Report button', () => {
     render(<ReportForm onSubmit={vi.fn()} loading={false} onBack={vi.fn()} />);
     expect(screen.getByPlaceholderText(/aBcDeFgH/)).toBeInTheDocument();
@@ -39,7 +53,7 @@ describe('ReportForm integration', () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  it('Load Report is disabled when input is empty', () => {
+  it('load Report is disabled when input is empty', () => {
     render(<ReportForm onSubmit={vi.fn()} loading={false} onBack={vi.fn()} />);
     expect(screen.getByRole('button', { name: /load report/i })).toBeDisabled();
   });
@@ -96,7 +110,7 @@ describe('ReportForm integration', () => {
     expect(difficulty).toBe(5); // default difficulty is Mythic (5)
   });
 
-  it('Analyse button is disabled until a character is selected', async () => {
+  it('analyse button is disabled until a character is selected', async () => {
     render(<ReportForm onSubmit={vi.fn()} loading={false} onBack={vi.fn()} />);
     fireEvent.change(screen.getByPlaceholderText(/aBcDeFgH/), {
       target: { value: 'abc1234567890def' },

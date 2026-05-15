@@ -1,6 +1,7 @@
+import type { NextRequest} from 'next/server';
 import type { StoredCharacter } from '@/types';
-import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
+import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { redisGet, redisSet } from '@/lib/redis';
 
@@ -24,9 +25,7 @@ export async function POST(req: NextRequest) {
   const current: StoredCharacter[] = raw ? (JSON.parse(raw) as StoredCharacter[]) : [];
 
   const idx = current.findIndex((c) => charKey(c) === charKey(char));
-  const updated = idx === -1
-    ? [...current, char]
-    : current.filter((_, i) => i !== idx);
+  const updated = idx === -1 ? [...current, char] : current.filter((_, i) => i !== idx);
 
   await redisSet(key, JSON.stringify(updated));
   return NextResponse.json({ favourites: updated });

@@ -1,12 +1,11 @@
 'use client';
 
-import type { ReportMeta } from '@/types';
 import type { useAnalysis } from './useAnalysis';
 import type { useReportAnalysis } from './useReportAnalysis';
 import type { useReportMeta } from './useReportMeta';
+import type { AnalysisInput, ReportMeta, Zone  } from '@/types';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef } from 'react';
-import type { Zone, AnalysisInput } from '@/types';
 
 function parseDifficulty(val: string | null): AnalysisInput['difficulty'] {
   const n = Number(val);
@@ -71,7 +70,13 @@ export function useRouteSync({
     const key = `${char}|${server}|${region}|${difficulty}|${zone.id}`;
     if (lastKeyRef.current === key) return;
     lastKeyRef.current = key;
-    void start({ characterName: char, serverSlug: server, region, difficulty, encounters: zone.encounters });
+    void start({
+      characterName: char,
+      serverSlug: server,
+      region,
+      difficulty,
+      encounters: zone.encounters,
+    });
   }, [char, server, region, difficulty, zoneId, zones, zonesLoading, start]);
 
   useEffect(() => {
@@ -86,14 +91,41 @@ export function useRouteSync({
     const actor = reportMeta.actors.find((a) => a.id === reportActorId);
     if (!actor) return;
     lastReportKeyRef.current = key;
-    void startReport({ code: reportCode, actor, difficulty: reportDifficulty, fights: reportMeta.fights });
-  }, [reportCode, reportActorId, reportDifficulty, reportMeta, fetchedCode, reportMetaLoading, fetchMeta, startReport]);
+    void startReport({
+      code: reportCode,
+      actor,
+      difficulty: reportDifficulty,
+      fights: reportMeta.fights,
+    });
+  }, [
+    reportCode,
+    reportActorId,
+    reportDifficulty,
+    reportMeta,
+    fetchedCode,
+    reportMetaLoading,
+    fetchMeta,
+    startReport,
+  ]);
 
   return {
-    char, server, region, difficulty, zoneId,
-    reportCode, reportActorId, reportDifficulty, bossParam,
-    clearCharKey: () => { lastKeyRef.current = null; },
-    clearReportKey: () => { lastReportKeyRef.current = null; },
-    setReportKey: (key: string) => { lastReportKeyRef.current = key; },
+    char,
+    server,
+    region,
+    difficulty,
+    zoneId,
+    reportCode,
+    reportActorId,
+    reportDifficulty,
+    bossParam,
+    clearCharKey: () => {
+      lastKeyRef.current = null;
+    },
+    clearReportKey: () => {
+      lastReportKeyRef.current = null;
+    },
+    setReportKey: (key: string) => {
+      lastReportKeyRef.current = key;
+    },
   };
 }

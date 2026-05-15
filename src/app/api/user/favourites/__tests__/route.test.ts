@@ -1,14 +1,14 @@
 import type { StoredCharacter } from '@/types';
+import { getServerSession } from 'next-auth/next';
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { redisGet, redisSet } from '@/lib/redis';
 import { POST } from '../route';
 
 vi.mock('next-auth/next', () => ({ getServerSession: vi.fn() }));
 vi.mock('@/lib/redis', () => ({ redisGet: vi.fn(), redisSet: vi.fn() }));
 vi.mock('@/lib/auth', () => ({ authOptions: {} }));
-
-import { getServerSession } from 'next-auth/next';
-import { redisGet, redisSet } from '@/lib/redis';
 
 const char: StoredCharacter = {
   name: 'Jumbaa',
@@ -32,7 +32,7 @@ beforeEach(() => {
   vi.mocked(redisSet).mockResolvedValue(undefined);
 });
 
-describe('POST /api/user/favourites', () => {
+describe('pOST /api/user/favourites', () => {
   it('returns 401 when not authenticated', async () => {
     vi.mocked(getServerSession).mockResolvedValue(null);
     const res = await POST(makeRequest(char));
@@ -41,7 +41,7 @@ describe('POST /api/user/favourites', () => {
 
   it('adds character to empty favourites', async () => {
     const res = await POST(makeRequest(char));
-    const body = await res.json() as { favourites: StoredCharacter[] };
+    const body = (await res.json()) as { favourites: StoredCharacter[] };
     expect(res.status).toBe(200);
     expect(body.favourites).toHaveLength(1);
     expect(body.favourites[0].name).toBe('Jumbaa');
@@ -51,7 +51,7 @@ describe('POST /api/user/favourites', () => {
   it('removes character that is already favourited (toggle)', async () => {
     vi.mocked(redisGet).mockResolvedValue(JSON.stringify([char]));
     const res = await POST(makeRequest(char));
-    const body = await res.json() as { favourites: StoredCharacter[] };
+    const body = (await res.json()) as { favourites: StoredCharacter[] };
     expect(body.favourites).toHaveLength(0);
   });
 
@@ -59,7 +59,7 @@ describe('POST /api/user/favourites', () => {
     const other: StoredCharacter = { ...char, name: 'Altchar', realmSlug: 'hyjal' };
     vi.mocked(redisGet).mockResolvedValue(JSON.stringify([other]));
     const res = await POST(makeRequest(char));
-    const body = await res.json() as { favourites: StoredCharacter[] };
+    const body = (await res.json()) as { favourites: StoredCharacter[] };
     expect(body.favourites).toHaveLength(2);
   });
 
@@ -67,7 +67,7 @@ describe('POST /api/user/favourites', () => {
     const upperChar = { ...char, name: 'JUMBAA', realmSlug: 'YSONDRE', region: 'EU' };
     vi.mocked(redisGet).mockResolvedValue(JSON.stringify([char]));
     const res = await POST(makeRequest(upperChar));
-    const body = await res.json() as { favourites: StoredCharacter[] };
+    const body = (await res.json()) as { favourites: StoredCharacter[] };
     expect(body.favourites).toHaveLength(0);
   });
 });

@@ -1,22 +1,27 @@
 import type { Zone } from '@/types';
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { useSearchParams } from 'next/navigation';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { useRouteSync } from '@/hooks/useRouteSync';
 
 vi.mock('next/navigation', () => ({
   useSearchParams: vi.fn(),
 }));
 
-import { useSearchParams } from 'next/navigation';
-
 function mockParams(search: string) {
-  vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams(search) as ReturnType<typeof useSearchParams>);
+  vi.mocked(useSearchParams).mockReturnValue(
+    new URLSearchParams(search) as ReturnType<typeof useSearchParams>
+  );
 }
 
 const zone: Zone = {
   id: 42,
   name: 'Test Raid',
-  encounters: [{ id: 1, name: 'Boss One' }, { id: 2, name: 'Boss Two' }],
+  encounters: [
+    { id: 1, name: 'Boss One' },
+    { id: 2, name: 'Boss Two' },
+  ],
 };
 
 function makeHookArgs(overrides: Partial<Parameters<typeof useRouteSync>[0]> = {}) {
@@ -102,9 +107,7 @@ describe('useRouteSync — character analysis effect', () => {
   it('calls start when char, server, and zones are present', async () => {
     mockParams('char=Jumbaa&server=ysondre&region=EU&difficulty=4');
     const start = vi.fn();
-    renderHook(() =>
-      useRouteSync(makeHookArgs({ zones: [zone], start }))
-    );
+    renderHook(() => useRouteSync(makeHookArgs({ zones: [zone], start })));
     await waitFor(() => expect(start).toHaveBeenCalledTimes(1));
     expect(start).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -119,9 +122,7 @@ describe('useRouteSync — character analysis effect', () => {
   it('does not call start when zones are loading', async () => {
     mockParams('char=Jumbaa&server=ysondre');
     const start = vi.fn();
-    renderHook(() =>
-      useRouteSync(makeHookArgs({ zones: [zone], zonesLoading: true, start }))
-    );
+    renderHook(() => useRouteSync(makeHookArgs({ zones: [zone], zonesLoading: true, start })));
     await new Promise((r) => setTimeout(r, 50));
     expect(start).not.toHaveBeenCalled();
   });
@@ -129,9 +130,7 @@ describe('useRouteSync — character analysis effect', () => {
   it('does not call start when char or server is missing', async () => {
     mockParams('server=ysondre');
     const start = vi.fn();
-    renderHook(() =>
-      useRouteSync(makeHookArgs({ zones: [zone], start }))
-    );
+    renderHook(() => useRouteSync(makeHookArgs({ zones: [zone], start })));
     await new Promise((r) => setTimeout(r, 50));
     expect(start).not.toHaveBeenCalled();
   });
@@ -157,7 +156,9 @@ describe('useRouteSync — clearCharKey / clearReportKey / setReportKey', () => 
     );
     await waitFor(() => expect(start).toHaveBeenCalledTimes(1));
 
-    act(() => { result.current.clearCharKey(); });
+    act(() => {
+      result.current.clearCharKey();
+    });
     rerender();
     await waitFor(() => expect(start).toHaveBeenCalledTimes(2));
   });
@@ -167,7 +168,17 @@ describe('useRouteSync — clearCharKey / clearReportKey / setReportKey', () => 
     const startReport = vi.fn();
     const fetchMeta = vi.fn();
     const actors = [{ id: 7, name: 'Jumbaa', type: 'Player', subType: 'Druid', server: 'Ysondre' }];
-    const fights = [{ id: 1, name: 'Boss', encounterID: 100, kill: true, startTime: 0, endTime: 30000, difficulty: 4 }];
+    const fights = [
+      {
+        id: 1,
+        name: 'Boss',
+        encounterID: 100,
+        kill: true,
+        startTime: 0,
+        endTime: 30000,
+        difficulty: 4,
+      },
+    ];
     const reportMeta = { title: 'Test Report', actors, fights };
     const { result, rerender } = renderHook(() =>
       useRouteSync(makeHookArgs({ reportMeta, fetchedCode: 'abc123', startReport, fetchMeta }))
@@ -175,8 +186,12 @@ describe('useRouteSync — clearCharKey / clearReportKey / setReportKey', () => 
     await waitFor(() => expect(startReport).toHaveBeenCalledTimes(1));
 
     // Clear the key and immediately re-set it — net effect: re-render should not fire again
-    act(() => { result.current.clearReportKey(); });
-    act(() => { result.current.setReportKey('abc123|7|4'); });
+    act(() => {
+      result.current.clearReportKey();
+    });
+    act(() => {
+      result.current.setReportKey('abc123|7|4');
+    });
     rerender();
     await new Promise((r) => setTimeout(r, 50));
     expect(startReport).toHaveBeenCalledTimes(1);
@@ -187,9 +202,7 @@ describe('useRouteSync — report meta fetch effect', () => {
   it('calls fetchMeta when reportCode present but meta not yet loaded', async () => {
     mockParams('report=abc123&actor=7');
     const fetchMeta = vi.fn();
-    renderHook(() =>
-      useRouteSync(makeHookArgs({ fetchMeta }))
-    );
+    renderHook(() => useRouteSync(makeHookArgs({ fetchMeta })));
     await waitFor(() => expect(fetchMeta).toHaveBeenCalledWith('abc123'));
   });
 
@@ -198,7 +211,17 @@ describe('useRouteSync — report meta fetch effect', () => {
     const startReport = vi.fn();
     const fetchMeta = vi.fn();
     const actors = [{ id: 7, name: 'Jumbaa', type: 'Player', subType: 'Druid', server: 'Ysondre' }];
-    const fights = [{ id: 1, name: 'Boss', encounterID: 100, kill: true, startTime: 0, endTime: 30000, difficulty: 4 }];
+    const fights = [
+      {
+        id: 1,
+        name: 'Boss',
+        encounterID: 100,
+        kill: true,
+        startTime: 0,
+        endTime: 30000,
+        difficulty: 4,
+      },
+    ];
     const reportMeta = { title: 'Test Report', actors, fights };
     renderHook(() =>
       useRouteSync(makeHookArgs({ reportMeta, fetchedCode: 'abc123', startReport, fetchMeta }))

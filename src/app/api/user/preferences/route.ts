@@ -1,6 +1,6 @@
 import type { StoredCharacter } from '@/types';
-import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
+import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { redisGet } from '@/lib/redis';
 

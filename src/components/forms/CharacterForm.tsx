@@ -52,12 +52,19 @@ export function CharacterForm({
     e.preventDefault();
     if (!characterName.trim() || !realm || !activeZoneId || encounters.length === 0) return;
     onSubmit(
-      { characterName: characterName.trim(), serverSlug: realm.slug, region, difficulty, encounters },
+      {
+        characterName: characterName.trim(),
+        serverSlug: realm.slug,
+        region,
+        difficulty,
+        encounters,
+      },
       activeZoneId
     );
   }
 
-  const canSubmit = !!characterName.trim() && !!realm && encounters.length > 0 && !zonesLoading && !loading;
+  const canSubmit =
+    !!characterName.trim() && !!realm && encounters.length > 0 && !zonesLoading && !loading;
 
   return (
     <div
@@ -71,10 +78,25 @@ export function CharacterForm({
         background: 'radial-gradient(ellipse at 50% 0%, rgba(198,168,74,0.06) 0%, var(--bg) 60%)',
       }}
     >
-      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '3rem', color: 'var(--gold)', marginBottom: '8px', letterSpacing: '0.04em' }}>
+      <h1
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '3rem',
+          color: 'var(--gold)',
+          marginBottom: '8px',
+          letterSpacing: '0.04em',
+        }}
+      >
         LogLense
       </h1>
-      <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginBottom: '40px', fontFamily: 'var(--font-mono)' }}>
+      <p
+        style={{
+          color: 'var(--text-dim)',
+          fontSize: '0.85rem',
+          marginBottom: '40px',
+          fontFamily: 'var(--font-mono)',
+        }}
+      >
         WarcraftLogs analyser
       </p>
 
@@ -110,21 +132,42 @@ export function CharacterForm({
           </div>
           <div style={fieldStyle}>
             <label style={labelStyle}>Realm</label>
-            <RealmAutocomplete key={region} region={region} value={realm} onChange={setRealm} inputStyle={inputStyle} />
+            <RealmAutocomplete
+              key={region}
+              region={region}
+              value={realm}
+              onChange={setRealm}
+              inputStyle={inputStyle}
+            />
           </div>
         </div>
 
         <div style={fieldStyle}>
           <label style={labelStyle}>Raid</label>
           {zonesLoading ? (
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--text-dim)', padding: '8px 0' }}>
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.82rem',
+                color: 'var(--text-dim)',
+                padding: '8px 0',
+              }}
+            >
               Loading raids…
             </div>
           ) : zonesError ? (
             <ErrorBanner message={zonesError} />
           ) : (
-            <select style={inputStyle} value={selectedZoneId ?? ''} onChange={(e) => handleZoneChange(Number.parseInt(e.target.value, 10))}>
-              {zones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
+            <select
+              style={inputStyle}
+              value={selectedZoneId ?? ''}
+              onChange={(e) => handleZoneChange(Number.parseInt(e.target.value, 10))}
+            >
+              {zones.map((z) => (
+                <option key={z.id} value={z.id}>
+                  {z.name}
+                </option>
+              ))}
             </select>
           )}
         </div>
@@ -144,12 +187,17 @@ export function CharacterForm({
           type="submit"
           disabled={!canSubmit}
           style={{
-            width: '100%', padding: '12px',
+            width: '100%',
+            padding: '12px',
             background: canSubmit ? 'var(--crimson)' : 'var(--border)',
-            color: 'var(--text)', border: 'none', borderRadius: '4px',
-            fontFamily: 'var(--font-display)', fontSize: '1rem',
+            color: 'var(--text)',
+            border: 'none',
+            borderRadius: '4px',
+            fontFamily: 'var(--font-display)',
+            fontSize: '1rem',
             cursor: canSubmit ? 'pointer' : 'not-allowed',
-            letterSpacing: '0.06em', marginTop: '8px',
+            letterSpacing: '0.06em',
+            marginTop: '8px',
           }}
         >
           {loading ? 'Analysing…' : 'Analyse'}

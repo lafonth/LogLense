@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import './globals.css';
 import { AuthHeader } from '@/components/auth/AuthHeader';
 import { SessionProvider } from '@/components/auth/SessionProvider';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: 'LogLense',
