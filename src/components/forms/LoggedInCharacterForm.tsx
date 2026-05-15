@@ -123,7 +123,8 @@ export function LoggedInCharacterForm({
 }: LoggedInCharacterFormProps) {
   const [region, setRegion] = useState<AnalysisInput['region']>('EU');
   const [characters, setCharacters] = useState<WowCharacter[]>([]);
-  const [charsLoading, setCharsLoading] = useState(false);
+  const [loadedRegion, setLoadedRegion] = useState<string | null>(null);
+  const charsLoading = region !== loadedRegion;
   const [selectedCharKey, setSelectedCharKey] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<AnalysisInput['difficulty']>(4);
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
@@ -139,19 +140,23 @@ export function LoggedInCharacterForm({
       : (currentZone?.encounters ?? []).filter((e) => selectedEncounterIds.has(e.id));
 
   useEffect(() => {
-    setCharsLoading(true);
-    setSelectedCharKey(null);
+    let cancelled = false;
     void fetch(`/api/user/characters?region=${region}`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data: unknown) => {
+        if (cancelled) return;
         setCharacters(data as WowCharacter[]);
+        setSelectedCharKey(null);
+        setLoadedRegion(region);
       })
       .catch(() => {
+        if (cancelled) return;
         setCharacters([]);
-      })
-      .finally(() => {
-        setCharsLoading(false);
+        setLoadedRegion(region);
       });
+    return () => {
+      cancelled = true;
+    };
   }, [region]);
 
   // Build display sections
