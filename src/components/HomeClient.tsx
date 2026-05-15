@@ -3,8 +3,11 @@
 import type { AnalysisInput, ReportActor, ReportFight } from '@/types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { MarketingLanding } from '@/components/landing/MarketingLanding';
 import { CharacterDashboard } from '@/components/character/CharacterDashboard';
 import { CharacterForm } from '@/components/forms/CharacterForm';
+import { LoggedInCharacterForm } from '@/components/forms/LoggedInCharacterForm';
 import { ReportForm } from '@/components/forms/ReportForm';
 import { ReportDashboard } from '@/components/report/ReportDashboard';
 import { ModeSelector } from '@/components/ui/ModeSelector';
@@ -31,6 +34,7 @@ interface ReportContext {
 export function HomeClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status: sessionStatus } = useSession();
   const { zones, loading: zonesLoading, error: zonesError } = useZones();
   const { bossStates, currentDifficulty, isAnyLoading, input, start, reset } = useAnalysis();
   const {
@@ -173,6 +177,15 @@ export function HomeClient() {
     setMode(null);
   }
 
+  function handleSwitchCharacter(name: string, realmSlug: string) {
+    if (!input) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('char', name);
+    params.set('server', realmSlug);
+    params.delete('boss');
+    router.push(`/?${params.toString()}`);
+  }
+
   function handleCharBossChange(idx: number) {
     if (!input) return;
     const enc = input.encounters[idx];
@@ -283,6 +296,7 @@ export function HomeClient() {
         onDifficultyChange={handleDifficultyChange}
         onBossChange={handleCharBossChange}
         onReset={handleReset}
+        onSwitchCharacter={session ? handleSwitchCharacter : undefined}
       />
     );
   }
@@ -306,6 +320,14 @@ export function HomeClient() {
     );
   }
 
+  if (sessionStatus === 'unauthenticated') {
+    return <MarketingLanding />;
+  }
+
+  if (sessionStatus === 'loading') {
+    return null;
+  }
+
   if (mode === null) {
     return <ModeSelector onSelect={setMode} />;
   }
@@ -321,6 +343,18 @@ export function HomeClient() {
   }
 
   // mode === 'character'
+  if (session) {
+    return (
+      <LoggedInCharacterForm
+        onSubmit={handleSubmit}
+        loading={isAnyLoading}
+        zones={zones}
+        zonesLoading={zonesLoading}
+        zonesError={zonesError}
+      />
+    );
+  }
+
   return (
     <CharacterForm
       onSubmit={handleSubmit}
