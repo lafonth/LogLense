@@ -3,7 +3,7 @@
 import type { useAnalysis } from './useAnalysis';
 import type { useReportAnalysis } from './useReportAnalysis';
 import type { useReportMeta } from './useReportMeta';
-import type { AnalysisInput, ReportMeta, Zone  } from '@/types';
+import type { AnalysisInput, ReportMeta, Zone } from '@/types';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 

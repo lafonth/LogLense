@@ -1,6 +1,6 @@
-import type { AnalysisInput } from '@/types';
 import type { StepStatus } from '@/components/ui/ProgressSteps';
 import type { BossState } from '@/hooks/useAnalysis';
+import type { AnalysisInput } from '@/types';
 import { ProgressSteps } from '@/components/ui/ProgressSteps';
 
 const DIFFICULTIES = [

@@ -72,12 +72,10 @@ describe('usePreferences', () => {
 
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue({
-          ok: true,
-          json: () => Promise.resolve({ favourites: [char] }),
-        } as Response)
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ favourites: [char] }),
+      } as Response)
     );
 
     act(() => {
@@ -93,12 +91,10 @@ describe('usePreferences', () => {
 
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue({
-          ok: true,
-          json: () => Promise.resolve({ favourites: [] }),
-        } as Response)
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ favourites: [] }),
+      } as Response)
     );
 
     act(() => {
