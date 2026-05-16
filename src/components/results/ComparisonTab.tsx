@@ -2,7 +2,6 @@ import type { BossState } from '@/hooks/useAnalysis';
 import type { Encounter, TalentNode } from '@/types';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import talentNodes from '@/data/feral-druid-talents.json';
 import { DpsBanner } from './DpsBanner';
 import { RotationTable } from './RotationTable';
 import { StatsTable } from './StatsTable';
@@ -11,9 +10,11 @@ import { TalentTree } from './TalentTree';
 interface ComparisonTabProps {
   encounter: Encounter;
   bossState: BossState;
+  specName: string;
+  talentNodes: TalentNode[];
 }
 
-export function ComparisonTab({ encounter, bossState }: ComparisonTabProps) {
+export function ComparisonTab({ encounter, bossState, specName, talentNodes }: ComparisonTabProps) {
   if (bossState.status === 'idle' || bossState.status === 'loading') {
     return (
       <div style={{ padding: '40px 0' }}>
@@ -31,9 +32,11 @@ export function ComparisonTab({ encounter, bossState }: ComparisonTabProps) {
   if (!result) {
     return (
       <div style={{ padding: '24px 0', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
-        <div style={{ color: 'var(--text-dim)' }}>No Feral parses found for {encounter.name}.</div>
+        <div style={{ color: 'var(--text-dim)' }}>
+          No {specName} parses found for {encounter.name}.
+        </div>
         <div style={{ color: 'var(--text-dim)', marginTop: '6px', fontSize: '0.78rem' }}>
-          Try switching to Heroic or Normal — Mythic requires a kill logged while playing Feral
+          Try switching to Heroic or Normal — Mythic requires a kill logged while playing {specName}{' '}
           spec.
         </div>
       </div>
@@ -109,7 +112,7 @@ export function ComparisonTab({ encounter, bossState }: ComparisonTabProps) {
           Talents
         </h3>
         <TalentTree
-          nodes={talentNodes as TalentNode[]}
+          nodes={talentNodes}
           myTalents={result.character.stats.talents}
           topPlayers={result.topPlayers}
         />

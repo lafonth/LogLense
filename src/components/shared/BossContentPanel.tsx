@@ -1,12 +1,13 @@
 'use client';
 
 import type { BossState } from '@/hooks/useAnalysis';
-import type { AnalysisResult } from '@/types';
-import { useState } from 'react';
+import type { AnalysisResult, TalentNode } from '@/types';
+import { useEffect, useState } from 'react';
 import { AIReportTab } from '@/components/ai/AIReportTab';
 import { BossSidebar } from '@/components/results/BossSidebar';
 import { ComparisonTab } from '@/components/results/ComparisonTab';
 import { OverviewTab } from '@/components/results/OverviewTab';
+import { getSpecInfo } from '@/lib/specs';
 
 type TabId = 'overview' | 'comparison' | 'ai-report';
 
@@ -38,6 +39,17 @@ export function BossContentPanel({
   analysisResult,
 }: BossContentPanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [talentNodes, setTalentNodes] = useState<TalentNode[]>([]);
+
+  const specId = analysisResult.input.specId;
+  const specInfo = getSpecInfo(specId);
+  const specName = specInfo ? `${specInfo.specName} ${specInfo.className}` : 'Unknown';
+
+  useEffect(() => {
+    void import(`@/data/talents/spec-${specId}.json`)
+      .then((mod) => setTalentNodes((mod.default ?? mod) as TalentNode[]))
+      .catch(() => setTalentNodes([]));
+  }, [specId]);
 
   const safeIdx = Math.min(activeBossIdx, Math.max(0, encounters.length - 1));
   const activeEnc = encounters[safeIdx];
@@ -68,10 +80,15 @@ export function BossContentPanel({
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
           {activeTab === 'overview' && activeEnc && (
-            <OverviewTab encounter={activeEnc} bossState={activeBossState} />
+            <OverviewTab encounter={activeEnc} bossState={activeBossState} specName={specName} />
           )}
           {activeTab === 'comparison' && activeEnc && (
-            <ComparisonTab encounter={activeEnc} bossState={activeBossState} />
+            <ComparisonTab
+              encounter={activeEnc}
+              bossState={activeBossState}
+              specName={specName}
+              talentNodes={talentNodes}
+            />
           )}
           {activeTab === 'ai-report' && <AIReportTab analysisResult={analysisResult} />}
         </div>

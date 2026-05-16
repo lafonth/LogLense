@@ -89,7 +89,7 @@ export function TalentTree({ nodes, myTalents, topPlayers }: TalentTreeProps) {
         height={svgHeight}
         style={{ display: 'block', maxWidth: '100%' }}
         role="img"
-        aria-label="Feral Druid talent tree comparison"
+        aria-label="Talent tree comparison"
       >
         {/* Section labels */}
         <text

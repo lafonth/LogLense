@@ -9,9 +9,10 @@ import { StatsTable } from './StatsTable';
 interface OverviewTabProps {
   encounter: Encounter;
   bossState: BossState;
+  specName: string;
 }
 
-export function OverviewTab({ encounter, bossState }: OverviewTabProps) {
+export function OverviewTab({ encounter, bossState, specName }: OverviewTabProps) {
   if (bossState.status === 'idle' || bossState.status === 'loading') {
     return (
       <div style={{ padding: '40px 0' }}>
@@ -35,9 +36,11 @@ export function OverviewTab({ encounter, bossState }: OverviewTabProps) {
           fontSize: '0.85rem',
         }}
       >
-        <div style={{ color: 'var(--text-dim)' }}>No Feral parses found for {encounter.name}.</div>
+        <div style={{ color: 'var(--text-dim)' }}>
+          No {specName} parses found for {encounter.name}.
+        </div>
         <div style={{ color: 'var(--text-dim)', marginTop: '6px', fontSize: '0.78rem' }}>
-          Try switching to Heroic or Normal — Mythic requires a kill logged while playing Feral
+          Try switching to Heroic or Normal — Mythic requires a kill logged while playing {specName}{' '}
           spec.
         </div>
       </div>

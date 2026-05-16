@@ -6,7 +6,6 @@ import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { useReportMeta } from '@/hooks/useReportMeta';
 import { getDpsSpecsForClass } from '@/lib/specs';
 import { fieldStyle, inputStyle, labelStyle } from './formStyles';
-import { SpecSelector } from './SpecSelector';
 
 const btnStyle: React.CSSProperties = {
   background: 'var(--gold-dim)',
@@ -155,17 +154,6 @@ export function ReportForm({ onSubmit, loading, onBack }: ReportFormProps) {
                   ))}
               </select>
             </div>
-            {selectedActorId !== '' && specId && (
-              <div style={fieldStyle}>
-                <label style={labelStyle}>Spec</label>
-                <SpecSelector
-                  specId={specId}
-                  lockedClass={meta.actors.find((a) => a.id === selectedActorId)?.subType}
-                  onChange={setSpecId}
-                />
-              </div>
-            )}
-
             <div style={fieldStyle}>
               <label style={labelStyle} htmlFor="rf-difficulty">
                 Difficulty
