@@ -3,6 +3,7 @@
   "server_slug": "ysondre",
   "server_region": "EU",
   "difficulty": 5,
+  "spec_id": 103,
   "encounters": [
     { "id": 3306, "name": "Chimaerus, the Undreamt God" },
     { "id": 3176, "name": "Imperator Averzian" },

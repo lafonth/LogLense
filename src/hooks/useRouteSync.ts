@@ -58,6 +58,7 @@ export function useRouteSync({
   const reportCode = searchParams.get('report');
   const reportActorId = Number(searchParams.get('actor')) || null;
   const reportDifficulty = parseDifficulty(searchParams.get('difficulty'));
+  const specParam = Number(searchParams.get('spec')) || 103;
   const bossParam = Number(searchParams.get('boss')) || null;
 
   const lastKeyRef = useRef<string | null>(null);
@@ -76,7 +77,7 @@ export function useRouteSync({
       region,
       difficulty,
       encounters: zone.encounters,
-      specId: 103,
+      specId: specParam,
     });
   }, [char, server, region, difficulty, zoneId, zones, zonesLoading, start]);
 
@@ -95,7 +96,7 @@ export function useRouteSync({
     void startReport({
       code: reportCode,
       actor,
-      specId: 103,
+      specId: specParam,
       difficulty: reportDifficulty,
       fights: reportMeta.fights,
     });

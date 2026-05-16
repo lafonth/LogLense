@@ -105,6 +105,7 @@ export function HomeClient() {
         region: analysisInput.region,
         difficulty: String(analysisInput.difficulty),
         zone: String(selectedZoneId),
+        spec: String(analysisInput.specId),
       }).toString()}`
     );
   }
@@ -152,7 +153,7 @@ export function HomeClient() {
     setReportKey(`${code}|${actor.id}|${diff}`);
     setReportContext({ code, title, difficulty: diff, fights, actors, selectedActorId: actor.id });
     router.push(
-      `/?${new URLSearchParams({ report: code, actor: String(actor.id), difficulty: String(diff) }).toString()}`
+      `/?${new URLSearchParams({ report: code, actor: String(actor.id), difficulty: String(diff), spec: String(specId) }).toString()}`
     );
     void startReport({ code, actor, specId, difficulty: diff, fights });
   }
