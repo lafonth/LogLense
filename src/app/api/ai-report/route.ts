@@ -1,12 +1,12 @@
 import type { GroqModelId } from '@/lib/ai/groq';
 import type { AIStreamChunk } from '@/lib/ai/provider';
-import type { AnalysisResult, TalentNode } from '@/types';
+import type { AnalysisResult } from '@/types';
 
-import feralTalents from '@/data/feral-druid-talents.json';
 import { ClaudeProvider } from '@/lib/ai/claude';
 import { GeminiProvider } from '@/lib/ai/gemini';
 import { DEFAULT_GROQ_MODEL, GroqProvider } from '@/lib/ai/groq';
 import { buildAnalysisPrompt, SYSTEM_PROMPT } from '@/lib/ai/prompt';
+import { getTalentNodes } from '@/lib/talent-loader';
 
 export const runtime = 'nodejs';
 
@@ -54,7 +54,9 @@ export async function POST(req: Request) {
         : providerName === 'groq'
           ? new GroqProvider(apiKey, groqModel)
           : new ClaudeProvider(apiKey);
-    const prompt = buildAnalysisPrompt(result, feralTalents as TalentNode[]);
+
+    const talentNodes = getTalentNodes(result.input.specId);
+    const prompt = buildAnalysisPrompt(result, talentNodes);
     const chunks = provider.stream(prompt, SYSTEM_PROMPT);
 
     const encoder = new TextEncoder();
@@ -82,7 +84,8 @@ export async function POST(req: Request) {
         Connection: 'keep-alive',
       },
     });
-  } catch (err) {
-    return jsonResponse({ error: err instanceof Error ? err.message : 'Internal error' }, 500);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return jsonResponse({ error: message }, 500);
   }
 }
