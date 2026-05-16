@@ -62,6 +62,10 @@ export const authOptions: NextAuthOptions = {
         token.accessToken = account.access_token;
         const tag = await fetchBattletag(account.access_token);
         if (tag) token.name = tag;
+      } else if (token.accessToken && typeof token.name === 'string' && /^\d+$/.test(token.name)) {
+        // Name is still a raw account ID — battletag fetch must have failed at sign-in; retry
+        const tag = await fetchBattletag(token.accessToken as string);
+        if (tag) token.name = tag;
       }
       return token;
     },
