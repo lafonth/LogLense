@@ -1,7 +1,16 @@
 import type { AIStreamChunk } from '@/lib/ai/provider';
 import type { AnalysisResult } from '@/types';
 import { describe, expect, it, vi } from 'vitest';
-import { POST } from '../route';
+import { GET, POST } from '../route';
+
+function makeTextStream(text: string) {
+  return new ReadableStream<AIStreamChunk>({
+    start(controller) {
+      controller.enqueue({ type: 'text', content: text });
+      controller.close();
+    },
+  });
+}
 
 vi.mock('@/lib/ai/claude', () => ({
   ClaudeProvider: vi.fn().mockImplementation(() => ({
@@ -25,6 +34,19 @@ vi.mock('@/lib/ai/claude', () => ({
       })
     ),
   })),
+}));
+
+vi.mock('@/lib/ai/gemini', () => ({
+  GeminiProvider: vi.fn().mockImplementation(() => ({
+    stream: vi.fn().mockReturnValue(makeTextStream('Gemini analysis.')),
+  })),
+}));
+
+vi.mock('@/lib/ai/groq', () => ({
+  GroqProvider: vi.fn().mockImplementation(() => ({
+    stream: vi.fn().mockReturnValue(makeTextStream('Groq analysis.')),
+  })),
+  DEFAULT_GROQ_MODEL: 'llama-3.3-70b-versatile',
 }));
 
 const mockResult: AnalysisResult = {
@@ -72,5 +94,43 @@ describe('ai-report route', () => {
     const req = makeRequest(mockResult, { 'x-ai-key': '' });
     const res = await POST(req);
     expect(res.status).toBe(401);
+  });
+
+  it('uses GeminiProvider when x-ai-provider is gemini', async () => {
+    const { GeminiProvider } = await import('@/lib/ai/gemini');
+    const req = makeRequest(mockResult, { 'x-ai-key': 'gemini-key', 'x-ai-provider': 'gemini' });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(GeminiProvider).toHaveBeenCalledWith('gemini-key');
+    const text = await res.text();
+    expect(text).toContain('Gemini analysis.');
+  });
+
+  it('uses GroqProvider when x-ai-provider is groq', async () => {
+    const { GroqProvider } = await import('@/lib/ai/groq');
+    const req = makeRequest(mockResult, { 'x-ai-key': 'groq-key', 'x-ai-provider': 'groq' });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(GroqProvider).toHaveBeenCalledWith('groq-key', expect.any(String));
+    const text = await res.text();
+    expect(text).toContain('Groq analysis.');
+  });
+
+  it('uses env key when x-ai-provider is gemini and no header key', async () => {
+    vi.stubEnv('GEMINI_API_KEY', 'env-gemini-key');
+    const { GeminiProvider } = await import('@/lib/ai/gemini');
+    const req = makeRequest(mockResult, { 'x-ai-provider': 'gemini' });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(GeminiProvider).toHaveBeenCalledWith('env-gemini-key');
+    vi.unstubAllEnvs();
+  });
+
+  it('returns configured providers list via GET', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'key');
+    const res = await GET();
+    const json = await res.json();
+    expect(json.configuredProviders).toContain('claude');
+    vi.unstubAllEnvs();
   });
 });
