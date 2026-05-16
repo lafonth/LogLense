@@ -95,6 +95,7 @@ export function useRouteSync({
     void startReport({
       code: reportCode,
       actor,
+      specId: 103,
       difficulty: reportDifficulty,
       fights: reportMeta.fights,
     });

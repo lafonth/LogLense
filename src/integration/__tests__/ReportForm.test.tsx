@@ -104,9 +104,15 @@ describe('reportForm integration', () => {
     fireEvent.click(screen.getByRole('button', { name: /^analyse$/i }));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
-    const [code, calledActor, difficulty] = onSubmit.mock.calls[0] as [string, ReportActor, number];
+    const [code, calledActor, specId, difficulty] = onSubmit.mock.calls[0] as [
+      string,
+      ReportActor,
+      number,
+      number,
+    ];
     expect(code).toBe('abc1234567890def');
     expect(calledActor.name).toBe('Jumbaa');
+    expect(typeof specId).toBe('number');
     expect(difficulty).toBe(5); // default difficulty is Mythic (5)
   });
 

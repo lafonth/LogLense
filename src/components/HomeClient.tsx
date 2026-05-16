@@ -143,6 +143,7 @@ export function HomeClient() {
   function handleReportSubmit(
     code: string,
     actor: ReportActor,
+    specId: number,
     diff: number,
     fights: ReportFight[],
     actors: ReportActor[],
@@ -153,7 +154,7 @@ export function HomeClient() {
     router.push(
       `/?${new URLSearchParams({ report: code, actor: String(actor.id), difficulty: String(diff) }).toString()}`
     );
-    void startReport({ code, actor, difficulty: diff, fights });
+    void startReport({ code, actor, specId, difficulty: diff, fights });
   }
 
   function handleSwitchActor(actor: ReportActor) {
@@ -162,13 +163,14 @@ export function HomeClient() {
     const diff = reportContext?.difficulty ?? reportDifficulty;
     const fights = reportContext?.fights ?? reportShellMeta?.fights;
     if (!code || !fights) return;
+    const currentSpecId = reportResult?.input.specId ?? 103;
     setReportKey(`${code}|${actor.id}|${diff}`);
     setReportContext((prev) => (prev ? { ...prev, selectedActorId: actor.id } : null));
     const params = new URLSearchParams(searchParams.toString());
     params.set('actor', String(actor.id));
     params.delete('boss');
     router.push(`/?${params.toString()}`);
-    void startReport({ code, actor, difficulty: diff, fights });
+    void startReport({ code, actor, specId: currentSpecId, difficulty: diff, fights });
   }
 
   function handleReportDifficultyChange(diff: number) {

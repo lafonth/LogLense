@@ -58,6 +58,7 @@ export function useAnalysis() {
               region: analysisInput.region,
               difficulty: diff,
               encounterName: enc.name,
+              specId: analysisInput.specId,
             }),
           });
 

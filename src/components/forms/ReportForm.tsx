@@ -4,6 +4,7 @@ import type { ReportActor, ReportFight } from '@/types';
 import { useState } from 'react';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { useReportMeta } from '@/hooks/useReportMeta';
+import { getDpsSpecsForClass } from '@/lib/specs';
 import { fieldStyle, inputStyle, labelStyle } from './formStyles';
 
 const btnStyle: React.CSSProperties = {
@@ -22,6 +23,7 @@ interface ReportFormProps {
   onSubmit: (
     code: string,
     actor: ReportActor,
+    specId: number,
     difficulty: number,
     fights: ReportFight[],
     actors: ReportActor[],
@@ -34,6 +36,7 @@ interface ReportFormProps {
 export function ReportForm({ onSubmit, loading, onBack }: ReportFormProps) {
   const [code, setCode] = useState('');
   const [selectedActorId, setSelectedActorId] = useState<number | ''>('');
+  const [specId, setSpecId] = useState<number | null>(null);
   const [difficulty, setDifficulty] = useState<number>(5);
   const { meta, loading: metaLoading, error: metaError, fetchMeta } = useReportMeta();
 
@@ -43,12 +46,21 @@ export function ReportForm({ onSubmit, loading, onBack }: ReportFormProps) {
     if (trimmed) void fetchMeta(trimmed);
   }
 
+  function handleActorChange(id: number) {
+    setSelectedActorId(id);
+    const actor = meta?.actors.find((a) => a.id === id);
+    if (actor) {
+      const specs = getDpsSpecsForClass(actor.subType);
+      setSpecId(specs[0]?.specId ?? null);
+    }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!meta || selectedActorId === '') return;
+    if (!meta || selectedActorId === '' || !specId) return;
     const actor = meta.actors.find((a) => a.id === selectedActorId);
     if (!actor) return;
-    onSubmit(code.trim(), actor, difficulty, meta.fights, meta.actors, meta.title);
+    onSubmit(code.trim(), actor, specId, difficulty, meta.fights, meta.actors, meta.title);
   }
 
   return (
@@ -129,7 +141,7 @@ export function ReportForm({ onSubmit, loading, onBack }: ReportFormProps) {
                 id="rf-actor"
                 style={inputStyle}
                 value={selectedActorId}
-                onChange={(e) => setSelectedActorId(Number(e.target.value))}
+                onChange={(e) => handleActorChange(Number(e.target.value))}
               >
                 <option value="">— Select a character —</option>
                 {meta.actors
@@ -159,11 +171,11 @@ export function ReportForm({ onSubmit, loading, onBack }: ReportFormProps) {
             </div>
             <button
               type="submit"
-              disabled={loading || selectedActorId === ''}
+              disabled={loading || selectedActorId === '' || !specId}
               style={{
                 ...btnStyle,
-                cursor: loading || selectedActorId === '' ? 'not-allowed' : 'pointer',
-                opacity: loading || selectedActorId === '' ? 0.6 : 1,
+                cursor: loading || selectedActorId === '' || !specId ? 'not-allowed' : 'pointer',
+                opacity: loading || selectedActorId === '' || !specId ? 0.6 : 1,
               }}
             >
               {loading ? 'Analysing…' : 'Analyse'}
