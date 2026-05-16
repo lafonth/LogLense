@@ -66,7 +66,14 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     session({ session, token }) {
-      return { ...session, accessToken: token.accessToken as string | undefined };
+      return {
+        ...session,
+        accessToken: token.accessToken as string | undefined,
+        user: {
+          ...session.user,
+          name: (token.name as string | undefined) ?? session.user?.name,
+        },
+      };
     },
   },
 };

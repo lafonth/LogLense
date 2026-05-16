@@ -18,7 +18,7 @@ export const Q_CHARACTER_RANKINGS = `
   query CharacterRankings(
     $name: String!, $slug: String!, $region: String!,
     $encounterID: Int!, $difficulty: Int!,
-    $specName: String!, $className: String!
+    $specName: String!
   ) {
     characterData {
       character(name: $name, serverSlug: $slug, serverRegion: $region) {

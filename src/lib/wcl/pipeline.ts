@@ -105,7 +105,6 @@ export async function analyzeBoss(
     encounterID: encounterId,
     difficulty,
     specName,
-    className,
   });
 
   const char = charData.characterData.character;

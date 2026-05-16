@@ -380,11 +380,11 @@ export function LoggedInCharacterForm({
           </div>
         </div>
 
-        {selectedCharKey && (
-          <div style={fieldStyle}>
-            <label style={labelStyle}>
-              Spec
-              {specLoading && (
+        {selectedCharKey &&
+          (specLoading ? (
+            <div style={fieldStyle}>
+              <label style={labelStyle}>
+                Spec
                 <span
                   style={{
                     marginLeft: '8px',
@@ -395,17 +395,11 @@ export function LoggedInCharacterForm({
                 >
                   Detecting…
                 </span>
-              )}
-            </label>
-            {!specLoading && specId && (
-              <SpecSelector
-                specId={specId}
-                lockedClass={resolveChar()?.class}
-                onChange={setSpecId}
-              />
-            )}
-          </div>
-        )}
+              </label>
+            </div>
+          ) : specId ? (
+            <SpecSelector specId={specId} lockedClass={resolveChar()?.class} onChange={setSpecId} />
+          ) : null)}
 
         <div style={fieldStyle}>
           <label style={labelStyle}>Raid</label>
