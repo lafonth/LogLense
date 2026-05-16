@@ -50,7 +50,7 @@ function makeRequest(body: Record<string, unknown>, encounterId = '3306') {
   return new Request(`http://localhost/api/analyze/${encounterId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ specId: 103, ...body }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -112,6 +112,19 @@ describe('analyze route', () => {
     );
 
     const res = await POST(req, { params: Promise.resolve({ encounterId: 'not-a-number' }) });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when specId is missing', async () => {
+    const req = makeRequest({
+      characterName: 'Jumbaa',
+      serverSlug: 'ysondre',
+      region: 'EU',
+      difficulty: 5,
+      encounterName: 'Chimaerus',
+    });
+
+    const res = await POST(req, { params: Promise.resolve({ encounterId: '3306' }) });
     expect(res.status).toBe(400);
   });
 

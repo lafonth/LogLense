@@ -11,6 +11,7 @@ interface AnalyzeBody {
   region: AnalysisInput['region'];
   difficulty: AnalysisInput['difficulty'];
   encounterName: string;
+  specId: number;
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ encounterId: string }> }) {
@@ -30,6 +31,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
 
   const body = (await req.json()) as AnalyzeBody;
 
+  if (!body.specId || typeof body.specId !== 'number') {
+    return NextResponse.json({ error: 'specId is required' }, { status: 400 });
+  }
+
   try {
     const token = await getWCLToken(clientId, clientSecret);
 
@@ -39,7 +44,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
       region: body.region,
       difficulty: body.difficulty,
       encounters: [{ id: encounterIdNum, name: body.encounterName }],
-      specId: 103,
+      specId: body.specId,
     };
 
     const result = await analyzeBoss(token, input, encounterIdNum, body.encounterName);
