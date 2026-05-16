@@ -17,8 +17,7 @@ export const Q_ZONES = `
 export const Q_CHARACTER_RANKINGS = `
   query CharacterRankings(
     $name: String!, $slug: String!, $region: String!,
-    $encounterID: Int!, $difficulty: Int!,
-    $specName: String!
+    $encounterID: Int!, $difficulty: Int!
   ) {
     characterData {
       character(name: $name, serverSlug: $slug, serverRegion: $region) {
@@ -26,12 +25,25 @@ export const Q_CHARACTER_RANKINGS = `
         server { slug region { slug } }
         dps: encounterRankings(
           encounterID: $encounterID, difficulty: $difficulty,
-          metric: dps, specName: $specName
+          metric: dps
         )
         boss: encounterRankings(
           encounterID: $encounterID, difficulty: $difficulty,
-          metric: bossdps, specName: $specName
+          metric: bossdps
         )
+      }
+    }
+  }
+`;
+
+export const Q_COMBATANT_WITH_ACTORS = `
+  query CombatantWithActors($code: String!, $fightIDs: [Int]!) {
+    reportData {
+      report(code: $code) {
+        events(dataType: CombatantInfo, fightIDs: $fightIDs) { data }
+        masterData {
+          actors { id name type }
+        }
       }
     }
   }

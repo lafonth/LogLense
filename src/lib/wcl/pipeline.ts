@@ -14,6 +14,7 @@ import { fmtMs, parseCasts, parseStats, parseUptime, summarizeRotation } from '.
 import {
   Q_CHARACTER_RANKINGS,
   Q_COMBATANT,
+  Q_COMBATANT_WITH_ACTORS,
   Q_DAMAGE,
   Q_ROTATION,
   Q_WORLD_RANKINGS,
@@ -46,6 +47,28 @@ async function getCombatantBySpecId(
   return data.reportData.report.events.data.find((e) => e.specID === specId) ?? null;
 }
 
+async function getCombatantByName(
+  token: string,
+  code: string,
+  fightId: number,
+  characterName: string
+): Promise<CombatantEvent | null> {
+  const data = await gql<{
+    reportData: {
+      report: {
+        events: { data: CombatantEvent[] };
+        masterData: { actors: { id: number; name: string; type: string }[] };
+      };
+    };
+  }>(token, Q_COMBATANT_WITH_ACTORS, { code, fightIDs: [fightId] });
+
+  const actor = data.reportData.report.masterData.actors.find(
+    (a) => a.name === characterName && a.type === 'Player'
+  );
+  if (!actor) return null;
+  return data.reportData.report.events.data.find((e) => e.sourceID === actor.id) ?? null;
+}
+
 export async function analyzeBoss(
   token: string,
   input: AnalysisInput,
@@ -54,25 +77,7 @@ export async function analyzeBoss(
 ): Promise<BossResult | null> {
   const { characterName: name, serverSlug: slug, region, difficulty, specId } = input;
 
-  const spec = getSpecInfo(specId);
-  if (!spec) return null;
-
-  const { specName, className } = spec;
-
-  const worldDataPromise = gql<{
-    worldData: {
-      encounter: {
-        characterRankings: {
-          rankings: Array<{
-            name: string;
-            amount: number;
-            duration: number;
-            report: { code: string; fightID: number };
-          }>;
-        };
-      };
-    };
-  }>(token, Q_WORLD_RANKINGS, { encounterID: encounterId, difficulty, specName, className });
+  const fallbackSpec = getSpecInfo(specId);
 
   const charData = await gql<{
     characterData: {
@@ -98,14 +103,7 @@ export async function analyzeBoss(
         };
       } | null;
     };
-  }>(token, Q_CHARACTER_RANKINGS, {
-    name,
-    slug,
-    region,
-    encounterID: encounterId,
-    difficulty,
-    specName,
-  });
+  }>(token, Q_CHARACTER_RANKINGS, { name, slug, region, encounterID: encounterId, difficulty });
 
   const char = charData.characterData.character;
   if (!char) return null;
@@ -123,8 +121,28 @@ export async function analyzeBoss(
   const bossMatch =
     bossParses.find((p) => p.report.code === bestCode && p.report.fightID === bestFightId) ?? null;
 
-  const charEvent = await getCombatantBySpecId(token, bestCode, bestFightId, specId);
+  // Detect actual spec from combatant info — may differ from the form's selected spec
+  const charEvent = await getCombatantByName(token, bestCode, bestFightId, name);
   if (!charEvent) return null;
+
+  const actualSpec = getSpecInfo(charEvent.specID) ?? fallbackSpec;
+  if (!actualSpec) return null;
+  const { specName, className } = actualSpec;
+
+  const worldDataPromise = gql<{
+    worldData: {
+      encounter: {
+        characterRankings: {
+          rankings: Array<{
+            name: string;
+            amount: number;
+            duration: number;
+            report: { code: string; fightID: number };
+          }>;
+        };
+      };
+    };
+  }>(token, Q_WORLD_RANKINGS, { encounterID: encounterId, difficulty, specName, className });
 
   const [dmgData, rotData] = await Promise.all([
     gql<{
