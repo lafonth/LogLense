@@ -8,6 +8,7 @@ import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { DifficultyRegionFields } from './DifficultyRegionFields';
 import { EncounterSelector } from './EncounterSelector';
 import { fieldStyle, inputStyle, labelStyle } from './formStyles';
+import { SpecSelector } from './SpecSelector';
 
 interface CharacterFormProps {
   onSubmit: (input: AnalysisInput, zoneId: number) => void;
@@ -30,6 +31,7 @@ export function CharacterForm({
   const [difficulty, setDifficulty] = useState<AnalysisInput['difficulty']>(4);
   const [selectedEncounterIds, setSelectedEncounterIds] = useState<Set<number> | null>(null);
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
+  const [specId, setSpecId] = useState<number>(103);
 
   const activeZoneId = selectedZoneId ?? zones[0]?.id ?? null;
   const currentZone = zones.find((z) => z.id === activeZoneId) ?? null;
@@ -58,14 +60,19 @@ export function CharacterForm({
         region,
         difficulty,
         encounters,
-        specId: 103,
+        specId,
       },
       activeZoneId
     );
   }
 
   const canSubmit =
-    !!characterName.trim() && !!realm && encounters.length > 0 && !zonesLoading && !loading;
+    !!characterName.trim() &&
+    !!realm &&
+    !!specId &&
+    encounters.length > 0 &&
+    !zonesLoading &&
+    !loading;
 
   return (
     <div
@@ -142,6 +149,8 @@ export function CharacterForm({
             />
           </div>
         </div>
+
+        <SpecSelector specId={specId} onChange={setSpecId} />
 
         <div style={fieldStyle}>
           <label style={labelStyle}>Raid</label>

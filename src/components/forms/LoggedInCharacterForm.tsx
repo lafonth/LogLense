@@ -5,8 +5,10 @@ import { useEffect, useState } from 'react';
 import { EncounterSelector } from '@/components/forms/EncounterSelector';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { usePreferences } from '@/hooks/usePreferences';
+import { getDpsSpecsForClass } from '@/lib/specs';
 import { DifficultyRegionFields } from './DifficultyRegionFields';
 import { fieldStyle, inputStyle, labelStyle } from './formStyles';
+import { SpecSelector } from './SpecSelector';
 
 interface LoggedInCharacterFormProps {
   onSubmit: (input: AnalysisInput, zoneId: number) => void;
@@ -129,6 +131,8 @@ export function LoggedInCharacterForm({
   const [difficulty, setDifficulty] = useState<AnalysisInput['difficulty']>(4);
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
   const [selectedEncounterIds, setSelectedEncounterIds] = useState<Set<number> | null>(null);
+  const [specId, setSpecId] = useState<number | null>(null);
+  const [specLoading, setSpecLoading] = useState(false);
 
   const { favourites, recents, isFavourite, toggleFavourite, addRecent } = usePreferences();
 
@@ -168,6 +172,28 @@ export function LoggedInCharacterForm({
   const shownKeys = new Set([...favsForRegion.map(charKey), ...recentsForRegion.map(charKey)]);
   const rest = characters.filter((c) => !shownKeys.has(charKey(toStored(c, region))));
 
+  async function fetchActiveSpec(char: StoredCharacter): Promise<void> {
+    setSpecLoading(true);
+    try {
+      const res = await fetch(
+        `/api/user/characters/active-spec?name=${encodeURIComponent(char.name)}&realm=${encodeURIComponent(char.realmSlug)}&region=${char.region}`
+      );
+      if (res.ok) {
+        const data = (await res.json()) as { specId: number | null };
+        if (data.specId) {
+          setSpecId(data.specId);
+          return;
+        }
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setSpecLoading(false);
+    }
+    const specs = getDpsSpecsForClass(char.class);
+    if (specs.length > 0) setSpecId(specs[0].specId);
+  }
+
   function resolveChar(): WowCharacter | StoredCharacter | null {
     if (!selectedCharKey) return null;
     const fromApi = characters.find((c) => charKey(toStored(c, region)) === selectedCharKey);
@@ -179,6 +205,7 @@ export function LoggedInCharacterForm({
 
   function handleSelect(stored: StoredCharacter) {
     setSelectedCharKey(charKey(stored));
+    void fetchActiveSpec(stored);
   }
 
   function handleZoneChange(zoneId: number) {
@@ -189,7 +216,7 @@ export function LoggedInCharacterForm({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const char = resolveChar();
-    if (!char || !activeZoneId || encounters.length === 0) return;
+    if (!char || !activeZoneId || encounters.length === 0 || !specId) return;
     const stored = toStored('id' in char ? char : { id: 0, level: 0, ...char }, region);
     addRecent(stored);
     onSubmit(
@@ -199,13 +226,14 @@ export function LoggedInCharacterForm({
         region,
         difficulty,
         encounters,
-        specId: 103,
+        specId,
       },
       activeZoneId
     );
   }
 
-  const canSubmit = !!selectedCharKey && encounters.length > 0 && !zonesLoading && !loading;
+  const canSubmit =
+    !!selectedCharKey && !!specId && encounters.length > 0 && !zonesLoading && !loading;
 
   function renderGrid(chars: StoredCharacter[]) {
     return (
@@ -351,6 +379,33 @@ export function LoggedInCharacterForm({
             )}
           </div>
         </div>
+
+        {selectedCharKey && (
+          <div style={fieldStyle}>
+            <label style={labelStyle}>
+              Spec
+              {specLoading && (
+                <span
+                  style={{
+                    marginLeft: '8px',
+                    color: 'var(--text-dim)',
+                    opacity: 0.6,
+                    textTransform: 'none',
+                  }}
+                >
+                  Detecting…
+                </span>
+              )}
+            </label>
+            {!specLoading && specId && (
+              <SpecSelector
+                specId={specId}
+                lockedClass={resolveChar()?.class}
+                onChange={setSpecId}
+              />
+            )}
+          </div>
+        )}
 
         <div style={fieldStyle}>
           <label style={labelStyle}>Raid</label>
