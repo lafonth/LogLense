@@ -80,7 +80,10 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
   const [geminiKey, setGeminiKey] = useApiKey('loglense_gemini_key');
   const [groqKey, setGroqKey] = useApiKey('loglense_groq_key');
   const [serverProviders, setServerProviders] = useState<string[]>([]);
-  const [selectedBossIdx, setSelectedBossIdx] = useState<number | 'all'>('all');
+  const [selectedBossIdx, setSelectedBossIdx] = useState<number>(() => {
+    const first = analysisResult.bosses.findIndex((b) => b !== null);
+    return first >= 0 ? first : 0;
+  });
   const [groqModel, setGroqModel] = useState<GroqModelId>(() => {
     if (typeof window === 'undefined') return DEFAULT_GROQ_MODEL;
     return (
@@ -107,7 +110,6 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
     .filter((x): x is { boss: BossResult; idx: number } => x.boss !== null);
 
   function buildPayload(): AnalysisResult {
-    if (selectedBossIdx === 'all') return analysisResult;
     return {
       ...analysisResult,
       bosses: [analysisResult.bosses[selectedBossIdx]],
@@ -138,7 +140,7 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
 
   function handleBossChange(value: string) {
     reset();
-    setSelectedBossIdx(value === 'all' ? 'all' : Number(value));
+    setSelectedBossIdx(Number(value));
   }
 
   const canGenerate = serverHasKey || !!apiKey.trim();
@@ -231,12 +233,11 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
             Boss
           </label>
           <select
-            value={selectedBossIdx === 'all' ? 'all' : String(selectedBossIdx)}
+            value={String(selectedBossIdx)}
             onChange={(e) => handleBossChange(e.target.value)}
             disabled={loading}
             style={{ ...inputStyle, cursor: loading ? 'not-allowed' : 'pointer' }}
           >
-            <option value="all">All bosses</option>
             {availableBosses.map(({ boss, idx }) => (
               <option key={idx} value={String(idx)}>
                 {boss.encounter}

@@ -215,7 +215,7 @@ export async function analyzeBoss(
     const { code: pCode, fightID: pFight } = player.report;
     if (!pCode || !pFight) continue;
 
-    const pEvent = await getCombatantBySpecId(token, pCode, pFight, specId);
+    const pEvent = await getCombatantBySpecId(token, pCode, pFight, charEvent.specID);
     if (!pEvent) continue;
 
     const [pRot, pDmg] = await Promise.all([
