@@ -12,8 +12,9 @@ async function getBnetToken(): Promise<string> {
   const now = Date.now();
   if (cachedToken && now < cacheExpiresAt) return cachedToken;
 
-  const clientId = process.env.BLIZZARD_CLIENT_ID!;
-  const clientSecret = process.env.BLIZZARD_CLIENT_SECRET!;
+  const clientId = process.env.BLIZZARD_CLIENT_ID;
+  const clientSecret = process.env.BLIZZARD_CLIENT_SECRET;
+  if (!clientId || !clientSecret) throw new Error('Blizzard credentials not configured');
   const credentials = btoa(`${clientId}:${clientSecret}`);
 
   const res = await fetch(BNET_TOKEN_URL, {

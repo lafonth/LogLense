@@ -17,6 +17,8 @@ interface CombatantEvent {
   specID: number;
   gear?: { itemLevel: number; id: number; quality: number }[];
   agility?: number;
+  strength?: number;
+  intellect?: number;
   critMelee?: number;
   hasteMelee?: number;
   mastery?: number;
