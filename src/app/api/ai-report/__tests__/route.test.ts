@@ -34,6 +34,7 @@ const mockResult: AnalysisResult = {
     region: 'EU',
     difficulty: 5,
     encounters: [{ id: 3306, name: 'Chimaerus' }],
+    specId: 103,
   },
   bosses: [null],
   generatedAt: '2026-05-09T00:00:00.000Z',

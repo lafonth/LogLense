@@ -58,6 +58,7 @@ export function CharacterForm({
         region,
         difficulty,
         encounters,
+        specId: 103,
       },
       activeZoneId
     );

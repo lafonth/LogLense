@@ -8,5 +8,6 @@ export function loadConfig(): AnalysisInput {
     region: configJson.server_region as AnalysisInput['region'],
     difficulty: configJson.difficulty as AnalysisInput['difficulty'],
     encounters: configJson.encounters,
+    specId: 103,
   };
 }

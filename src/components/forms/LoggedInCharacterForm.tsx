@@ -199,6 +199,7 @@ export function LoggedInCharacterForm({
         region,
         difficulty,
         encounters,
+        specId: 103,
       },
       activeZoneId
     );

@@ -19,7 +19,7 @@ const mockBossResult: BossResult = {
     stats: {
       name: 'Jumbaa',
       avgIlvl: 635,
-      agility: 13200,
+      primaryStat: 13200,
       crit: 3890,
       haste: 3500,
       mastery: 5800,
@@ -50,7 +50,7 @@ function makeRequest(body: Record<string, unknown>, encounterId = '3306') {
   return new Request(`http://localhost/api/analyze/${encounterId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ specId: 103, ...body }),
   });
 }
 
@@ -68,6 +68,7 @@ describe('analyze route', () => {
       region: 'EU',
       difficulty: 5,
       encounterName: 'Chimaerus',
+      specId: 103,
     });
 
     const res = await POST(req, { params: Promise.resolve({ encounterId: '3306' }) });
@@ -87,6 +88,7 @@ describe('analyze route', () => {
       region: 'EU',
       difficulty: 5,
       encounterName: 'Chimaerus',
+      specId: 103,
     });
 
     const res = await POST(req, { params: Promise.resolve({ encounterId: '3306' }) });
@@ -104,6 +106,7 @@ describe('analyze route', () => {
         region: 'EU',
         difficulty: 5,
         encounterName: 'X',
+        specId: 103,
       },
       'not-a-number'
     );
@@ -122,6 +125,7 @@ describe('analyze route', () => {
       region: 'EU',
       difficulty: 5,
       encounterName: 'Chimaerus',
+      specId: 103,
     });
 
     const res = await POST(req, { params: Promise.resolve({ encounterId: '3306' }) });
@@ -137,6 +141,7 @@ describe('analyze route', () => {
       region: 'EU',
       difficulty: 5,
       encounterName: 'Chimaerus',
+      specId: 103,
     });
 
     const res = await POST(req, { params: Promise.resolve({ encounterId: '3306' }) });

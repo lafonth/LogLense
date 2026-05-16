@@ -37,7 +37,7 @@ describe('parseStats', () => {
     expect(stats).not.toBeNull();
     expect(stats!.name).toBe('Jumbaa');
     expect(stats!.avgIlvl).toBe(627.5);
-    expect(stats!.agility).toBe(13200);
+    expect(stats!.primaryStat).toBe(13200);
     expect(stats!.crit).toBe(3890);
     expect(stats!.haste).toBe(3500);
     expect(stats!.mastery).toBe(5800);

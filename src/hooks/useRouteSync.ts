@@ -76,6 +76,7 @@ export function useRouteSync({
       region,
       difficulty,
       encounters: zone.encounters,
+      specId: 103,
     });
   }, [char, server, region, difficulty, zoneId, zones, zonesLoading, start]);
 

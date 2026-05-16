@@ -7,7 +7,7 @@ interface StatsTableProps {
 
 const STAT_ROWS: { label: string; key: keyof CharacterStats; fmt: (v: unknown) => string }[] = [
   { label: 'Avg ilvl', key: 'avgIlvl', fmt: (v) => (v as number).toFixed(1) },
-  { label: 'Agility', key: 'agility', fmt: (v) => (v as number).toLocaleString('en-US') },
+  { label: 'Primary Stat', key: 'primaryStat', fmt: (v) => (v as number).toLocaleString('en-US') },
   { label: 'Crit', key: 'crit', fmt: (v) => (v as number).toLocaleString('en-US') },
   { label: 'Haste', key: 'haste', fmt: (v) => (v as number).toLocaleString('en-US') },
   { label: 'Mastery', key: 'mastery', fmt: (v) => (v as number).toLocaleString('en-US') },

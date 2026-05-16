@@ -39,6 +39,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
       region: body.region,
       difficulty: body.difficulty,
       encounters: [{ id: encounterIdNum, name: body.encounterName }],
+      specId: 103,
     };
 
     const result = await analyzeBoss(token, input, encounterIdNum, body.encounterName);

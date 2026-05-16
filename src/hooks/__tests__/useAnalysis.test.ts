@@ -11,7 +11,7 @@ const mockBossResult: BossResult = {
     stats: {
       name: 'Jumbaa',
       avgIlvl: 635,
-      agility: 13200,
+      primaryStat: 13200,
       crit: 3890,
       haste: 3500,
       mastery: 5800,
@@ -38,6 +38,7 @@ const baseInput = {
   region: 'EU' as const,
   difficulty: 4 as const,
   encounters: [{ id: 3306, name: 'Chimaerus' }],
+  specId: 103,
 };
 
 function mockFetchOk(body: unknown) {

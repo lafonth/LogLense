@@ -4,6 +4,8 @@ interface CombatantEvent {
   specID: number;
   gear?: { itemLevel: number; id: number; quality: number }[];
   agility?: number;
+  strength?: number;
+  intellect?: number;
   critMelee?: number;
   hasteMelee?: number;
   mastery?: number;
@@ -34,7 +36,7 @@ export function parseStats(event: CombatantEvent | null, name: string): Characte
   return {
     name,
     avgIlvl,
-    agility: event.agility ?? 0,
+    primaryStat: event.agility ?? event.strength ?? event.intellect ?? 0,
     crit: event.critMelee ?? 0,
     haste: event.hasteMelee ?? 0,
     mastery: event.mastery ?? 0,

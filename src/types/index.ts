@@ -32,12 +32,13 @@ export interface AnalysisInput {
   region: 'US' | 'EU' | 'KR' | 'TW' | 'CN';
   difficulty: 3 | 4 | 5;
   encounters: Encounter[];
+  specId: number;
 }
 
 export interface CharacterStats {
   name: string;
   avgIlvl: number;
-  agility: number;
+  primaryStat: number;
   crit: number;
   haste: number;
   mastery: number;

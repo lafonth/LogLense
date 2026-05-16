@@ -72,6 +72,7 @@ export function ReportDashboard({
     region,
     difficulty: difficulty as AnalysisInput['difficulty'],
     encounters,
+    specId: result?.input.specId ?? 103,
   };
   const analysisResult: AnalysisResult = {
     input: analysisInput,

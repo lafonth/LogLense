@@ -79,7 +79,7 @@ function statsTable(
     ['DPS', (c, p) => fmt(p?.stats.dps ?? c.dps)],
     ['Kill time', (c, p) => p?.stats.killTime ?? c.killTime],
     ['ilvl', (c, p) => (p?.stats.avgIlvl ?? c.avgIlvl).toFixed(1)],
-    ['Agility', (c, p) => fmt(p?.stats.agility ?? c.agility)],
+    ['Primary Stat', (c, p) => fmt(p?.stats.primaryStat ?? c.primaryStat)],
     ['Crit', (c, p) => fmt(p?.stats.crit ?? c.crit)],
     ['Haste', (c, p) => fmt(p?.stats.haste ?? c.haste)],
     ['Mastery', (c, p) => fmt(p?.stats.mastery ?? c.mastery)],
@@ -105,8 +105,8 @@ function statsTable(
             ? char.killTime
             : label === 'ilvl'
               ? char.avgIlvl.toFixed(1)
-              : label === 'Agility'
-                ? fmt(char.agility)
+              : label === 'Primary Stat'
+                ? fmt(char.primaryStat)
                 : label === 'Crit'
                   ? fmt(char.crit)
                   : label === 'Haste'
