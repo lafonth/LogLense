@@ -68,7 +68,7 @@ export function useRouteSync({
     if (!char || !server || zonesLoading || zones.length === 0) return;
     const zone = (zoneId ? zones.find((z) => z.id === zoneId) : null) ?? zones[0];
     if (!zone) return;
-    const key = `${char}|${server}|${region}|${difficulty}|${zone.id}`;
+    const key = `${char}|${server}|${region}|${difficulty}|${zone.id}|${specParam}`;
     if (lastKeyRef.current === key) return;
     lastKeyRef.current = key;
     void start({
@@ -79,12 +79,12 @@ export function useRouteSync({
       encounters: zone.encounters,
       specId: specParam,
     });
-  }, [char, server, region, difficulty, zoneId, zones, zonesLoading, start]);
+  }, [char, server, region, difficulty, zoneId, zones, zonesLoading, specParam, start]);
 
   useEffect(() => {
     if (!reportCode || !reportActorId) return;
     if (reportMetaLoading) return;
-    const key = `${reportCode}|${reportActorId}|${reportDifficulty}`;
+    const key = `${reportCode}|${reportActorId}|${reportDifficulty}|${specParam}`;
     if (lastReportKeyRef.current === key) return;
     if (!reportMeta || fetchedCode !== reportCode) {
       void fetchMeta(reportCode);
@@ -107,6 +107,7 @@ export function useRouteSync({
     reportMeta,
     fetchedCode,
     reportMetaLoading,
+    specParam,
     fetchMeta,
     startReport,
   ]);
