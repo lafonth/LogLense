@@ -17,7 +17,8 @@ export const Q_ZONES = `
 export const Q_CHARACTER_RANKINGS = `
   query CharacterRankings(
     $name: String!, $slug: String!, $region: String!,
-    $encounterID: Int!, $difficulty: Int!
+    $encounterID: Int!, $difficulty: Int!,
+    $specName: String!, $className: String!
   ) {
     characterData {
       character(name: $name, serverSlug: $slug, serverRegion: $region) {
@@ -25,11 +26,11 @@ export const Q_CHARACTER_RANKINGS = `
         server { slug region { slug } }
         dps: encounterRankings(
           encounterID: $encounterID, difficulty: $difficulty,
-          metric: dps, specName: "Feral"
+          metric: dps, specName: $specName
         )
         boss: encounterRankings(
           encounterID: $encounterID, difficulty: $difficulty,
-          metric: bossdps, specName: "Feral"
+          metric: bossdps, specName: $specName
         )
       }
     }
@@ -37,11 +38,14 @@ export const Q_CHARACTER_RANKINGS = `
 `;
 
 export const Q_WORLD_RANKINGS = `
-  query WorldRankings($encounterID: Int!, $difficulty: Int!) {
+  query WorldRankings(
+    $encounterID: Int!, $difficulty: Int!,
+    $specName: String!, $className: String!
+  ) {
     worldData {
       encounter(id: $encounterID) {
         characterRankings(
-          specName: "Feral", className: "Druid",
+          specName: $specName, className: $className,
           metric: dps, difficulty: $difficulty, leaderboard: LogsOnly
         )
       }

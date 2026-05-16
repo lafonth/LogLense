@@ -6,9 +6,10 @@ import type {
   CharacterStats,
   FightTarget,
 } from '@/types';
+import { getSpecInfo } from '@/lib/specs';
 import { getWCLToken } from './auth';
 import { gql } from './client';
-import { FERAL_SPEC_ID, KILL_TIME_TOLERANCE, TOP_N } from './constants';
+import { KILL_TIME_TOLERANCE, TOP_N } from './constants';
 import { fmtMs, parseCasts, parseStats, parseUptime, summarizeRotation } from './parsers';
 import {
   Q_CHARACTER_RANKINGS,
@@ -23,6 +24,8 @@ interface CombatantEvent {
   specID: number;
   gear?: { itemLevel: number; id: number; quality: number }[];
   agility?: number;
+  strength?: number;
+  intellect?: number;
   critMelee?: number;
   hasteMelee?: number;
   mastery?: number;
@@ -30,16 +33,17 @@ interface CombatantEvent {
   talentTree?: { id: number; rank?: number }[];
 }
 
-async function getFeralEvent(
+async function getCombatantBySpecId(
   token: string,
   code: string,
-  fightId: number
+  fightId: number,
+  specId: number
 ): Promise<CombatantEvent | null> {
   const data = await gql<{
     reportData: { report: { events: { data: CombatantEvent[] } } };
   }>(token, Q_COMBATANT, { code, fightIDs: [fightId] });
 
-  return data.reportData.report.events.data.find((e) => e.specID === FERAL_SPEC_ID) ?? null;
+  return data.reportData.report.events.data.find((e) => e.specID === specId) ?? null;
 }
 
 export async function analyzeBoss(
@@ -48,9 +52,13 @@ export async function analyzeBoss(
   encounterId: number,
   encounterName: string
 ): Promise<BossResult | null> {
-  const { characterName: name, serverSlug: slug, region, difficulty } = input;
+  const { characterName: name, serverSlug: slug, region, difficulty, specId } = input;
 
-  // Start world rankings immediately — needs only encounterId + difficulty, independent of char pipeline
+  const spec = getSpecInfo(specId);
+  if (!spec) return null;
+
+  const { specName, className } = spec;
+
   const worldDataPromise = gql<{
     worldData: {
       encounter: {
@@ -64,7 +72,7 @@ export async function analyzeBoss(
         };
       };
     };
-  }>(token, Q_WORLD_RANKINGS, { encounterID: encounterId, difficulty });
+  }>(token, Q_WORLD_RANKINGS, { encounterID: encounterId, difficulty, specName, className });
 
   const charData = await gql<{
     characterData: {
@@ -90,7 +98,15 @@ export async function analyzeBoss(
         };
       } | null;
     };
-  }>(token, Q_CHARACTER_RANKINGS, { name, slug, region, encounterID: encounterId, difficulty });
+  }>(token, Q_CHARACTER_RANKINGS, {
+    name,
+    slug,
+    region,
+    encounterID: encounterId,
+    difficulty,
+    specName,
+    className,
+  });
 
   const char = charData.characterData.character;
   if (!char) return null;
@@ -108,7 +124,7 @@ export async function analyzeBoss(
   const bossMatch =
     bossParses.find((p) => p.report.code === bestCode && p.report.fightID === bestFightId) ?? null;
 
-  const charEvent = await getFeralEvent(token, bestCode, bestFightId);
+  const charEvent = await getCombatantBySpecId(token, bestCode, bestFightId, specId);
   if (!charEvent) return null;
 
   const [dmgData, rotData] = await Promise.all([
@@ -162,8 +178,8 @@ export async function analyzeBoss(
     }
   }
   const fightTargets: FightTarget[] = [...targetMap.entries()]
-    .map(([name, { type, total }]) => ({
-      name,
+    .map(([tname, { type, total }]) => ({
+      name: tname,
       type,
       damagePct: totalDamage > 0 ? Math.round((total / totalDamage) * 1000) / 10 : 0,
     }))
@@ -171,20 +187,18 @@ export async function analyzeBoss(
     .sort((a, b) => b.damagePct - a.damagePct);
 
   const worldData = await worldDataPromise;
-
   const allWorld = worldData.worldData.encounter.characterRankings.rankings ?? [];
   const lo = bestKillMs * (1 - KILL_TIME_TOLERANCE);
   const hi = bestKillMs * (1 + KILL_TIME_TOLERANCE);
   const similar = allWorld.filter((r) => r.duration >= lo && r.duration <= hi);
   const topPool = similar.length > 0 ? similar.slice(0, TOP_N) : allWorld.slice(0, TOP_N);
 
-  // Sequential to avoid WCL rate limits
   const topPlayers = [];
   for (const player of topPool) {
     const { code: pCode, fightID: pFight } = player.report;
     if (!pCode || !pFight) continue;
 
-    const pEvent = await getFeralEvent(token, pCode, pFight);
+    const pEvent = await getCombatantBySpecId(token, pCode, pFight, specId);
     if (!pEvent) continue;
 
     const [pRot, pDmg] = await Promise.all([
