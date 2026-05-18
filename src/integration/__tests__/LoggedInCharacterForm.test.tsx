@@ -115,8 +115,9 @@ describe('loggedInCharacterForm integration', () => {
     await waitFor(() => screen.getByText('Jumbaa-Ysondre'));
 
     fireEvent.click(screen.getByText('Jumbaa-Ysondre'));
-    // Wait for fetchActiveSpec to resolve and spec picker to appear
-    await waitFor(() => screen.getByLabelText(/^spec$/i));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^analyse$/i })).not.toBeDisabled()
+    );
     fireEvent.click(screen.getByRole('button', { name: /^analyse$/i }));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
@@ -137,8 +138,9 @@ describe('loggedInCharacterForm integration', () => {
     await waitFor(() => screen.getByText('Jumbaa-Ysondre'));
 
     fireEvent.click(screen.getByText('Jumbaa-Ysondre'));
-    // Wait for fetchActiveSpec to resolve and spec picker to appear
-    await waitFor(() => screen.getByLabelText(/^spec$/i));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^analyse$/i })).not.toBeDisabled()
+    );
     fireEvent.click(screen.getByRole('button', { name: /^analyse$/i }));
 
     expect(addRecent).toHaveBeenCalledTimes(1);

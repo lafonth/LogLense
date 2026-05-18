@@ -8,7 +8,6 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { getDpsSpecsForClass } from '@/lib/specs';
 import { DifficultyRegionFields } from './DifficultyRegionFields';
 import { fieldStyle, inputStyle, labelStyle } from './formStyles';
-import { SpecSelector } from './SpecSelector';
 
 interface LoggedInCharacterFormProps {
   onSubmit: (input: AnalysisInput, zoneId: number) => void;
@@ -132,7 +131,6 @@ export function LoggedInCharacterForm({
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
   const [selectedEncounterIds, setSelectedEncounterIds] = useState<Set<number> | null>(null);
   const [specId, setSpecId] = useState<number | null>(null);
-  const [specLoading, setSpecLoading] = useState(false);
 
   const { favourites, recents, isFavourite, toggleFavourite, addRecent } = usePreferences();
 
@@ -173,7 +171,6 @@ export function LoggedInCharacterForm({
   const rest = characters.filter((c) => !shownKeys.has(charKey(toStored(c, region))));
 
   async function fetchActiveSpec(char: StoredCharacter): Promise<void> {
-    setSpecLoading(true);
     try {
       const res = await fetch(
         `/api/user/characters/active-spec?name=${encodeURIComponent(char.name)}&realm=${encodeURIComponent(char.realmSlug)}&region=${char.region}`
@@ -187,8 +184,6 @@ export function LoggedInCharacterForm({
       }
     } catch {
       /* ignore */
-    } finally {
-      setSpecLoading(false);
     }
     const specs = getDpsSpecsForClass(char.class);
     if (specs.length > 0) setSpecId(specs[0].specId);
@@ -379,27 +374,6 @@ export function LoggedInCharacterForm({
             )}
           </div>
         </div>
-
-        {selectedCharKey &&
-          (specLoading ? (
-            <div style={fieldStyle}>
-              <label style={labelStyle}>
-                Spec
-                <span
-                  style={{
-                    marginLeft: '8px',
-                    color: 'var(--text-dim)',
-                    opacity: 0.6,
-                    textTransform: 'none',
-                  }}
-                >
-                  Detecting…
-                </span>
-              </label>
-            </div>
-          ) : specId ? (
-            <SpecSelector specId={specId} lockedClass={resolveChar()?.class} onChange={setSpecId} />
-          ) : null)}
 
         <div style={fieldStyle}>
           <label style={labelStyle}>Raid</label>
