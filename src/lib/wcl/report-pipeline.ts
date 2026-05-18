@@ -1,5 +1,6 @@
 import type { WCLTable } from './parsers';
 import type { BossResult, CharacterStats, FightTarget } from '@/types';
+import { getSpecInfo } from '@/lib/specs';
 import { gql } from './client';
 import { KILL_TIME_TOLERANCE, TOP_N } from './constants';
 import { fmtMs, parseCasts, parseStats, parseUptime, summarizeRotation } from './parsers';
@@ -81,7 +82,27 @@ export async function analyzeReportBoss(
   fightMs: number,
   difficulty: number
 ): Promise<BossResult | null> {
-  // Kick off all independent fetches in parallel
+  // Kick off report-specific fetches immediately (don't need spec info)
+  const dpsRankingsPromise = gql<{ reportData: { report: { rankings: unknown } } }>(
+    token,
+    Q_REPORT_RANKINGS_DPS,
+    { code, fightIDs: [fightId] }
+  );
+
+  const bossRankingsPromise = gql<{ reportData: { report: { rankings: unknown } } }>(
+    token,
+    Q_REPORT_RANKINGS_BOSSDPS,
+    { code, fightIDs: [fightId] }
+  );
+
+  // Detect actual spec from combatant data before starting world rankings
+  const charEvent = await getCombatantByActor(token, code, fightId, actorId);
+  if (!charEvent) return null;
+
+  const specInfo = getSpecInfo(charEvent.specID);
+  if (!specInfo) return null;
+  const { specName, className } = specInfo;
+
   const worldDataPromise = gql<{
     worldData: {
       encounter: {
@@ -95,22 +116,7 @@ export async function analyzeReportBoss(
         };
       };
     };
-  }>(token, Q_WORLD_RANKINGS, { encounterID: encounterId, difficulty });
-
-  const dpsRankingsPromise = gql<{ reportData: { report: { rankings: unknown } } }>(
-    token,
-    Q_REPORT_RANKINGS_DPS,
-    { code, fightIDs: [fightId] }
-  );
-
-  const bossRankingsPromise = gql<{ reportData: { report: { rankings: unknown } } }>(
-    token,
-    Q_REPORT_RANKINGS_BOSSDPS,
-    { code, fightIDs: [fightId] }
-  );
-
-  const charEvent = await getCombatantByActor(token, code, fightId, actorId);
-  if (!charEvent) return null;
+  }>(token, Q_WORLD_RANKINGS, { encounterID: encounterId, difficulty, specName, className });
 
   const [dmgData, rotData] = await Promise.all([
     gql<{
@@ -202,7 +208,9 @@ export async function analyzeReportBoss(
       reportData: { report: { events: { data: CombatantEvent[] } } };
     }>(token, Q_COMBATANT, { code: pCode, fightIDs: [pFight] });
 
-    const pEvent = pCombatantData.reportData.report.events.data[0] ?? null;
+    const pEvent =
+      pCombatantData.reportData.report.events.data.find((e) => e.specID === charEvent.specID) ??
+      null;
     if (!pEvent) continue;
 
     const [pRot, pDmg] = await Promise.all([
