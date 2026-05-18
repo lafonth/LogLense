@@ -109,6 +109,7 @@ export function BossContentPanel({
                   disabled={activeBossState.status === 'loading'}
                   onClick={() => {
                     if (spec.specId !== currentSpecId) {
+                      setBossSpecIds((prev) => ({ ...prev, [safeIdx]: spec.specId }));
                       onSwitchBossSpec(safeIdx, spec.specId);
                     }
                   }}
