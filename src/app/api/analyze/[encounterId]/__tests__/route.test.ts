@@ -14,6 +14,7 @@ vi.mock('@/lib/wcl/pipeline', () => ({
 const mockBossResult: BossResult = {
   encounter: 'Chimaerus',
   encounterId: 3306,
+  specId: 103,
   fightTargets: [],
   character: {
     stats: {

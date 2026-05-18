@@ -13,6 +13,7 @@ import { KILL_TIME_TOLERANCE, TOP_N } from './constants';
 import { fmtMs, parseCasts, parseStats, parseUptime, summarizeRotation } from './parsers';
 import {
   Q_CHARACTER_RANKINGS,
+  Q_CHARACTER_RANKINGS_SPEC,
   Q_COMBATANT,
   Q_COMBATANT_WITH_ACTORS,
   Q_DAMAGE,
@@ -73,11 +74,15 @@ export async function analyzeBoss(
   token: string,
   input: AnalysisInput,
   encounterId: number,
-  encounterName: string
+  encounterName: string,
+  specIdOverride?: number
 ): Promise<BossResult | null> {
   const { characterName: name, serverSlug: slug, region, difficulty, specId } = input;
 
-  const fallbackSpec = getSpecInfo(specId);
+  const fallbackSpec = getSpecInfo(specIdOverride ?? specId);
+
+  // When a specific spec is requested, filter rankings to that spec only
+  const overrideSpecInfo = specIdOverride ? getSpecInfo(specIdOverride) : null;
 
   const charData = await gql<{
     characterData: {
@@ -103,7 +108,21 @@ export async function analyzeBoss(
         };
       } | null;
     };
-  }>(token, Q_CHARACTER_RANKINGS, { name, slug, region, encounterID: encounterId, difficulty });
+  }>(
+    token,
+    overrideSpecInfo ? Q_CHARACTER_RANKINGS_SPEC : Q_CHARACTER_RANKINGS,
+    overrideSpecInfo
+      ? {
+          name,
+          slug,
+          region,
+          encounterID: encounterId,
+          difficulty,
+          specName: overrideSpecInfo.specName,
+          className: overrideSpecInfo.className,
+        }
+      : { name, slug, region, encounterID: encounterId, difficulty }
+  );
 
   const char = charData.characterData.character;
   if (!char) return null;
@@ -264,6 +283,7 @@ export async function analyzeBoss(
   return {
     encounter: encounterName,
     encounterId,
+    specId: charEvent.specID,
     fightTargets,
     character: {
       stats: charStats,

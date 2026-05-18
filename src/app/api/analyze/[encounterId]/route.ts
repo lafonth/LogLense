@@ -12,6 +12,7 @@ interface AnalyzeBody {
   difficulty: AnalysisInput['difficulty'];
   encounterName: string;
   specId: number;
+  specIdOverride?: number;
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ encounterId: string }> }) {
@@ -47,7 +48,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
       specId: body.specId,
     };
 
-    const result = await analyzeBoss(token, input, encounterIdNum, body.encounterName);
+    const result = await analyzeBoss(
+      token,
+      input,
+      encounterIdNum,
+      body.encounterName,
+      body.specIdOverride
+    );
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Analysis failed';

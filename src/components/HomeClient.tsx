@@ -31,7 +31,8 @@ export function HomeClient() {
   const searchParams = useSearchParams();
   const { data: session, status: sessionStatus } = useSession();
   const { zones, loading: zonesLoading, error: zonesError } = useZones();
-  const { bossStates, currentDifficulty, isAnyLoading, input, start, reset } = useAnalysis();
+  const { bossStates, currentDifficulty, isAnyLoading, input, start, switchBossSpec, reset } =
+    useAnalysis();
   const {
     result: reportResult,
     loading: reportLoading,
@@ -234,6 +235,7 @@ export function HomeClient() {
         onBossChange={handleCharBossChange}
         onReset={handleReset}
         onSwitchCharacter={session ? handleSwitchCharacter : undefined}
+        onSwitchBossSpec={switchBossSpec}
       />
     );
   }

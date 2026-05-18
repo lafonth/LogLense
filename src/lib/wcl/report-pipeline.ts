@@ -256,6 +256,7 @@ export async function analyzeReportBoss(
   return {
     encounter: encounterName,
     encounterId,
+    specId: charEvent.specID,
     fightTargets,
     character: {
       stats: charStats,

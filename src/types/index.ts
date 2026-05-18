@@ -79,6 +79,7 @@ export interface FightTarget {
 export interface BossResult {
   encounter: string;
   encounterId: number;
+  specId: number;
   fightTargets: FightTarget[];
   character: {
     stats: CharacterStats;

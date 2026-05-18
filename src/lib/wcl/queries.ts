@@ -36,6 +36,28 @@ export const Q_CHARACTER_RANKINGS = `
   }
 `;
 
+export const Q_CHARACTER_RANKINGS_SPEC = `
+  query CharacterRankingsSpec(
+    $name: String!, $slug: String!, $region: String!,
+    $encounterID: Int!, $difficulty: Int!, $specName: String!, $className: String!
+  ) {
+    characterData {
+      character(name: $name, serverSlug: $slug, serverRegion: $region) {
+        name
+        server { slug region { slug } }
+        dps: encounterRankings(
+          encounterID: $encounterID, difficulty: $difficulty,
+          metric: dps, specName: $specName, className: $className
+        )
+        boss: encounterRankings(
+          encounterID: $encounterID, difficulty: $difficulty,
+          metric: bossdps, specName: $specName, className: $className
+        )
+      }
+    }
+  }
+`;
+
 export const Q_COMBATANT_WITH_ACTORS = `
   query CombatantWithActors($code: String!, $fightIDs: [Int]!) {
     reportData {

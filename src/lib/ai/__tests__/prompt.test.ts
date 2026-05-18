@@ -6,6 +6,7 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
   return {
     encounter: 'Chimaerus',
     encounterId: 3306,
+    specId: 103,
     fightTargets: [{ name: 'Chimaerus', type: 'Boss', damagePct: 95.0 }],
     character: {
       stats: {

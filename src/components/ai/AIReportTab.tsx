@@ -1,7 +1,8 @@
 'use client';
 
+import type { BossState } from '@/hooks/useAnalysis';
 import type { GroqModelId } from '@/lib/ai/groq';
-import type { AnalysisResult, BossResult } from '@/types';
+import type { AnalysisInput, AnalysisResult, BossResult } from '@/types';
 
 import { useEffect, useState } from 'react';
 
@@ -10,10 +11,13 @@ import { useAIReport } from '@/hooks/useAIReport';
 import { useApiKey } from '@/hooks/useApiKey';
 import { DEFAULT_GROQ_MODEL, GROQ_MODELS } from '@/lib/ai/groq';
 import { buildAnalysisPrompt } from '@/lib/ai/prompt';
+import { getSpecInfo } from '@/lib/specs';
 import { StreamingText } from './StreamingText';
 
 interface AIReportTabProps {
-  analysisResult: AnalysisResult;
+  bossStates: BossState[];
+  input: AnalysisInput;
+  activeBossResult: BossResult | null;
 }
 
 type Provider = 'claude' | 'gemini' | 'groq';
@@ -74,14 +78,14 @@ function useProvider(): [Provider, (p: Provider) => void] {
   return [provider, persist];
 }
 
-export function AIReportTab({ analysisResult }: AIReportTabProps) {
+export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTabProps) {
   const [provider, setProvider] = useProvider();
   const [claudeKey, setClaudeKey] = useApiKey('loglense_api_key');
   const [geminiKey, setGeminiKey] = useApiKey('loglense_gemini_key');
   const [groqKey, setGroqKey] = useApiKey('loglense_groq_key');
   const [serverProviders, setServerProviders] = useState<string[]>([]);
   const [selectedBossIdx, setSelectedBossIdx] = useState<number>(() => {
-    const first = analysisResult.bosses.findIndex((b) => b !== null);
+    const first = bossStates.findIndex((s) => s.status === 'success' && s.result !== null);
     return first >= 0 ? first : 0;
   });
   const [groqModel, setGroqModel] = useState<GroqModelId>(() => {
@@ -91,6 +95,18 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
     );
   });
   const { text, usage, loading, error, start, reset } = useAIReport();
+
+  // Sync selected boss to the active boss when the tab is opened
+  useEffect(() => {
+    if (activeBossResult) {
+      const idx = bossStates.findIndex(
+        (s) => s.status === 'success' && s.result?.encounterId === activeBossResult.encounterId
+      );
+      if (idx >= 0) setSelectedBossIdx(idx);
+    }
+    // Only sync on mount / when activeBossResult identity changes
+    // eslint-disable-next-line react/exhaustive-deps
+  }, [activeBossResult]);
 
   useEffect(() => {
     fetch('/api/ai-report')
@@ -105,14 +121,20 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
   const setApiKey =
     provider === 'claude' ? setClaudeKey : provider === 'groq' ? setGroqKey : setGeminiKey;
 
-  const availableBosses = analysisResult.bosses
-    .map((b, i) => ({ boss: b, idx: i }))
+  const availableBosses = bossStates
+    .map((s, i) => ({
+      boss: s.status === 'success' && s.result ? s.result : null,
+      idx: i,
+    }))
     .filter((x): x is { boss: BossResult; idx: number } => x.boss !== null);
 
   function buildPayload(): AnalysisResult {
+    const bossState = bossStates[selectedBossIdx];
+    const boss = bossState?.status === 'success' ? bossState.result : null;
     return {
-      ...analysisResult,
-      bosses: [analysisResult.bosses[selectedBossIdx]],
+      input,
+      bosses: [boss],
+      generatedAt: new Date().toISOString(),
     };
   }
 
@@ -238,11 +260,15 @@ export function AIReportTab({ analysisResult }: AIReportTabProps) {
             disabled={loading}
             style={{ ...inputStyle, cursor: loading ? 'not-allowed' : 'pointer' }}
           >
-            {availableBosses.map(({ boss, idx }) => (
-              <option key={idx} value={String(idx)}>
-                {boss.encounter}
-              </option>
-            ))}
+            {availableBosses.map(({ boss, idx }) => {
+              const spec = getSpecInfo(boss.specId);
+              return (
+                <option key={idx} value={String(idx)}>
+                  {boss.encounter}
+                  {spec ? ` — ${spec.specName}` : ''}
+                </option>
+              );
+            })}
           </select>
         </div>
       )}
