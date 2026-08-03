@@ -51,6 +51,9 @@ src/lib/wcl/
   queries.ts          Toutes les requêtes GraphQL, en constantes
   constants.ts        KILL_TIME_TOLERANCE, TOP_N — les seuils de comparabilité
   parsers.ts          Réponses WCL → types du domaine (stats, casts, uptimes)
+  combatant.ts        Type CombatantEvent + recherche par acteur, par nom, par spec
+  fight-data.ts       Dégâts + rotation d'un combat → stats, rotation, cibles, dps
+  references.ts       Sélection des logs de comparaison et récupération des joueurs
   pipeline.ts         Analyse par personnage : nom → rankings → meilleur parse → rapport
   report-pipeline.ts  Analyse par rapport WCL : code + acteur → rapport
 src/lib/ai/           Construction du prompt et appel Claude
@@ -59,12 +62,14 @@ src/lib/redis.ts      Upstash en REST, GET/SET uniquement — seule persistance 
 src/data/talents/     Arbres de talents par spec, générés par scripts/
 ```
 
-**Duplication connue, en cours de traitement** : `pipeline.ts` et `report-pipeline.ts`
-sont deux copies du même traitement. Ils ne diffèrent que sur la résolution du sujet
-analysé et la source des percentiles ; sélection des références, fallback, récupération
-des dégâts et de la rotation sont identiques. Toute évolution de ce traitement doit être
-écrite dans les deux fichiers tant que l'extraction n'est pas faite. Détail dans
-`docs/superpowers/specs/2026-08-03-audit-pipeline-wcl.md`.
+Les deux pipelines ne diffèrent que sur deux points : **comment le sujet analysé est
+trouvé** (nom de personnage → rankings → meilleur parse, contre `code` + `actorId` déjà
+fournis) et **d'où viennent les percentiles** (`encounterRankings` contre
+`report.rankings`). Tout le reste passe par `combatant`, `fight-data` et `references`.
+
+**Corollaire** : une évolution de la comparabilité — rendre le fallback visible, filtrer
+sur l'ilvl ou le set bonus, paralléliser, passer à une distribution — s'écrit dans
+`references.ts` uniquement, jamais dans les pipelines.
 
 ## Vérification
 
