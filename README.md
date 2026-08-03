@@ -78,11 +78,15 @@ pnpm typecheck  # tsc --noEmit
 
 The agent skills used on this project are pinned in `skills-lock.json`, but the skill
 files themselves live in `.agents/` and `.claude/`, both gitignored. On a fresh clone,
-restore them with:
+restore them in two steps:
 
 ```bash
-npx skills experimental_install
+npx skills experimental_install       # restores .agents/skills at the pinned versions
+mkdir -p .claude/skills && cp -r .agents/skills/. .claude/skills/
 ```
+
+The second step is required: `experimental_install` only populates `.agents/skills`,
+and Claude Code reads `.claude/skills`. Verified on a fresh clone — 15 skills restored.
 
 Project context for agents lives in `CLAUDE.md` (domain vocabulary, code map,
 verification commands) and `PRODUCT_CONTEXT.md` (product framing and priorities).
