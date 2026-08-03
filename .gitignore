@@ -18,8 +18,9 @@ legacy/character_analysis.json
 # prompt download output
 ai-prompt.txt
 
-# skills and agents
+# skills and agents (restore with: npx skills experimental_install)
 .agents
+.superpowers
 
 # Next.js
 .next/

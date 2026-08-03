@@ -74,11 +74,24 @@ pnpm lint       # ESLint
 pnpm typecheck  # tsc --noEmit
 ```
 
+### Agent skills
+
+The agent skills used on this project are pinned in `skills-lock.json`, but the skill
+files themselves live in `.agents/` and `.claude/`, both gitignored. On a fresh clone,
+restore them with:
+
+```bash
+npx skills experimental_install
+```
+
+Project context for agents lives in `CLAUDE.md` (domain vocabulary, code map,
+verification commands) and `PRODUCT_CONTEXT.md` (product framing and priorities).
+
 ---
 
 ## Known Limitations
 
-- **Talent names:** WCL does not resolve talent tree spell IDs to names. The Comparison tab shows talent diffs as node names resolved from the local `feral-druid-talents.json` data file.
+- **Talent names:** WCL does not resolve talent tree spell IDs to names. The Comparison tab shows talent diffs as node names resolved from the local `src/data/talents/spec-*.json` files.
 - **Bracket percentile:** True ilvl-bracket percentile is not directly queryable from the WCL API.
 - **Private logs:** Reports set to private on WCL are inaccessible via the API.
-- **Spec support:** Currently tuned for Feral Druid. The AI prompt is spec-agnostic but rotation/talent reference data is Feral-specific.
+- **Comparability:** Reference logs are picked on kill time alone, and fall back to the raw world top 3 when no log falls in the window — without telling the user. See `PRODUCT_CONTEXT.md` §7.
