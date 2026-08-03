@@ -128,6 +128,14 @@ devient utile qu'une fois les gains faciles épuisés.
 
 ## 5. Principe directeur : IA structurante
 
+Note d'architecture complémentaire, avec les diagrammes de flux v0 / v1 / v2 et l'arbre
+de décision gadget / structurant : [ia-ml-architecture.md](ia-ml-architecture.md).
+
+> **Divergence à trancher** — la section 5 de cette note laisse le persona payeur ouvert
+> (joueur individuel ou raid leader), alors que la section 4 ci-dessus tranche pour
+> l'abonnement saisonnier de guilde. Les deux documents ne peuvent pas rester en
+> désaccord sur ce point.
+
 ### Le découpage de monétisation
 
 **Ne pas faire** : « données structurées gratuites, rapport IA payant ».

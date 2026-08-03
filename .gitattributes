@@ -1,0 +1,10 @@
+# Prettier expects LF. Without this, core.autocrlf=true on Windows checks files
+# out with CRLF and `pnpm format:check` fails on a clean tree.
+* text=auto eol=lf
+
+# Binary assets git must not touch
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary

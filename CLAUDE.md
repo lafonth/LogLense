@@ -88,5 +88,8 @@ pnpm format:check
 comparabilité, modèle de monétisation, architecture v1/v2, état vérifié du code et ordre
 des travaux.
 
-Le lire avant toute décision qui engage la direction du produit — nouvelle feature,
-découpage gratuit/payant, choix d'architecture. Inutile pour une correction localisée.
+`ia-ml-architecture.md` complète le cadrage côté technique : distinction IA gadget /
+structurante, familles de modèles, et les architectures v0 / v1 / v2 en diagrammes.
+
+Les lire avant toute décision qui engage la direction du produit — nouvelle feature,
+découpage gratuit/payant, choix d'architecture. Inutiles pour une correction localisée.
