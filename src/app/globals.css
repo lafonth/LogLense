@@ -1,19 +1,46 @@
 @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Fira+Code:wght@400;500&display=swap');
 @import 'tailwindcss';
 
-:root {
-  --bg: #09080c;
-  --surface: #110f17;
-  --border: #2a2535;
-  --gold: #c6a84a;
-  --gold-dim: #8a7232;
-  --gold-bright: #e8c96e;
-  --crimson: #c0392b;
-  --crimson-hover: #e84535;
-  --text: #e8e0d0;
-  --text-dim: #9990a8;
+@theme {
+  --color-bg: #101019;
+  --color-surface: #16161f;
+  --color-surface-raised: #1c1c26;
+  --color-border: #262633;
+  --color-border-strong: #34343f;
+
+  --color-text: #f2efe9;
+  --color-muted: #9d97a8;
+  --color-dim: #6b6577;
+
+  --color-brass: #b08d57;
+  --color-brass-bright: #d7b988;
+
+  --color-deviation: #6ea8c9;
+  --color-positive: #7fc98f;
+  --color-warning: #d9a441;
+  --color-danger: #d9636f;
+
   --font-display: 'IM Fell English', Georgia, serif;
-  --font-mono: 'Fira Code', 'Courier New', monospace;
+  --font-mono: 'Fira Code', ui-monospace, 'Courier New', monospace;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-4xl: 2.5rem;
+
+  --radius-xs: 2px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
 }
 
 * {
@@ -21,10 +48,12 @@
 }
 
 body {
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: var(--font-mono);
   margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  /* Nothing may widen the page; dense surfaces scroll inside ScrollArea instead. */
+  overflow-x: hidden;
 }
 
 h1,
@@ -40,16 +69,17 @@ h4 {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg);
+  background: var(--color-bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--color-border);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--gold-dim);
+  background: var(--color-border-strong);
 }
 
+/* Item-quality colours — a WoW convention, kept verbatim. */
 .pct-legendary {
   color: #ff8000;
 }
