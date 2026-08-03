@@ -1,17 +1,8 @@
+import type { CombatantEvent } from './combatant';
 import type { CastEntry, CharacterStats, RotationSummary } from '@/types';
 
-interface CombatantEvent {
-  specID: number;
-  gear?: { itemLevel: number; id: number; quality: number }[];
-  agility?: number;
-  strength?: number;
-  intellect?: number;
-  critMelee?: number;
-  hasteMelee?: number;
-  mastery?: number;
-  versatilityDamageDone?: number;
-  talentTree?: { id: number; rank?: number }[];
-}
+/** parseStats reads gear, stats and talents — it never needs the combatant's identity. */
+type CombatantStats = Omit<CombatantEvent, 'sourceID'>;
 
 export interface WCLTable {
   data?: {
@@ -25,7 +16,7 @@ export function fmtMs(ms: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-export function parseStats(event: CombatantEvent | null, name: string): CharacterStats | null {
+export function parseStats(event: CombatantStats | null, name: string): CharacterStats | null {
   if (!event) return null;
   const gear = (event.gear ?? []).filter((g) => g.itemLevel >= 50);
   const avgIlvl =
