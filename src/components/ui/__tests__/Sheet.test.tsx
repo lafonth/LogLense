@@ -88,4 +88,22 @@ describe('sheet', () => {
     // Focus should return to trigger
     expect(trigger).toHaveFocus();
   });
+
+  it('dialog is not a descendant of inert or aria-hidden elements', async () => {
+    const user = userEvent.setup();
+    render(
+      <Sheet triggerLabel="Rotmire" title="Bosses">
+        <p>Boss list</p>
+      </Sheet>
+    );
+
+    await user.click(screen.getByRole('button', { name: /Rotmire/ }));
+    const dialog = screen.getByRole('dialog');
+
+    // Verify dialog is never inside an inert element
+    expect(dialog.closest('[inert]')).toBeNull();
+
+    // Verify dialog is never inside an aria-hidden="true" element
+    expect(dialog.closest('[aria-hidden="true"]')).toBeNull();
+  });
 });

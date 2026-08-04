@@ -50,7 +50,8 @@ export function Sheet({ triggerLabel, title, children }: SheetProps) {
           {triggerLabel}
         </Button>
         {open && (
-          <div className="bg-bg/80 fixed inset-0 z-50 flex items-end" onClick={handleClose} inert>
+          <div className="fixed inset-0 z-50 flex items-end">
+            <div className="bg-bg/80 absolute inset-0" onClick={handleClose} aria-hidden="true" />
             <div
               role="dialog"
               aria-modal="true"
