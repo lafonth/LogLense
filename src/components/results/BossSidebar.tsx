@@ -28,7 +28,7 @@ export function BossSidebar({ encounters, bossStates, activeIdx, onSelect }: Bos
               key={enc.id}
               type="button"
               onClick={() => onSelect(i)}
-              className={`mb-1 flex w-full items-center justify-between rounded-sm border px-2.5 py-2 text-left ${
+              className={`mb-1 flex w-full items-center justify-between rounded-sm border px-3 py-2 text-left ${
                 isActive ? 'border-brass bg-surface-raised' : 'border-transparent bg-transparent'
               }`}
             >

@@ -97,7 +97,9 @@ export function BossContentPanel({
                   variant="secondary"
                   size="sm"
                   disabled={activeBossState.status === 'loading'}
-                  className={spec.specId === currentSpecId ? 'border-brass text-brass' : ''}
+                  className={
+                    spec.specId === currentSpecId ? 'bg-surface border-brass text-brass' : ''
+                  }
                   onClick={() => {
                     if (spec.specId !== currentSpecId) {
                       setBossSpecIds((prev) => ({ ...prev, [safeIdx]: spec.specId }));
