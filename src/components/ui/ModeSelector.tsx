@@ -1,7 +1,7 @@
 'use client';
 
 const CARD_CLASS =
-  'bg-surface border-border hover:border-brass flex min-w-56 flex-1 cursor-pointer flex-col gap-3 rounded-md border p-8 text-left transition-colors';
+  'bg-surface border-border hover:border-brass flex min-w-56 flex-1 cursor-pointer flex-col gap-3 rounded-sm border p-8 text-left transition-colors';
 
 const TITLE_CLASS = 'text-text font-mono text-sm tracking-[0.08em] uppercase';
 
