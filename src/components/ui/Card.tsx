@@ -1,14 +1,13 @@
-import type { ReactNode } from 'react';
+import type { HTMLAttributes, ReactNode } from 'react';
 
-interface CardProps {
+interface CardProps extends HTMLAttributes<HTMLElement> {
   header?: ReactNode;
-  className?: string;
   children: ReactNode;
 }
 
-export function Card({ header, className = '', children }: CardProps) {
+export function Card({ header, className = '', children, ...rest }: CardProps) {
   return (
-    <section className={`border-border bg-surface rounded-md border ${className}`}>
+    <section className={`border-border bg-surface rounded-md border ${className}`} {...rest}>
       {header !== undefined && (
         <header className="border-border font-display text-muted border-b px-4 py-3 text-xs tracking-[0.14em] uppercase">
           {header}

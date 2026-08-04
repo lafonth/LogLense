@@ -24,11 +24,13 @@ export function Button({
   variant = 'primary',
   size = 'md',
   className = '',
+  type = 'button',
   children,
   ...rest
 }: ButtonProps) {
   return (
     <button
+      type={type}
       className={`focus-visible:outline-brass-bright inline-flex cursor-pointer items-center justify-center gap-2 rounded-sm font-sans transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
       {...rest}
     >
