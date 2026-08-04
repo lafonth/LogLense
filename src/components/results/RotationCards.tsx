@@ -32,26 +32,29 @@ function AbilityCard({ row, unit }: { row: AbilityComparison; unit: string }) {
         )}
       </div>
 
-      <div className="bg-border relative mt-2 h-1 rounded-full">
-        {hasRange && (
+      {hasRange && (
+        <div className="bg-border relative mt-2 h-1 rounded-full" data-testid="rotation-bar">
           <div
             className="bg-border-strong absolute h-1 rounded-full"
             style={{ left: `${bandLeft}%`, width: `${bandWidth}%` }}
           />
-        )}
-        <div
-          className="bg-deviation absolute -top-1 h-3 w-0.5"
-          style={{ left: `${markerLeft}%` }}
-        />
-      </div>
+          <div
+            className="bg-deviation absolute -top-1 h-3 w-0.5"
+            style={{ left: `${markerLeft}%` }}
+          />
+        </div>
+      )}
 
-      <div className="text-2xs text-dim mt-2 flex justify-between font-mono">
+      <div className="text-2xs text-dim mt-2 flex justify-between">
         <span>
-          you <span className="text-text">{row.mine.toFixed(2)}</span> {unit}
+          you <span className="text-text font-mono">{row.mine.toFixed(2)}</span> {unit}
         </span>
         {hasRange && (
           <span>
-            references {row.referenceMin!.toFixed(2)} – {row.referenceMax!.toFixed(2)}
+            references{' '}
+            <span className="font-mono">
+              {row.referenceMin!.toFixed(2)} – {row.referenceMax!.toFixed(2)}
+            </span>
           </span>
         )}
       </div>

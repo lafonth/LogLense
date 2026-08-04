@@ -61,5 +61,54 @@ describe('rotationCards', () => {
 
     expect(screen.getByText('4.10')).toBeInTheDocument();
     expect(screen.getByText(/No comparable logs/)).toBeInTheDocument();
+    expect(screen.queryByTestId('rotation-bar')).not.toBeInTheDocument();
+  });
+
+  it('shows a value with no deviation when no reference used the ability', () => {
+    const mine: RotationSummary = {
+      name: 'Jumbaa',
+      fightDurationMs: 263000,
+      casts: {
+        'Ferocious Bite': { casts: 18, perMin: 4.1 },
+        Rip: { casts: 4, perMin: 0.9 },
+      },
+      buffs: {},
+    };
+    const references = [
+      reference('Aidan', { 'Ferocious Bite': 6.6 }),
+      reference('Brea', { 'Ferocious Bite': 7.2 }),
+    ];
+
+    render(<RotationCards character={mine} topPlayers={references} />);
+
+    const ripCard = screen.getByText('Rip').closest('li');
+    expect(ripCard).not.toBeNull();
+    expect(screen.getByText('0.90')).toBeInTheDocument();
+    expect(ripCard).not.toHaveTextContent('%');
+  });
+
+  it('renders a second card for buffs with non-zero uptime', () => {
+    const mineWithUptime: RotationSummary = {
+      ...MINE,
+      buffs: { "Tiger's Fury": 62.4 },
+    };
+    const referencesWithUptime = [
+      reference('Aidan', { 'Ferocious Bite': 6.6 }),
+      reference('Brea', { 'Ferocious Bite': 7.2 }),
+    ].map((player) => ({
+      ...player,
+      rotation: { ...player.rotation, buffs: { "Tiger's Fury": 58.1 } },
+    }));
+
+    render(<RotationCards character={mineWithUptime} topPlayers={referencesWithUptime} />);
+
+    expect(screen.getByText('Uptime')).toBeInTheDocument();
+    expect(screen.getByText("Tiger's Fury")).toBeInTheDocument();
+  });
+
+  it('shows no uptime card when the player has no buffs with non-zero uptime', () => {
+    render(<RotationCards character={MINE} topPlayers={REFERENCES} />);
+
+    expect(screen.queryByText('Uptime')).not.toBeInTheDocument();
   });
 });
