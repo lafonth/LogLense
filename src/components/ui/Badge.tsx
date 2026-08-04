@@ -11,24 +11,16 @@ function pctClass(pct: number): string {
   return 'pct-common';
 }
 
-export function Badge({ pct, size = 'md' }: BadgeProps) {
-  const sizeStyle =
-    size === 'sm'
-      ? { fontSize: '0.7rem', padding: '1px 5px' }
-      : size === 'lg'
-        ? { fontSize: '1.1rem', padding: '3px 10px' }
-        : { fontSize: '0.85rem', padding: '2px 7px' };
+const SIZES: Record<'sm' | 'md' | 'lg', string> = {
+  sm: 'text-2xs px-2 py-1',
+  md: 'text-xs px-2 py-1',
+  lg: 'text-base px-3 py-1',
+};
 
+export function Badge({ pct, size = 'md' }: BadgeProps) {
   return (
     <span
-      className={pctClass(pct)}
-      style={{
-        fontFamily: 'var(--font-mono)',
-        fontWeight: 600,
-        border: '1px solid currentColor',
-        borderRadius: '3px',
-        ...sizeStyle,
-      }}
+      className={`${pctClass(pct)} rounded-xs border border-current font-mono font-semibold ${SIZES[size]}`}
     >
       {pct}
     </span>

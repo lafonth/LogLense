@@ -5,29 +5,22 @@ export interface Step {
   status: StepStatus;
 }
 
+const STATUS_COLOR: Record<StepStatus, string> = {
+  done: 'text-brass',
+  error: 'text-danger',
+  loading: 'text-text',
+  pending: 'text-dim',
+};
+
 export function ProgressSteps({ steps }: { steps: Step[] }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+    <div className="flex flex-col gap-1">
       {steps.map((step) => (
         <div
           key={step.label}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '0.82rem',
-            color:
-              step.status === 'done'
-                ? 'var(--gold)'
-                : step.status === 'error'
-                  ? 'var(--crimson)'
-                  : step.status === 'loading'
-                    ? 'var(--text)'
-                    : 'var(--text-dim)',
-          }}
+          className={`flex items-center gap-2 font-mono text-xs ${STATUS_COLOR[step.status]}`}
         >
-          <span style={{ width: '14px', textAlign: 'center' }}>
+          <span className="inline-block w-3.5 text-center">
             {step.status === 'done'
               ? '✓'
               : step.status === 'error'
