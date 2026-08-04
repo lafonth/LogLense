@@ -2,6 +2,7 @@ import type { BossState } from '@/hooks/useAnalysis';
 import type { Encounter } from '@/types';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Sheet } from '@/components/ui/Sheet';
 
 interface BossSidebarProps {
   encounters: Encounter[];
@@ -11,56 +12,36 @@ interface BossSidebarProps {
 }
 
 export function BossSidebar({ encounters, bossStates, activeIdx, onSelect }: BossSidebarProps) {
-  return (
-    <div
-      style={{
-        width: '200px',
-        flexShrink: 0,
-        borderRight: '1px solid var(--border)',
-        paddingRight: '16px',
-      }}
-    >
-      {encounters.map((enc, i) => {
-        const state = bossStates[i];
-        const isActive = i === activeIdx;
-        const pct =
-          state?.status === 'success' && state.result ? state.result.character.overallPct : null;
+  const activeName = encounters[activeIdx]?.name ?? 'Bosses';
 
-        return (
-          <button
-            key={enc.id}
-            onClick={() => onSelect(i)}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              width: '100%',
-              padding: '8px 10px',
-              background: isActive ? 'rgba(198,168,74,0.08)' : 'transparent',
-              border: isActive ? '1px solid var(--gold-dim)' : '1px solid transparent',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              marginBottom: '4px',
-              textAlign: 'left',
-            }}
-          >
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.78rem',
-                color: isActive ? 'var(--gold)' : 'var(--text-dim)',
-              }}
+  return (
+    <Sheet triggerLabel={activeName} title="Bosses">
+      <div className="md:border-border w-full md:w-[200px] md:flex-shrink-0 md:border-r md:pr-4">
+        {encounters.map((enc, i) => {
+          const state = bossStates[i];
+          const isActive = i === activeIdx;
+          const pct =
+            state?.status === 'success' && state.result ? state.result.character.overallPct : null;
+
+          return (
+            <button
+              key={enc.id}
+              type="button"
+              onClick={() => onSelect(i)}
+              className={`mb-1 flex w-full items-center justify-between rounded-sm border px-2.5 py-2 text-left ${
+                isActive ? 'border-brass bg-surface-raised' : 'border-transparent bg-transparent'
+              }`}
             >
-              {enc.name}
-            </span>
-            {state?.status === 'loading' && <LoadingSpinner />}
-            {state?.status === 'success' && pct !== null && <Badge pct={pct} size="sm" />}
-            {state?.status === 'error' && (
-              <span style={{ color: 'var(--crimson)', fontSize: '0.7rem' }}>err</span>
-            )}
-          </button>
-        );
-      })}
-    </div>
+              <span className={`font-mono text-xs ${isActive ? 'text-brass' : 'text-muted'}`}>
+                {enc.name}
+              </span>
+              {state?.status === 'loading' && <LoadingSpinner />}
+              {state?.status === 'success' && pct !== null && <Badge pct={pct} size="sm" />}
+              {state?.status === 'error' && <span className="text-danger text-2xs">err</span>}
+            </button>
+          );
+        })}
+      </div>
+    </Sheet>
   );
 }

@@ -7,21 +7,17 @@ import { AIReportTab } from '@/components/ai/AIReportTab';
 import { BossSidebar } from '@/components/results/BossSidebar';
 import { ComparisonTab } from '@/components/results/ComparisonTab';
 import { OverviewTab } from '@/components/results/OverviewTab';
+import { Button } from '@/components/ui/Button';
+import { Tabs } from '@/components/ui/Tabs';
 import { getDpsSpecsForClass, getSpecInfo } from '@/lib/specs';
 
 type TabId = 'overview' | 'comparison' | 'ai-report';
 
-const tabButtonStyle = (active: boolean): React.CSSProperties => ({
-  padding: '8px 20px',
-  background: 'transparent',
-  border: 'none',
-  borderBottom: active ? '2px solid var(--gold)' : '2px solid transparent',
-  color: active ? 'var(--gold)' : 'var(--text-dim)',
-  fontFamily: 'var(--font-display)',
-  fontSize: '1rem',
-  cursor: 'pointer',
-  letterSpacing: '0.04em',
-});
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'comparison', label: 'Comparison' },
+  { id: 'ai-report', label: 'AI Report' },
+];
 
 interface BossContentPanelProps {
   encounters: { id: number; name: string }[];
@@ -78,19 +74,11 @@ export function BossContentPanel({
 
   return (
     <>
-      <div style={{ borderBottom: '1px solid var(--border)', marginBottom: '24px' }}>
-        {(['overview', 'comparison', 'ai-report'] as TabId[]).map((tab) => (
-          <button
-            key={tab}
-            style={tabButtonStyle(activeTab === tab)}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab === 'overview' ? 'Overview' : tab === 'comparison' ? 'Comparison' : 'AI Report'}
-          </button>
-        ))}
+      <div className="mb-6">
+        <Tabs tabs={TABS} active={activeTab} onChange={(id) => setActiveTab(id as TabId)} />
       </div>
 
-      <div style={{ display: 'flex', gap: '24px' }}>
+      <div className="flex flex-col gap-6 md:flex-row">
         {activeTab !== 'ai-report' && encounters.length > 0 && (
           <BossSidebar
             encounters={encounters}
@@ -99,37 +87,26 @@ export function BossContentPanel({
             onSelect={onBossChange}
           />
         )}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="min-w-0 flex-1">
           {/* Spec switcher — character mode only, shown once spec is known */}
           {onSwitchBossSpec && availableSpecs.length > 1 && (
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <div className="mb-4 flex flex-wrap gap-2">
               {availableSpecs.map((spec) => (
-                <button
+                <Button
                   key={spec.specId}
+                  variant="secondary"
+                  size="sm"
                   disabled={activeBossState.status === 'loading'}
+                  className={spec.specId === currentSpecId ? 'border-brass text-brass' : ''}
                   onClick={() => {
                     if (spec.specId !== currentSpecId) {
                       setBossSpecIds((prev) => ({ ...prev, [safeIdx]: spec.specId }));
                       onSwitchBossSpec(safeIdx, spec.specId);
                     }
                   }}
-                  style={{
-                    padding: '4px 12px',
-                    background: spec.specId === currentSpecId ? 'var(--surface)' : 'transparent',
-                    border: `1px solid ${spec.specId === currentSpecId ? 'var(--gold-dim)' : 'var(--border)'}`,
-                    borderRadius: '4px',
-                    color: spec.specId === currentSpecId ? 'var(--gold)' : 'var(--text-dim)',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.75rem',
-                    cursor:
-                      activeBossState.status === 'loading' || spec.specId === currentSpecId
-                        ? 'default'
-                        : 'pointer',
-                    opacity: activeBossState.status === 'loading' ? 0.5 : 1,
-                  }}
                 >
                   {spec.specName}
-                </button>
+                </Button>
               ))}
             </div>
           )}

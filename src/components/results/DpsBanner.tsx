@@ -18,62 +18,31 @@ export function DpsBanner({
   bossDpsPct,
 }: DpsBannerProps) {
   return (
-    <div
-      style={{
-        padding: '16px 0',
-        borderBottom: '1px solid var(--border)',
-      }}
-    >
+    <div className="border-border border-b py-4">
       {/* Row 1: DPS + kill time */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px', flexWrap: 'wrap' }}>
-        <span
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '2rem',
-            color: 'var(--gold)',
-            fontWeight: 600,
-          }}
-        >
+      <div className="flex flex-wrap items-baseline gap-4">
+        <span className="text-brass font-mono text-2xl font-semibold">
           {dps.toLocaleString('en-US')}
-          <span style={{ fontSize: '0.9rem', color: 'var(--text-dim)', marginLeft: '4px' }}>
-            dps
-          </span>
+          <span className="text-muted ml-1 font-sans text-sm">dps</span>
         </span>
         {overallPct != null && <Badge pct={overallPct} size="lg" />}
-        <span
-          style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-dim)' }}
-        >
-          {killTime}
-        </span>
+        <span className="text-muted font-mono text-xs">{killTime}</span>
       </div>
 
       {/* Row 2: boss DPS + boss parse % */}
       {bossDps !== null && bossDpsPct !== null && (
-        <div style={{ marginTop: '6px', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.85rem',
-              color: 'var(--text-dim)',
-            }}
-          >
-            boss {bossDps.toLocaleString('en-US')} dps
+        <div className="mt-2 flex items-baseline gap-2">
+          <span className="text-muted font-sans text-xs">
+            boss <span className="font-mono">{bossDps.toLocaleString('en-US')}</span> dps
           </span>
           <Badge pct={bossDpsPct} size="sm" />
         </div>
       )}
 
       {/* Row 3: ilvl */}
-      <div style={{ marginTop: '6px' }}>
-        <span
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '0.78rem',
-            color: 'var(--text-dim)',
-            opacity: 0.6,
-          }}
-        >
-          {ilvl} ilvl
+      <div className="mt-2">
+        <span className="text-dim font-sans text-xs opacity-60">
+          <span className="font-mono">{ilvl}</span> ilvl
         </span>
       </div>
     </div>

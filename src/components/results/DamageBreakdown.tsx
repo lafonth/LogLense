@@ -1,4 +1,5 @@
 import type { DamageEntry } from '@/types';
+import { ScrollArea } from '@/components/ui/ScrollArea';
 
 interface DamageBreakdownProps {
   entries: DamageEntry[];
@@ -12,36 +13,21 @@ export function DamageBreakdown({ entries }: DamageBreakdownProps) {
     .slice(0, 10);
 
   return (
-    <div style={{ marginTop: '16px' }}>
+    <ScrollArea className="mt-4">
       {top10.map((entry) => {
         const pct = total > 0 ? (entry.total / total) * 100 : 0;
         return (
-          <div key={entry.name} style={{ marginBottom: '6px' }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.78rem',
-                marginBottom: '2px',
-              }}
-            >
-              <span style={{ color: 'var(--text-dim)' }}>{entry.name}</span>
-              <span style={{ color: 'var(--text)' }}>{pct.toFixed(1)}%</span>
+          <div key={entry.name} className="mb-2">
+            <div className="mb-1 flex justify-between font-mono text-xs">
+              <span className="text-muted">{entry.name}</span>
+              <span className="text-text">{pct.toFixed(1)}%</span>
             </div>
-            <div style={{ height: '4px', background: 'var(--border)', borderRadius: '2px' }}>
-              <div
-                style={{
-                  height: '100%',
-                  width: `${pct}%`,
-                  background: 'var(--gold)',
-                  borderRadius: '2px',
-                }}
-              />
+            <div className="bg-border h-1 rounded-xs">
+              <div className="bg-brass h-full rounded-xs" style={{ width: `${pct}%` }} />
             </div>
           </div>
         );
       })}
-    </div>
+    </ScrollArea>
   );
 }

@@ -17,7 +17,7 @@ interface ComparisonTabProps {
 export function ComparisonTab({ encounter, bossState, specName, talentNodes }: ComparisonTabProps) {
   if (bossState.status === 'idle' || bossState.status === 'loading') {
     return (
-      <div style={{ padding: '40px 0' }}>
+      <div className="py-8">
         <LoadingSpinner label={`Fetching ${encounter.name}…`} />
       </div>
     );
@@ -31,11 +31,11 @@ export function ComparisonTab({ encounter, bossState, specName, talentNodes }: C
 
   if (!result) {
     return (
-      <div style={{ padding: '24px 0', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
-        <div style={{ color: 'var(--text-dim)' }}>
+      <div className="py-6 font-mono text-xs">
+        <div className="text-dim">
           No {specName} parses found for {encounter.name}.
         </div>
-        <div style={{ color: 'var(--text-dim)', marginTop: '6px', fontSize: '0.78rem' }}>
+        <div className="text-dim mt-2 text-xs">
           Try switching to Heroic or Normal — Mythic requires a kill logged while playing {specName}{' '}
           spec.
         </div>
@@ -53,49 +53,18 @@ export function ComparisonTab({ encounter, bossState, specName, talentNodes }: C
         bossDps={result.character.bossDps}
         bossDpsPct={result.character.bossDpsPct}
       />
-      <div style={{ marginTop: '20px' }}>
-        <h3
-          style={{
-            color: 'var(--gold-dim)',
-            fontSize: '0.75rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            fontFamily: 'var(--font-mono)',
-            marginBottom: '10px',
-          }}
-        >
+      <div className="mt-6">
+        <h3 className="text-muted mb-2 font-mono text-xs tracking-[0.08em] uppercase">
           Stats vs top players
         </h3>
         <StatsTable character={result.character.stats} topPlayers={result.topPlayers} />
       </div>
-      <div style={{ marginTop: '20px' }}>
-        <h3
-          style={{
-            color: 'var(--gold-dim)',
-            fontSize: '0.75rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            fontFamily: 'var(--font-mono)',
-            marginBottom: '10px',
-          }}
-        >
-          Rotation
-        </h3>
+      <div className="mt-6">
+        <h3 className="text-muted mb-2 font-mono text-xs tracking-[0.08em] uppercase">Rotation</h3>
         <RotationCards character={result.character.rotation} topPlayers={result.topPlayers} />
       </div>
-      <div style={{ marginTop: '20px' }}>
-        <h3
-          style={{
-            color: 'var(--gold-dim)',
-            fontSize: '0.75rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            fontFamily: 'var(--font-mono)',
-            marginBottom: '10px',
-          }}
-        >
-          Talents
-        </h3>
+      <div className="mt-6">
+        <h3 className="text-muted mb-2 font-mono text-xs tracking-[0.08em] uppercase">Talents</h3>
         <TalentDiff
           nodes={talentNodes}
           myTalents={result.character.stats.talents}
