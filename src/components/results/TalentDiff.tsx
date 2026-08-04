@@ -50,38 +50,53 @@ export function TalentDiff({ nodes, myTalents, topPlayers }: TalentDiffProps) {
     return (
       <Card header="Build differences">
         <p className="text-muted font-sans text-xs">
-          Identical build — every one of the {sharedCount} nodes matches the references.
+          Identical build — every one of the <span className="font-mono">{sharedCount}</span> nodes
+          matches the references.
         </p>
       </Card>
     );
   }
 
+  const showMine = mineOnly.length > 0;
+  const showTheirs = theirsOnly.length > 0;
+
   return (
-    <Card header={`Build differences · ${referenceTotal} references`}>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <div>
-          <h4 className="text-2xs text-deviation mb-2 font-sans tracking-[0.12em] uppercase">
-            You only · {mineOnly.length}
-          </h4>
-          <ul className="flex flex-col gap-1">
-            {mineOnly.map((entry) => (
-              <EntryRow key={entry.nodeId} entry={entry} accent="mine" />
-            ))}
-          </ul>
-        </div>
-        <div>
-          <h4 className="text-2xs text-brass mb-2 font-sans tracking-[0.12em] uppercase">
-            References only · {theirsOnly.length}
-          </h4>
-          <ul className="flex flex-col gap-1">
-            {theirsOnly.map((entry) => (
-              <EntryRow key={entry.nodeId} entry={entry} accent="theirs" />
-            ))}
-          </ul>
-        </div>
+    <Card
+      header={
+        <>
+          Build differences · <span className="font-mono">{referenceTotal}</span> references
+        </>
+      }
+    >
+      <div className={showMine && showTheirs ? 'grid grid-cols-1 gap-6 md:grid-cols-2' : ''}>
+        {showMine && (
+          <div>
+            <h4 className="text-2xs text-deviation mb-2 font-sans tracking-[0.12em] uppercase">
+              You only · <span className="font-mono">{mineOnly.length}</span>
+            </h4>
+            <ul className="flex flex-col gap-1">
+              {mineOnly.map((entry) => (
+                <EntryRow key={entry.nodeId} entry={entry} accent="mine" />
+              ))}
+            </ul>
+          </div>
+        )}
+        {showTheirs && (
+          <div>
+            <h4 className="text-2xs text-brass mb-2 font-sans tracking-[0.12em] uppercase">
+              References only · <span className="font-mono">{theirsOnly.length}</span>
+            </h4>
+            <ul className="flex flex-col gap-1">
+              {theirsOnly.map((entry) => (
+                <EntryRow key={entry.nodeId} entry={entry} accent="theirs" />
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
       <p className="border-border text-2xs text-dim mt-4 border-t pt-3 font-sans">
-        {sharedCount} identical node{sharedCount === 1 ? '' : 's'} — hidden
+        <span className="font-mono">{sharedCount}</span> identical node
+        {sharedCount === 1 ? '' : 's'} — hidden
       </p>
     </Card>
   );

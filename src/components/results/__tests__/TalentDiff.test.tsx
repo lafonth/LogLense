@@ -41,13 +41,28 @@ function player(name: string, talents: Record<number, number>): TopPlayer {
 const NODES = [node(1, [101], 'Sabertooth'), node(2, [102], 'Veinripper'), node(3, [103], 'Rip')];
 const REFERENCES = [player('Aidan', { 102: 3, 103: 1 }), player('Brea', { 102: 3, 103: 1 })];
 
+/**
+ * The hidden-nodes count renders its numeral in a nested `font-mono` span (see TalentDiff),
+ * so the surrounding sentence is split across sibling text nodes and elements. Testing
+ * Library's plain string/regex `getByText` only reads an element's own direct text-node
+ * children (see `getNodeText`), so it can't see text split by a nested element. This matcher
+ * checks the full rendered text instead, picking the innermost element that contains it.
+ */
+function textMatch(regex: RegExp) {
+  return (_content: string, element: Element | null) => {
+    if (!element) return false;
+    const hasText = (el: Element) => regex.test(el.textContent ?? '');
+    return hasText(element) && Array.from(element.children).every((child) => !hasText(child));
+  };
+}
+
 describe('talentDiff', () => {
   it('shows both difference groups and hides the shared nodes behind a count', () => {
     render(<TalentDiff nodes={NODES} myTalents={{ 101: 1, 103: 1 }} topPlayers={REFERENCES} />);
 
     expect(screen.getByText('Sabertooth')).toBeInTheDocument();
     expect(screen.getByText('Veinripper')).toBeInTheDocument();
-    expect(screen.getByText(/1 identical node/)).toBeInTheDocument();
+    expect(screen.getByText(textMatch(/1 identical node/))).toBeInTheDocument();
   });
 
   it('shows how many references took each of their talents', () => {
@@ -67,5 +82,32 @@ describe('talentDiff', () => {
     render(<TalentDiff nodes={NODES} myTalents={{ 102: 3, 103: 1 }} topPlayers={REFERENCES} />);
 
     expect(screen.getByText(/Identical build/)).toBeInTheDocument();
+  });
+
+  it('pluralises the hidden-nodes count when more than one node is identical', () => {
+    const nodes = [
+      node(1, [101], 'Sabertooth'),
+      node(2, [102], 'Veinripper'),
+      node(3, [103], 'Rip'),
+      node(4, [104], 'Ambush'),
+    ];
+    const references = [
+      player('Aidan', { 102: 3, 103: 1, 104: 2 }),
+      player('Brea', { 102: 3, 103: 1, 104: 2 }),
+    ];
+
+    render(
+      <TalentDiff nodes={nodes} myTalents={{ 101: 1, 103: 1, 104: 2 }} topPlayers={references} />
+    );
+
+    expect(screen.getByText(textMatch(/2 identical nodes/))).toBeInTheDocument();
+  });
+
+  it('shows only the non-empty group when one side of the diff has no entries', () => {
+    render(<TalentDiff nodes={NODES} myTalents={{ 102: 3 }} topPlayers={REFERENCES} />);
+
+    expect(screen.queryByText(/You only/)).not.toBeInTheDocument();
+    expect(screen.getByText(/References only/)).toBeInTheDocument();
+    expect(screen.getByText('Rip')).toBeInTheDocument();
   });
 });
