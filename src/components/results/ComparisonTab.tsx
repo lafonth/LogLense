@@ -3,9 +3,9 @@ import type { Encounter, TalentNode } from '@/types';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { DpsBanner } from './DpsBanner';
-import { RotationTable } from './RotationTable';
+import { RotationCards } from './RotationCards';
 import { StatsTable } from './StatsTable';
-import { TalentTree } from './TalentTree';
+import { TalentDiff } from './TalentDiff';
 
 interface ComparisonTabProps {
   encounter: Encounter;
@@ -39,21 +39,6 @@ export function ComparisonTab({ encounter, bossState, specName, talentNodes }: C
           Try switching to Heroic or Normal — Mythic requires a kill logged while playing {specName}{' '}
           spec.
         </div>
-      </div>
-    );
-  }
-
-  if (result.topPlayers.length === 0) {
-    return (
-      <div
-        style={{
-          padding: '24px 0',
-          color: 'var(--text-dim)',
-          fontFamily: 'var(--font-mono)',
-          fontSize: '0.85rem',
-        }}
-      >
-        No similar kill-time players found for comparison.
       </div>
     );
   }
@@ -96,7 +81,7 @@ export function ComparisonTab({ encounter, bossState, specName, talentNodes }: C
         >
           Rotation
         </h3>
-        <RotationTable character={result.character.rotation} topPlayers={result.topPlayers} />
+        <RotationCards character={result.character.rotation} topPlayers={result.topPlayers} />
       </div>
       <div style={{ marginTop: '20px' }}>
         <h3
@@ -111,7 +96,7 @@ export function ComparisonTab({ encounter, bossState, specName, talentNodes }: C
         >
           Talents
         </h3>
-        <TalentTree
+        <TalentDiff
           nodes={talentNodes}
           myTalents={result.character.stats.talents}
           topPlayers={result.topPlayers}
