@@ -4,6 +4,7 @@ import type { StoredCharacter, WowCharacter } from '@/types';
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { SidebarItem, SidebarSwitcher } from '@/components/shared/SidebarSwitcher';
+import { Sheet } from '@/components/ui/Sheet';
 import { usePreferences } from '@/hooks/usePreferences';
 
 interface UserCharacterSwitcherProps {
@@ -49,44 +50,41 @@ export function UserCharacterSwitcher({
   });
 
   return (
-    <SidebarSwitcher>
-      {sorted.map((char) => {
-        const isActive =
-          char.name.toLowerCase() === currentCharacterName.toLowerCase() &&
-          char.realmSlug.toLowerCase() === currentRealmSlug.toLowerCase();
-        const stored = toStored(char, region);
-        const isFav = isFavourite(stored);
-        return (
-          <SidebarItem
-            key={char.id}
-            name={`${char.name}-${char.realmName}`}
-            subtitle={char.class}
-            isActive={isActive}
-            isLoading={isActive && loading}
-            onClick={() => onSelect(char.name, char.realmSlug)}
-            action={
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleFavourite(stored);
-                }}
-                title={isFav ? 'Remove from favourites' : 'Add to favourites'}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.75rem',
-                  color: isFav ? 'var(--gold)' : 'var(--border)',
-                  lineHeight: 1,
-                  padding: '2px',
-                }}
-              >
-                ★
-              </button>
-            }
-          />
-        );
-      })}
-    </SidebarSwitcher>
+    <Sheet triggerLabel={currentCharacterName} title="Characters">
+      <SidebarSwitcher>
+        {sorted.map((char) => {
+          const isActive =
+            char.name.toLowerCase() === currentCharacterName.toLowerCase() &&
+            char.realmSlug.toLowerCase() === currentRealmSlug.toLowerCase();
+          const stored = toStored(char, region);
+          const isFav = isFavourite(stored);
+          return (
+            <SidebarItem
+              key={char.id}
+              name={`${char.name}-${char.realmName}`}
+              subtitle={char.class}
+              isActive={isActive}
+              isLoading={isActive && loading}
+              onClick={() => onSelect(char.name, char.realmSlug)}
+              action={
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFavourite(stored);
+                  }}
+                  title={isFav ? 'Remove from favourites' : 'Add to favourites'}
+                  className={`focus-visible:outline-brass-bright cursor-pointer border-none bg-transparent p-1 font-sans text-xs leading-none focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                    isFav ? 'text-brass' : 'text-border'
+                  }`}
+                >
+                  ★
+                </button>
+              }
+            />
+          );
+        })}
+      </SidebarSwitcher>
+    </Sheet>
   );
 }

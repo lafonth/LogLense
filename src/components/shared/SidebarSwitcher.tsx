@@ -4,26 +4,8 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export function SidebarSwitcher({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        width: '180px',
-        flexShrink: 0,
-        borderRight: '1px solid var(--border)',
-        padding: '20px 12px 20px 0',
-        overflowY: 'auto',
-      }}
-    >
-      <div
-        style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: '0.65rem',
-          color: 'var(--gold-dim)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
-          marginBottom: '10px',
-          paddingLeft: '10px',
-        }}
-      >
+    <div className="border-border w-45 shrink-0 overflow-y-auto border-r py-5 pr-3">
+      <div className="text-2xs text-muted mb-2 pl-2 font-mono tracking-[0.1em] uppercase">
         Characters
       </div>
       {children}
@@ -49,51 +31,26 @@ export function SidebarItem({
   action,
 }: SidebarItemProps) {
   return (
-    <div style={{ position: 'relative', marginBottom: '3px' }}>
+    <div className="relative mb-1">
       <button
+        type="button"
         onClick={() => !isLoading && onClick()}
         disabled={isLoading}
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          width: '100%',
-          padding: action ? '7px 28px 7px 10px' : '7px 10px',
-          background: isActive ? 'rgba(198,168,74,0.08)' : 'transparent',
-          border: isActive ? '1px solid var(--gold-dim)' : '1px solid transparent',
-          borderRadius: '4px',
-          cursor: isLoading ? 'default' : 'pointer',
-          textAlign: 'left',
-          gap: '6px',
-        }}
+        className={`flex w-full items-center justify-between gap-1.5 rounded-sm border py-2 pl-2 text-left ${
+          action ? 'pr-8' : 'pr-2'
+        } ${
+          isActive ? 'border-brass/40 bg-brass/10' : 'border-transparent'
+        } cursor-pointer disabled:cursor-default`}
       >
-        <div style={{ minWidth: 0 }}>
-          <div
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.78rem',
-              color: isActive ? 'var(--gold)' : 'var(--text-dim)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
+        <div className="min-w-0">
+          <div className={`truncate font-mono text-xs ${isActive ? 'text-brass' : 'text-muted'}`}>
             {name}
           </div>
-          <div
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.65rem',
-              color: 'var(--text-dim)',
-              opacity: 0.6,
-            }}
-          >
-            {subtitle}
-          </div>
+          <div className="text-2xs text-dim font-mono opacity-60">{subtitle}</div>
         </div>
         {isLoading && <LoadingSpinner />}
       </button>
-      {action && <div style={{ position: 'absolute', top: '6px', right: '6px' }}>{action}</div>}
+      {action && <div className="absolute top-1.5 right-1.5">{action}</div>}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import type { StepStatus } from '@/components/ui/ProgressSteps';
 import type { BossState } from '@/hooks/useAnalysis';
 import type { AnalysisInput } from '@/types';
+import { Button } from '@/components/ui/Button';
 import { ProgressSteps } from '@/components/ui/ProgressSteps';
 
 const DIFFICULTIES = [
@@ -27,37 +28,12 @@ export function DashboardHeader({
   onReset,
 }: DashboardHeaderProps) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'baseline',
-        justifyContent: 'space-between',
-        marginBottom: '24px',
-        paddingRight: '170px',
-      }}
-    >
-      <div>
-        <h1
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: '1.8rem',
-            color: 'var(--gold)',
-            margin: 0,
-          }}
-        >
-          {title}
-        </h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.78rem',
-              color: 'var(--text-dim)',
-            }}
-          >
-            {subtitle}
-          </span>
-          <span style={{ color: 'var(--border)' }}>·</span>
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+      <div className="min-w-0">
+        <h1 className="font-display text-brass m-0 text-2xl">{title}</h1>
+        <div className="mt-1 flex flex-wrap items-center gap-1">
+          <span className="text-muted font-mono text-xs">{subtitle}</span>
+          <span className="text-border">·</span>
           {DIFFICULTIES.map(({ id, label }) => {
             const available = availableDifficulties ? availableDifficulties.has(id) : true;
             const active = difficulty === id;
@@ -66,58 +42,35 @@ export function DashboardHeader({
                 <span
                   key={id}
                   title="No kills at this difficulty"
-                  style={{
-                    padding: '2px 10px',
-                    borderRadius: '999px',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text-dim)',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.72rem',
-                    letterSpacing: '0.04em',
-                    opacity: 0.3,
-                  }}
+                  className="border-border text-muted text-2xs rounded-full border px-2 py-1 font-mono tracking-[0.04em] opacity-30"
                 >
                   {label}
                 </span>
               );
             }
             return (
-              <button
+              <Button
                 key={id}
+                variant="secondary"
+                size="sm"
                 onClick={() => !active && onDifficultyChange(id)}
-                style={{
-                  padding: '2px 10px',
-                  borderRadius: '999px',
-                  border: `1px solid ${active ? 'var(--gold)' : 'var(--border)'}`,
-                  background: active ? 'rgba(198,168,74,0.12)' : 'transparent',
-                  color: active ? 'var(--gold)' : 'var(--text-dim)',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.72rem',
-                  letterSpacing: '0.04em',
-                  cursor: active ? 'default' : 'pointer',
-                }}
+                className={`text-2xs rounded-full px-2 py-1 font-mono tracking-[0.04em] ${
+                  active ? 'border-brass/40 bg-brass/10 text-brass' : 'text-muted'
+                }`}
               >
                 {label}
-              </button>
+              </Button>
             );
           })}
         </div>
       </div>
-      <button
-        onClick={onReset}
-        style={{
-          background: 'transparent',
-          border: '1px solid var(--border)',
-          borderRadius: '4px',
-          color: 'var(--text-dim)',
-          fontFamily: 'var(--font-mono)',
-          fontSize: '0.8rem',
-          padding: '6px 14px',
-          cursor: 'pointer',
-        }}
-      >
-        ← New search
-      </button>
+      <div className="flex shrink-0 items-center gap-3">
+        <Button variant="secondary" size="sm" onClick={onReset} className="font-mono text-xs">
+          ← New search
+        </Button>
+        {/* Reserves room for the fixed-position AuthHeader widget in the top-right corner. */}
+        <div aria-hidden="true" className="hidden w-44 sm:block" />
+      </div>
     </div>
   );
 }
@@ -132,25 +85,8 @@ export function LoadingProgress({ encounters, bossStates }: LoadingProgressProps
   if (!isLoading) return null;
 
   return (
-    <div
-      style={{
-        marginBottom: '20px',
-        padding: '14px 16px',
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: '4px',
-      }}
-    >
-      <div
-        style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: '0.72rem',
-          color: 'var(--gold-dim)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          marginBottom: '10px',
-        }}
-      >
+    <div className="border-border bg-surface mb-6 rounded-sm border p-4">
+      <div className="text-2xs text-muted mb-2 font-mono tracking-[0.08em] uppercase">
         Fetching bosses…
       </div>
       <ProgressSteps

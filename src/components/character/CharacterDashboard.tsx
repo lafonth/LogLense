@@ -40,7 +40,7 @@ export function CharacterDashboard({
   const analysisResult = buildAnalysisResult(input, bossStates);
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div className="flex min-h-screen flex-col md:flex-row">
       {onSwitchCharacter && (
         <UserCharacterSwitcher
           region={input.region}
@@ -50,7 +50,7 @@ export function CharacterDashboard({
           onSelect={onSwitchCharacter}
         />
       )}
-      <div style={{ flex: 1, minWidth: 0, padding: '24px 32px' }}>
+      <div className="min-w-0 flex-1 p-4 md:px-8 md:py-6">
         <DashboardHeader
           title={input.characterName}
           subtitle={`${input.serverSlug} · ${input.region}`}

@@ -2,6 +2,7 @@
 
 import type { ReportActor } from '@/types';
 import { SidebarItem, SidebarSwitcher } from '@/components/shared/SidebarSwitcher';
+import { Sheet } from '@/components/ui/Sheet';
 
 interface CharacterSwitcherProps {
   actors: ReportActor[];
@@ -17,18 +18,21 @@ export function CharacterSwitcher({
   onSelect,
 }: CharacterSwitcherProps) {
   const sorted = actors.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const selectedActor = actors.find((actor) => actor.id === selectedActorId);
   return (
-    <SidebarSwitcher>
-      {sorted.map((actor) => (
-        <SidebarItem
-          key={actor.id}
-          name={actor.name + (actor.server ? `-${actor.server}` : '')}
-          subtitle={actor.subType}
-          isActive={actor.id === selectedActorId}
-          isLoading={actor.id === selectedActorId && loading}
-          onClick={() => onSelect(actor)}
-        />
-      ))}
-    </SidebarSwitcher>
+    <Sheet triggerLabel={selectedActor?.name ?? 'Characters'} title="Characters">
+      <SidebarSwitcher>
+        {sorted.map((actor) => (
+          <SidebarItem
+            key={actor.id}
+            name={actor.name + (actor.server ? `-${actor.server}` : '')}
+            subtitle={actor.subType}
+            isActive={actor.id === selectedActorId}
+            isLoading={actor.id === selectedActorId && loading}
+            onClick={() => onSelect(actor)}
+          />
+        ))}
+      </SidebarSwitcher>
+    </Sheet>
   );
 }

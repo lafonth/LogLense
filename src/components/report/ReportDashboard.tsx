@@ -81,7 +81,7 @@ export function ReportDashboard({
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div className="flex min-h-screen flex-col md:flex-row">
       <CharacterSwitcher
         actors={actors}
         selectedActorId={selectedActorId}
@@ -89,7 +89,7 @@ export function ReportDashboard({
         onSelect={onSwitchActor}
       />
 
-      <div style={{ flex: 1, minWidth: 0, padding: '24px 32px' }}>
+      <div className="min-w-0 flex-1 p-4 md:px-8 md:py-6">
         <DashboardHeader
           title={actorName}
           subtitle={meta.title}
