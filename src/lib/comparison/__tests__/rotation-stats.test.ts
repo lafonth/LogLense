@@ -89,6 +89,38 @@ describe('compareCasts', () => {
     expect(rows[0].deviationPct).toBeNull();
     expect(rows[0].referenceTotal).toBe(0);
   });
+
+  it('computes the median as an average of the two middle values for an even reference count', () => {
+    const evenReferences = [
+      reference('P1', { Rake: 3 }),
+      reference('P2', { Rake: 5 }),
+      reference('P3', { Rake: 7 }),
+      reference('P4', { Rake: 9 }),
+    ];
+    const mine: RotationSummary = { ...MINE, casts: { Rake: { casts: 12, perMin: 3 } } };
+
+    const rows = compareCasts(mine, evenReferences);
+    const row = rows.find((r) => r.name === 'Rake')!;
+
+    // sorted [3, 5, 7, 9] -> average of the two middle values (5, 7) = 6, not either middle value
+    expect(row.referenceMedian).toBe(6);
+    // (3 - 6) / 6 = -50 %
+    expect(row.deviationPct).toBe(-50);
+  });
+
+  it('handles a larger reference set correctly', () => {
+    const manyReferences = [2, 4, 6, 8, 10, 12].map((v, i) => reference(`P${i}`, { Wrath: v }));
+    const mine: RotationSummary = { ...MINE, casts: { Wrath: { casts: 20, perMin: 5 } } };
+
+    const rows = compareCasts(mine, manyReferences);
+    const row = rows.find((r) => r.name === 'Wrath')!;
+
+    expect(row.referenceMin).toBe(2);
+    expect(row.referenceMax).toBe(12);
+    expect(row.referenceTotal).toBe(6);
+    // sorted [2, 4, 6, 8, 10, 12] -> average of the two middle values (6, 8) = 7
+    expect(row.referenceMedian).toBe(7);
+  });
 });
 
 describe('compareUptimes', () => {
@@ -100,5 +132,22 @@ describe('compareUptimes', () => {
     expect(row.referenceMin).toBe(51);
     expect(row.referenceMax).toBe(55);
     expect(row.deviationPct).toBe(-20.8); // (42 - 53) / 53
+  });
+
+  it('computes the median as an average of the two middle values for an even reference count', () => {
+    const evenReferences = [
+      reference('P1', {}, { Regrowth: 20 }),
+      reference('P2', {}, { Regrowth: 30 }),
+      reference('P3', {}, { Regrowth: 40 }),
+      reference('P4', {}, { Regrowth: 50 }),
+    ];
+    const mine: RotationSummary = { ...MINE, buffs: { Regrowth: 20 } };
+
+    const [row] = compareUptimes(mine, evenReferences);
+
+    // sorted [20, 30, 40, 50] -> average of the two middle values (30, 40) = 35, not either middle value
+    expect(row.referenceMedian).toBe(35);
+    // (20 - 35) / 35 = -42.857...% rounded to one decimal
+    expect(row.deviationPct).toBe(-42.9);
   });
 });
