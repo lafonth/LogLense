@@ -15,13 +15,26 @@ export interface TalentDiffResult {
   referenceTotal: number;
 }
 
-/** Blizzard returns spec-variant copies at the same grid position — keep one, prefer a named node. */
+/**
+ * Blizzard returns spec-variant copies at the same grid position — merge them into one node
+ * so no talentIds are lost. Identity (id/name/names) is taken from a named node when one exists.
+ */
 function dedupeByPosition(nodes: TalentNode[]): TalentNode[] {
   const seen = new Map<string, TalentNode>();
   for (const node of nodes) {
     const key = `${node.treeType}:${node.row}:${node.col}`;
     const existing = seen.get(key);
-    if (!existing || (node.name && !existing.name)) seen.set(key, node);
+    if (!existing) {
+      seen.set(key, { ...node, talentIds: [...node.talentIds] });
+      continue;
+    }
+
+    const talentIds = [...new Set([...existing.talentIds, ...node.talentIds])];
+    const preferNode = node.name && !existing.name;
+    seen.set(key, {
+      ...(preferNode ? node : existing),
+      talentIds,
+    });
   }
   return [...seen.values()];
 }

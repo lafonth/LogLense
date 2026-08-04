@@ -91,3 +91,110 @@ describe('diffTalents', () => {
     expect(solo.referenceTotal).toBe(0);
   });
 });
+
+describe('diffTalents position-duplicate merging', () => {
+  it('merges two named nodes at the same position, honoring both talentIds', () => {
+    // Both copies sit at spec:0:0 — a reference who only took the second copy's id (202)
+    // must still be counted, which fails if the second copy's talentIds are dropped.
+    const first: TalentNode = {
+      id: 10,
+      talentIds: [201],
+      name: 'Frenzy',
+      names: ['Frenzy'],
+      spellId: 10,
+      row: 0,
+      col: 0,
+      maxRanks: 1,
+      nodeType: 'single',
+      treeType: 'spec',
+      children: [],
+    };
+    const second: TalentNode = {
+      id: 11,
+      talentIds: [202],
+      name: 'Frenzy',
+      names: ['Frenzy'],
+      spellId: 11,
+      row: 0,
+      col: 0,
+      maxRanks: 1,
+      nodeType: 'single',
+      treeType: 'spec',
+      children: [],
+    };
+    const references = [player('Dree', { 202: 1 })];
+
+    const result = diffTalents([first, second], {}, references);
+
+    expect(result.theirsOnly.map((e) => [e.label, e.referenceCount])).toEqual([['Frenzy', 1]]);
+  });
+
+  it('merges a named and an unnamed node, preferring the named label but keeping both ids', () => {
+    const named: TalentNode = {
+      id: 20,
+      talentIds: [301],
+      name: 'Bloodfury',
+      names: ['Bloodfury'],
+      spellId: 20,
+      row: 1,
+      col: 0,
+      maxRanks: 1,
+      nodeType: 'single',
+      treeType: 'spec',
+      children: [],
+    };
+    const unnamed: TalentNode = {
+      id: 21,
+      talentIds: [302],
+      name: '',
+      names: [],
+      spellId: 21,
+      row: 1,
+      col: 0,
+      maxRanks: 1,
+      nodeType: 'single',
+      treeType: 'spec',
+      children: [],
+    };
+    const references = [player('Elu', { 302: 1 })];
+
+    // Unnamed node listed first so a naive "first wins" implementation would lose the label.
+    const result = diffTalents([unnamed, named], {}, references);
+
+    expect(result.theirsOnly.map((e) => [e.label, e.referenceCount])).toEqual([['Bloodfury', 1]]);
+  });
+
+  it('does not collapse nodes at the same row/col but different treeType', () => {
+    const classNode: TalentNode = {
+      id: 30,
+      talentIds: [401],
+      name: 'Charge',
+      names: ['Charge'],
+      spellId: 30,
+      row: 0,
+      col: 0,
+      maxRanks: 1,
+      nodeType: 'single',
+      treeType: 'class',
+      children: [],
+    };
+    const specNode: TalentNode = {
+      id: 31,
+      talentIds: [402],
+      name: 'Bladestorm',
+      names: ['Bladestorm'],
+      spellId: 31,
+      row: 0,
+      col: 0,
+      maxRanks: 1,
+      nodeType: 'single',
+      treeType: 'spec',
+      children: [],
+    };
+    const references = [player('Fen', { 401: 1, 402: 1 })];
+
+    const result = diffTalents([classNode, specNode], {}, references);
+
+    expect(result.theirsOnly.map((e) => e.label).sort()).toEqual(['Bladestorm', 'Charge']);
+  });
+});
