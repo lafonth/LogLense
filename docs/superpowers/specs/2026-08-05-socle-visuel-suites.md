@@ -34,9 +34,10 @@ Ajouter ces réinitialisations supprimerait une classe entière de dérive à la
 
 - **`ScrollArea` est horizontal uniquement** (`w-full max-w-full overflow-x-auto`). Quatre
   défilements verticaux restent écrits à la main. Une prop d'axe réglerait le problème.
-- **`SidebarSwitcher` dans un `Sheet` mobile** reste une colonne de 180px dans un panneau
-  pleine largeur, avec une bordure droite orpheline et un titre affiché deux fois.
-  `BossSidebar` a le bon traitement (`w-full md:w-[200px]`) ; l'autre consommateur non.
+- ~~**`SidebarSwitcher` dans un `Sheet` mobile** reste une colonne de 180px dans un panneau
+  pleine largeur, avec un titre affiché deux fois.~~ **Confirmé par la passe visuelle
+  authentifiée, puis corrigé** — `w-full md:w-45 md:border-r`, caption interne en
+  `hidden md:block`.
 - **`StatTile` n'a aucun consommateur.** Une des huit primitives imposées n'a jamais servi.
   `text-positive` et `text-warning` sont également inutilisés.
 - **`Tabs` n'implémente que l'activation au clic** — pas de `tabindex` glissant ni de
@@ -53,21 +54,39 @@ La suite compte 215 tests sous jsdom, qui n'implémente **ni les media queries, 
 le focus réel**. Une passe Playwright a couvert la page marketing à 360, 768 et 1280 :
 aucun débordement horizontal, aucun texte tronqué, anneaux de focus visibles.
 
-**Rien derrière l'authentification Battle.net n'a jamais été rendu dans un navigateur** — le
-sélecteur de mode, les deux formulaires de personnage, le formulaire de rapport, le tableau de
-résultats, ses trois onglets, et les deux colonnes latérales en panneaux glissants. C'est la
-majeure partie de la refonte.
+**Cet angle mort a été comblé.** Un stub de session réservé au développement
+(`src/lib/dev-session.ts`, activé par `ENABLE_DEV_SESSION=1` avec `NODE_ENV=development`)
+permet à Playwright d'atteindre l'arbre authentifié. Il a passé une revue de sécurité : le
+fournisseur n'est pas enregistré auprès de next-auth quand la garde est fermée, donc son
+endpoint de rappel est rejeté comme fournisseur inconnu. La garde est une liste blanche —
+une valeur inattendue de `NODE_ENV` échoue fermé.
 
-**Ce qui débloquerait ce point** : un stub de session en développement, ou un fournisseur
-`next-auth` simulé, pour que Playwright atteigne l'arbre authentifié aux trois largeurs. Le
-sous-projet 2 en aura besoin de toute façon.
+### Ce que la passe visuelle authentifiée a établi
 
-Deux conséquences directes de cet angle mort :
-- La raison d'être de `Sheet` — le basculement au point de rupture — n'est vérifiée par aucun
-  test. Ceux qui existent s'exécutent tous contre la branche mobile, que jsdom rend
-  inconditionnellement.
+Aux trois largeurs, sur le sélecteur de mode, les deux formulaires, le tableau de résultats et
+ses trois onglets : **aucun débordement horizontal**, aucun texte tronqué, anneaux de focus
+visibles partout — y compris sur les cartes du sélecteur de mode, ancien point mort clavier.
+
+**Le basculement de `Sheet` fonctionne** pour la sidebar des boss : bouton déclencheur pleine
+largeur sous `md`, colonne au-dessus. C'était la mécanique la moins vérifiable du projet.
+
+Elle a aussi trouvé deux défauts, tous deux corrigés depuis :
+- le tableau de résultats défilait d'un seul bloc — 4374px de hauteur pour une fenêtre de 900 —
+  parce que la liste des personnages n'avait aucun ancêtre à hauteur bornée : son
+  `overflow-y-auto` étirait la page au lieu de défiler. Faire défiler pour trouver un
+  personnage emportait l'analyse hors de l'écran ;
+- le sélecteur de personnage en panneau mobile, décrit plus haut.
+
+### Ce qui reste hors de portée des tests
+
 - `AIReportTab`, le plus gros composant du projet, n'a **aucun test de composant** et a subi
   trois changements de comportement pendant la migration.
+- Aucun test ne voit une couleur : les divergences de la section 1 resteront invisibles à la
+  suite par construction. La réponse durable n'est pas plus de tests mais moins de degrés de
+  liberté — les réinitialisations d'espaces de noms, un token d'interlettrage, un état
+  `selected` sur `Button`.
+- La passe visuelle est manuelle. Rien ne la rejoue automatiquement : une régression de mise
+  en page ne sera vue qu'à la prochaine passe.
 
 ## 4. Points mineurs assumés
 
