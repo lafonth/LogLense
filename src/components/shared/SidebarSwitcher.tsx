@@ -4,6 +4,9 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export function SidebarSwitcher({ children }: { children: React.ReactNode }) {
   return (
+    // Not `ScrollArea`: that primitive is horizontal-overflow only
+    // (`w-full max-w-full overflow-x-auto`), for wide content like tables.
+    // This list overflows vertically, so it keeps its own `overflow-y-auto`.
     <div className="border-border w-45 shrink-0 overflow-y-auto border-r py-5 pr-3">
       <div className="text-2xs text-muted mb-2 pl-2 font-mono tracking-[0.1em] uppercase">
         Characters

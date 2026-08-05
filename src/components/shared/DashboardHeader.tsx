@@ -31,7 +31,7 @@ export function DashboardHeader({
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <div className="min-w-0">
         <h1 className="font-display text-brass m-0 text-2xl">{title}</h1>
-        <div className="mt-1 flex flex-wrap items-center gap-1">
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
           <span className="text-muted font-mono text-xs">{subtitle}</span>
           <span className="text-border">·</span>
           {DIFFICULTIES.map(({ id, label }) => {
@@ -52,9 +52,9 @@ export function DashboardHeader({
               <Button
                 key={id}
                 variant="secondary"
-                size="sm"
+                size="xs"
                 onClick={() => !active && onDifficultyChange(id)}
-                className={`text-2xs rounded-full px-2 py-1 font-mono tracking-[0.04em] ${
+                className={`rounded-full font-mono tracking-[0.04em] ${
                   active ? 'border-brass/40 bg-brass/10 text-brass' : 'text-muted'
                 }`}
               >

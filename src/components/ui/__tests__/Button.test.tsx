@@ -46,6 +46,21 @@ describe('button', () => {
     const button = screen.getByRole('button', { name: 'Submit' });
     expect(button).toHaveAttribute('type', 'submit');
   });
+
+  it('renders the xs size with its own padding and text-size classes', () => {
+    render(
+      <Button size="xs" variant="secondary">
+        Mythic
+      </Button>
+    );
+
+    const button = screen.getByRole('button', { name: 'Mythic' });
+    expect(button.className).toContain('px-2');
+    expect(button.className).toContain('py-1');
+    expect(button.className).toContain('text-2xs');
+    expect(button.className).not.toContain('px-3');
+    expect(button.className).not.toContain('py-1.5');
+  });
 });
 
 describe('card', () => {
