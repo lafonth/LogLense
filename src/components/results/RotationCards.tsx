@@ -15,7 +15,7 @@ function formatDeviation(pct: number): string {
 }
 
 function AbilityCard({ row, unit }: { row: AbilityComparison; unit: string }) {
-  const hasRange = row.referenceMin !== null && row.referenceMax !== null;
+  const hasRange = row.referenceMedian !== null;
   const scale = Math.max(row.referenceMax ?? 0, row.mine) * 1.1 || 1;
   const bandLeft = hasRange ? (row.referenceMin! / scale) * 100 : 0;
   const bandWidth = hasRange ? ((row.referenceMax! - row.referenceMin!) / scale) * 100 : 0;
@@ -33,7 +33,11 @@ function AbilityCard({ row, unit }: { row: AbilityComparison; unit: string }) {
       </div>
 
       {hasRange && (
-        <div className="bg-border relative mt-2 h-1 rounded-full" data-testid="rotation-bar">
+        <div
+          className="bg-border relative mt-2 h-1 rounded-full"
+          data-testid="rotation-bar"
+          aria-hidden="true"
+        >
           <div
             className="bg-border-strong absolute h-1 rounded-full"
             style={{ left: `${bandLeft}%`, width: `${bandWidth}%` }}

@@ -60,11 +60,9 @@ export function ComparisonTab({ encounter, bossState, specName, talentNodes }: C
         <StatsTable character={result.character.stats} topPlayers={result.topPlayers} />
       </div>
       <div className="mt-6">
-        <h3 className="text-muted mb-2 font-mono text-xs tracking-[0.08em] uppercase">Rotation</h3>
         <RotationCards character={result.character.rotation} topPlayers={result.topPlayers} />
       </div>
       <div className="mt-6">
-        <h3 className="text-muted mb-2 font-mono text-xs tracking-[0.08em] uppercase">Talents</h3>
         <TalentDiff
           nodes={talentNodes}
           myTalents={result.character.stats.talents}

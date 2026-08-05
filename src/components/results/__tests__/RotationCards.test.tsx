@@ -85,6 +85,11 @@ describe('rotationCards', () => {
     expect(ripCard).not.toBeNull();
     expect(screen.getByText('0.90')).toBeInTheDocument();
     expect(ripCard).not.toHaveTextContent('%');
+    // No reference cast Rip at all — there must be no range band or "references x – y" text,
+    // not just no deviation percentage (the cast unit is "/min", so a stray "0.00 – 0.00"
+    // range wouldn't have contained a '%' either and would have slipped past that assertion).
+    expect(ripCard).not.toHaveTextContent('references');
+    expect(ripCard?.querySelector('[data-testid="rotation-bar"]')).toBeNull();
   });
 
   it('renders a second card for buffs with non-zero uptime', () => {

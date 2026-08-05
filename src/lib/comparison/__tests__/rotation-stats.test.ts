@@ -81,6 +81,33 @@ describe('compareCasts', () => {
     expect(soloAbility.find((r) => r.name === 'Swipe')?.deviationPct).toBeNull();
   });
 
+  it('returns a null median (not zero) when no reference used the ability at all', () => {
+    // All references cast it zero times: the median is 0, which means "nothing to compare
+    // against", not "everyone matched a true value of zero" — must be null, not 0.
+    const noOneUsedIt = compareCasts({ ...MINE, casts: { Maim: { casts: 2, perMin: 0.5 } } }, [
+      reference('Aidan', {}),
+      reference('Brea', {}),
+    ]);
+
+    const row = noOneUsedIt.find((r) => r.name === 'Maim')!;
+    expect(row.referenceMedian).toBeNull();
+    expect(row.deviationPct).toBeNull();
+  });
+
+  it('rounds the deviation percentage symmetrically at an exact half-decimal', () => {
+    // (1378.5 - 1000) / 1000 * 100 = 37.85 exactly — Math.round would push +37.85 up to
+    // 37.9 but -37.85 down to -37.8, an asymmetric rounding of equidistant values.
+    const positive = compareCasts({ ...MINE, casts: { Test: { casts: 1, perMin: 1378.5 } } }, [
+      reference('Solo', { Test: 1000 }),
+    ]);
+    const negative = compareCasts({ ...MINE, casts: { Test: { casts: 1, perMin: 621.5 } } }, [
+      reference('Solo', { Test: 1000 }),
+    ]);
+
+    expect(positive.find((r) => r.name === 'Test')?.deviationPct).toBe(37.9);
+    expect(negative.find((r) => r.name === 'Test')?.deviationPct).toBe(-37.9);
+  });
+
   it('returns the player values alone when there are no references', () => {
     const rows = compareCasts(MINE, []);
 

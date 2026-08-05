@@ -47,7 +47,7 @@ export function SpecSelector({ specId, lockedClass, onChange }: SpecSelectorProp
   }
 
   return (
-    <div className={`grid gap-x-4 ${lockedClass ? 'grid-cols-1' : 'grid-cols-2'}`}>
+    <div className={`grid gap-x-4 ${lockedClass ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
       {!lockedClass && (
         <Select
           label="Class"

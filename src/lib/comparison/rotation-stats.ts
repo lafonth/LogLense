@@ -17,7 +17,9 @@ function median(values: number[]): number {
 }
 
 function round1(value: number): number {
-  return Math.round(value * 10) / 10;
+  // Math.round rounds half-values toward +Infinity, so +37.85 and -37.85 would round
+  // asymmetrically. Round by magnitude and reapply the sign so both directions match.
+  return (Math.sign(value) * Math.round(Math.abs(value) * 10)) / 10;
 }
 
 /** Shared by casts and uptimes: both are "one value of mine against a set of theirs". */
@@ -47,14 +49,20 @@ function compare(
 
     const theirs = referencesByName.map((r) => r[name] ?? 0);
     const med = median(theirs);
+    // A zero median means no reference meaningfully used this ability — there is nothing to
+    // show a range or a deviation against, regardless of what referenceMin/Max compute to.
+    const referenceMedian = med === 0 ? null : med;
 
     return {
       name,
       mine,
       referenceMin: Math.min(...theirs),
       referenceMax: Math.max(...theirs),
-      referenceMedian: med,
-      deviationPct: med === 0 ? null : round1(((mine - med) / med) * 100),
+      referenceMedian,
+      deviationPct:
+        referenceMedian === null
+          ? null
+          : round1(((mine - referenceMedian) / referenceMedian) * 100),
       referenceTotal,
     };
   });

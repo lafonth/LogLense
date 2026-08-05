@@ -22,7 +22,7 @@ export function DamageBreakdown({ entries }: DamageBreakdownProps) {
               <span className="text-muted">{entry.name}</span>
               <span className="text-text">{pct.toFixed(1)}%</span>
             </div>
-            <div className="bg-border h-1 rounded-xs">
+            <div className="bg-border h-1 rounded-xs" aria-hidden="true">
               <div className="bg-brass h-full rounded-xs" style={{ width: `${pct}%` }} />
             </div>
           </div>
