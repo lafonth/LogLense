@@ -1,49 +1,125 @@
 import type { WorldRanking } from '../references';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { KILL_TIME_TOLERANCE, TOP_N } from '../constants';
-import { fetchReferencePlayers, selectReferencePool } from '../references';
+import { CANDIDATE_PAGES, TOP_N } from '../constants';
+import { fetchCandidatePool, fetchReferencePlayers, selectReferencePool } from '../references';
 
 function ranking(name: string, duration: number, amount = 250000): WorldRanking {
   return { name, amount, duration, report: { code: `code-${name}`, fightID: 1 } };
 }
 
+describe('fetchCandidatePool', () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  function page(n: number, entries: number) {
+    return {
+      worldData: {
+        encounter: {
+          characterRankings: {
+            rankings: Array.from({ length: entries }, (_, i) => ({
+              name: `p${n}-${i}`,
+              amount: 100,
+              duration: 300000,
+              bracketData: 290,
+              report: { code: `c${n}-${i}`, fightID: 1 },
+            })),
+          },
+        },
+      },
+    };
+  }
+
+  it('fetches every page and concatenates them', async () => {
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      return {
+        ok: true,
+        json: async () => ({ data: page(body.variables.page, 2) }),
+      } as Response;
+    });
+
+    const pool = await fetchCandidatePool('token', {
+      encounterId: 1,
+      difficulty: 5,
+      specName: 'Feral',
+      className: 'Druid',
+    });
+
+    expect(pool.pagesFetched).toBe(CANDIDATE_PAGES);
+    expect(pool.candidates).toHaveLength(CANDIDATE_PAGES * 2);
+  });
+
+  it('drops duplicates that appear on more than one page', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: page(0, 2) }),
+    } as Response);
+
+    const pool = await fetchCandidatePool('token', {
+      encounterId: 1,
+      difficulty: 5,
+      specName: 'Feral',
+      className: 'Druid',
+    });
+
+    // Every page returns the same two entries, so only two survive.
+    expect(pool.candidates).toHaveLength(2);
+  });
+
+  it('keeps the pages that succeeded when one fails', async () => {
+    let call = 0;
+    globalThis.fetch = vi.fn().mockImplementation(async () => {
+      call += 1;
+      const thisCall = call;
+      if (thisCall === 3) return { ok: false, status: 500 } as Response;
+      return { ok: true, json: async () => ({ data: page(thisCall, 1) }) } as Response;
+    });
+
+    const pool = await fetchCandidatePool('token', {
+      encounterId: 1,
+      difficulty: 5,
+      specName: 'Feral',
+      className: 'Druid',
+    });
+
+    expect(pool.pagesFetched).toBe(CANDIDATE_PAGES - 1);
+    expect(pool.candidates).toHaveLength(CANDIDATE_PAGES - 1);
+  });
+});
+
 describe('selectReferencePool', () => {
-  const fightMs = 300000; // 5:00 — window is 4:00 to 6:00 at a 0.2 tolerance
+  const MY_ILVL = 284;
+  const MY_MS = 300000;
 
-  it('keeps only rankings inside the kill time window', () => {
-    const pool = selectReferencePool(
-      [ranking('TooFast', 200000), ranking('JustRight', 290000), ranking('TooSlow', 400000)],
-      fightMs
-    );
+  function ranking(name: string, bracketData: number, duration: number): WorldRanking {
+    return { name, amount: 200000, duration, bracketData, report: { code: name, fightID: 1 } };
+  }
 
-    expect(pool.map((r) => r.name)).toEqual(['JustRight']);
+  it('prefers the closest candidate over the highest-dps one', () => {
+    const all = [
+      { ...ranking('strong', 296, 200000), amount: 400000 },
+      ranking('close', 285, 305000),
+    ];
+
+    expect(selectReferencePool(all, MY_MS, MY_ILVL).map((r) => r.name)).toEqual([
+      'close',
+      'strong',
+    ]);
   });
 
-  it('includes the exact window bounds', () => {
-    const lo = fightMs * (1 - KILL_TIME_TOLERANCE);
-    const hi = fightMs * (1 + KILL_TIME_TOLERANCE);
+  it('caps the result at TOP_N', () => {
+    const all = Array.from({ length: TOP_N + 5 }, (_, i) => ranking(`r${i}`, 284, 300000));
 
-    const pool = selectReferencePool([ranking('Lo', lo), ranking('Hi', hi)], fightMs);
-
-    expect(pool.map((r) => r.name)).toEqual(['Lo', 'Hi']);
-  });
-
-  it('caps the pool at TOP_N', () => {
-    const inWindow = Array.from({ length: TOP_N + 4 }, (_, i) => ranking(`R${i}`, fightMs));
-
-    expect(selectReferencePool(inWindow, fightMs)).toHaveLength(TOP_N);
-  });
-
-  it('falls back to the raw world top when nothing lands in the window', () => {
-    const all = [ranking('Fast1', 100000), ranking('Fast2', 110000), ranking('Slow', 900000)];
-
-    const pool = selectReferencePool(all, fightMs);
-
-    expect(pool.map((r) => r.name)).toEqual(['Fast1', 'Fast2', 'Slow'].slice(0, TOP_N));
+    expect(selectReferencePool(all, MY_MS, MY_ILVL)).toHaveLength(TOP_N);
   });
 
   it('returns nothing when there are no rankings at all', () => {
-    expect(selectReferencePool([], fightMs)).toEqual([]);
+    expect(selectReferencePool([], MY_MS, MY_ILVL)).toEqual([]);
+  });
+
+  it('still returns references when none is within tolerance', () => {
+    const all = [ranking('far', 320, 120000), ranking('further', 340, 100000)];
+
+    expect(selectReferencePool(all, MY_MS, MY_ILVL).map((r) => r.name)).toEqual(['far', 'further']);
   });
 });
 

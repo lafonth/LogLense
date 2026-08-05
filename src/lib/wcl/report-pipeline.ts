@@ -96,7 +96,7 @@ export async function analyzeReportBoss(
   const allWorld = worldData.worldData.encounter.characterRankings.rankings ?? [];
   const topPlayers = await fetchReferencePlayers(
     token,
-    selectReferencePool(allWorld, fightMs),
+    selectReferencePool(allWorld, fightMs, stats.avgIlvl),
     charEvent.specID
   );
 
