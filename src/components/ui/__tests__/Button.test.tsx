@@ -61,6 +61,18 @@ describe('button', () => {
     expect(button.className).not.toContain('px-3');
     expect(button.className).not.toContain('py-1.5');
   });
+
+  it('renders the lg size with its own padding and text-size classes', () => {
+    render(<Button size="lg">Analyse</Button>);
+
+    const button = screen.getByRole('button', { name: 'Analyse' });
+    expect(button.className).toContain('px-5');
+    expect(button.className).toContain('py-2.5');
+    expect(button.className).toContain('text-base');
+    expect(button.className).not.toContain('px-4');
+    expect(button.className).not.toContain('py-2 ');
+    expect(button.className).not.toContain('text-sm');
+  });
 });
 
 describe('card', () => {

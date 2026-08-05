@@ -318,7 +318,7 @@ export function LoggedInCharacterForm({
           <Button
             type="submit"
             variant="primary"
-            size="md"
+            size="lg"
             disabled={!canSubmit}
             className="w-full tracking-[0.06em] uppercase"
           >
