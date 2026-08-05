@@ -179,18 +179,30 @@ export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTab
       {/* Groq model selector */}
       {provider === 'groq' && (
         <div className="mb-4">
-          <Select
-            label="Model"
-            value={groqModel}
-            disabled={loading}
-            onChange={(e) => handleGroqModelChange(e.target.value as GroqModelId)}
-          >
+          <span className="text-2xs text-muted mb-1.5 block font-mono tracking-[0.08em] uppercase">
+            Model
+          </span>
+          <div className="flex flex-col gap-1.5">
             {GROQ_MODELS.map((m) => (
-              <option key={m.id} value={m.id}>
+              <label
+                key={m.id}
+                className={`flex items-center gap-2 font-mono text-sm ${
+                  groqModel === m.id ? 'text-text' : 'text-dim'
+                } ${loading ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                <input
+                  type="radio"
+                  name="groq-model"
+                  value={m.id}
+                  checked={groqModel === m.id}
+                  disabled={loading}
+                  onChange={() => handleGroqModelChange(m.id)}
+                  className="accent-brass"
+                />
                 {m.label}
-              </option>
+              </label>
             ))}
-          </Select>
+          </div>
         </div>
       )}
 

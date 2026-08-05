@@ -9,7 +9,7 @@ export function AuthHeader() {
   if (status === 'loading') return null;
 
   return (
-    <div className="flex w-full items-center justify-end gap-2.5 p-4 md:fixed md:top-4 md:right-5 md:z-[200] md:w-auto md:justify-normal md:p-0">
+    <div className="flex w-full items-center justify-end gap-2.5 p-4">
       {session ? (
         <>
           <span className="text-muted text-2xs font-mono tracking-[0.04em]">
