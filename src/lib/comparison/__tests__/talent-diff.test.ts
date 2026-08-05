@@ -61,15 +61,19 @@ describe('diffTalents', () => {
   });
 
   it('lists what only the references took, with how many took it', () => {
+    // Wild Slashes' node has two distinct ids (104, 105) each taken by one reference — the
+    // dominant (here, first-seen) id's count is reported, not the union across both ids.
     expect(result.theirsOnly.map((e) => [e.label, e.referenceCount])).toEqual([
       ['Veinripper', 2],
-      ['Wild Slashes', 2],
+      ['Wild Slashes', 1],
     ]);
   });
 
-  it('counts a node taken through any of its talent ids', () => {
-    // Wild Slashes is id 104 for Aidan and 105 for Cass — both count.
-    expect(result.theirsOnly.find((e) => e.label === 'Wild Slashes')?.referenceCount).toBe(2);
+  it('does not conflate different talent ids taken through the same node', () => {
+    // Wild Slashes' node has two ids: 104 (Aidan) and 105 (Cass). These are two different
+    // talents sharing a node, not one talent two references both took — only the
+    // most-taken specific id counts, not the union of takers across both ids.
+    expect(result.theirsOnly.find((e) => e.label === 'Wild Slashes')?.referenceCount).toBe(1);
   });
 
   it('collapses nodes both sides took into a count', () => {
@@ -89,6 +93,63 @@ describe('diffTalents', () => {
     expect(solo.theirsOnly).toEqual([]);
     expect(solo.sharedCount).toBe(0);
     expect(solo.referenceTotal).toBe(0);
+  });
+});
+
+describe('diffTalents choice-node divergence', () => {
+  function choiceNode(id: number, talentIds: number[], names: string[]): TalentNode {
+    return {
+      id,
+      talentIds,
+      name: '',
+      names,
+      spellId: id,
+      row: id,
+      col: 0,
+      maxRanks: 1,
+      nodeType: 'choice',
+      treeType: 'spec',
+      children: [],
+    };
+  }
+
+  it('does not report a choice node as shared when the player and references took different options', () => {
+    // A mutually-exclusive choice: id 501 ("Savage Fury") vs id 502 ("Predatory Swiftness").
+    // The player took 501; every reference took 502. This must not be counted as identical —
+    // it is the exact case the "any of its talentIds" bug misreported as a match.
+    const nodes = [choiceNode(1, [501, 502], ['Savage Fury', 'Predatory Swiftness'])];
+    const references = [
+      player('Aidan', { 502: 1 }),
+      player('Brea', { 502: 1 }),
+      player('Cass', { 502: 1 }),
+    ];
+
+    const result = diffTalents(nodes, { 501: 1 }, references);
+
+    expect(result.sharedCount).toBe(0);
+    expect(result.mineOnly).toEqual([
+      { nodeId: 1, label: 'Savage Fury', myRank: 1, referenceCount: 0, referenceTotal: 3 },
+    ]);
+    expect(result.theirsOnly).toEqual([
+      {
+        nodeId: 1,
+        label: 'Predatory Swiftness',
+        myRank: null,
+        referenceCount: 3,
+        referenceTotal: 3,
+      },
+    ]);
+  });
+
+  it('counts a choice node as shared only when the taken id actually matches', () => {
+    const nodes = [choiceNode(1, [501, 502], ['Savage Fury', 'Predatory Swiftness'])];
+    const references = [player('Aidan', { 501: 1 }), player('Brea', { 501: 1 })];
+
+    const result = diffTalents(nodes, { 501: 1 }, references);
+
+    expect(result.sharedCount).toBe(1);
+    expect(result.mineOnly).toEqual([]);
+    expect(result.theirsOnly).toEqual([]);
   });
 });
 

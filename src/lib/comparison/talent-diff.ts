@@ -39,17 +39,55 @@ function dedupeByPosition(nodes: TalentNode[]): TalentNode[] {
   return [...seen.values()];
 }
 
-function labelOf(node: TalentNode): string {
-  return node.names.filter(Boolean).join(' / ') || node.name || `#${node.id}`;
+/**
+ * Label for one *specific* talentId within a node, not the node as a whole — a choice node's
+ * two options are different talents and must be labelled differently when they diverge.
+ * `names` is expected to align by index with `talentIds` when populated; falls back to the
+ * node's own name, then the talent id itself.
+ */
+function labelForId(node: TalentNode, id: number): string {
+  const idx = node.talentIds.indexOf(id);
+  const specific = idx >= 0 ? node.names[idx] : undefined;
+  return specific || node.name || `#${id}`;
 }
 
-/** The rank a player has on this node, or null if they took none of its talent ids. */
-function rankIn(node: TalentNode, talents: Record<number, number>): number | null {
+/** The specific talentId a player took at this node, or null if they took none of them. */
+function idTakenIn(node: TalentNode, talents: Record<number, number>): number | null {
   for (const id of node.talentIds) {
-    const rank = talents[id];
-    if (rank !== undefined) return rank;
+    if (talents[id] !== undefined) return id;
   }
   return null;
+}
+
+/** How many references took each specific talentId at this node. */
+function countReferenceChoices(node: TalentNode, topPlayers: TopPlayer[]): Map<number, number> {
+  const counts = new Map<number, number>();
+  for (const player of topPlayers) {
+    const id = idTakenIn(node, player.stats.talents);
+    if (id !== null) counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/** The most-taken talentId in a non-empty counts map, ties broken by first-seen id. */
+function dominant(counts: Map<number, number>): [number, number] {
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+}
+
+function makeEntry(
+  node: TalentNode,
+  id: number,
+  myRank: number | null,
+  referenceCount: number,
+  referenceTotal: number
+): TalentDiffEntry {
+  return {
+    nodeId: node.id,
+    label: labelForId(node, id),
+    myRank,
+    referenceCount,
+    referenceTotal,
+  };
 }
 
 export function diffTalents(
@@ -63,22 +101,41 @@ export function diffTalents(
   let sharedCount = 0;
 
   for (const node of dedupeByPosition(nodes)) {
-    const myRank = rankIn(node, myTalents);
-    const referenceCount = topPlayers.filter((p) => rankIn(node, p.stats.talents) !== null).length;
+    const myId = idTakenIn(node, myTalents);
+    const refIdCounts = countReferenceChoices(node, topPlayers);
 
-    if (myRank === null && referenceCount === 0) continue;
+    if (myId === null && refIdCounts.size === 0) continue;
 
-    const entry: TalentDiffEntry = {
-      nodeId: node.id,
-      label: labelOf(node),
-      myRank,
-      referenceCount,
-      referenceTotal,
-    };
+    if (myId === null) {
+      // I took nothing here; report the option the references favoured.
+      const [dominantId, dominantCount] = dominant(refIdCounts);
+      theirsOnly.push(makeEntry(node, dominantId, null, dominantCount, referenceTotal));
+      continue;
+    }
 
-    if (myRank !== null && referenceCount === 0) mineOnly.push(entry);
-    else if (myRank === null) theirsOnly.push(entry);
-    else sharedCount += 1;
+    if (refIdCounts.size === 0) {
+      // No reference touched this node at all.
+      mineOnly.push(makeEntry(node, myId, myTalents[myId], 0, referenceTotal));
+      continue;
+    }
+
+    const matchCount = refIdCounts.get(myId) ?? 0;
+    const mismatch = new Map([...refIdCounts].filter(([id]) => id !== myId));
+    const mismatchTotal = [...mismatch.values()].reduce((sum, c) => sum + c, 0);
+
+    if (mismatchTotal === 0) {
+      // Every reference that touched this node took the exact same option I did.
+      sharedCount += 1;
+      continue;
+    }
+
+    // Choice divergence: I took one option, the references (or some of them) took another.
+    // This is a real difference, not a match — surface both sides.
+    mineOnly.push(makeEntry(node, myId, myTalents[myId], matchCount, referenceTotal));
+    const [dominantMismatchId, dominantMismatchCount] = dominant(mismatch);
+    theirsOnly.push(
+      makeEntry(node, dominantMismatchId, null, dominantMismatchCount, referenceTotal)
+    );
   }
 
   theirsOnly.sort((a, b) => b.referenceCount - a.referenceCount);
