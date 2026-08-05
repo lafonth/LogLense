@@ -89,7 +89,7 @@ export function ReportDashboard({
         onSelect={onSwitchActor}
       />
 
-      <div className="min-w-0 flex-1 p-4 md:px-8 md:py-6">
+      <div className="min-w-0 flex-1 p-4 md:h-full md:min-h-0 md:overflow-y-auto md:px-8 md:py-6">
         <DashboardHeader
           title={actorName}
           subtitle={meta.title}

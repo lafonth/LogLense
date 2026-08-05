@@ -7,8 +7,16 @@ export function SidebarSwitcher({ children }: { children: React.ReactNode }) {
     // Not `ScrollArea`: that primitive is horizontal-overflow only
     // (`w-full max-w-full overflow-x-auto`), for wide content like tables.
     // This list overflows vertically, so it keeps its own `overflow-y-auto`.
-    <div className="border-border w-45 shrink-0 overflow-y-auto border-r py-5 pr-3">
-      <div className="text-2xs text-muted mb-2 pl-2 font-mono tracking-[0.1em] uppercase">
+    //
+    // Below `md` this renders inside `Sheet`'s own mobile panel (which already
+    // scrolls and is unbounded-width), so it's full-width with no border and
+    // no height cage of its own. From `md` up it's the desktop rail: fixed
+    // width, right border, and bounded to the row's height so it scrolls
+    // independently instead of stretching the page.
+    <div className="border-border w-full shrink-0 py-5 pr-3 md:h-full md:min-h-0 md:w-45 md:overflow-y-auto md:border-r">
+      {/* "Characters" is already the Sheet dialog title on mobile; showing it
+          again here would duplicate it, so it only renders from `md` up. */}
+      <div className="text-2xs text-muted mb-2 hidden pl-2 font-mono tracking-[0.1em] uppercase md:block">
         Characters
       </div>
       {children}
