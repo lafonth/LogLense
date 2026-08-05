@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
+import { DEV_FIXTURE_CHARACTERS, DEV_STUB_ACCESS_TOKEN } from '@/lib/dev-session';
 
 export const runtime = 'nodejs';
 
@@ -30,6 +31,12 @@ export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.accessToken) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+
+  // Dev-only session stub has no real Blizzard access token — serve fixture
+  // characters instead of hitting the Blizzard API with a fake token.
+  if (session.accessToken === DEV_STUB_ACCESS_TOKEN) {
+    return NextResponse.json(DEV_FIXTURE_CHARACTERS);
   }
 
   const region = (new URL(req.url).searchParams.get('region') ?? 'EU').toUpperCase();

@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
+import { DEV_STUB_ACCESS_TOKEN } from '@/lib/dev-session';
 import { getSpecInfo } from '@/lib/specs';
 
 export const runtime = 'nodejs';
@@ -20,6 +21,12 @@ export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.accessToken) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+
+  // Dev-only session stub has no real Blizzard access token — skip the real
+  // lookup and let the client fall back to a default DPS spec for the class.
+  if (session.accessToken === DEV_STUB_ACCESS_TOKEN) {
+    return NextResponse.json({ specId: null });
   }
 
   const url = new URL(req.url);

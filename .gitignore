@@ -24,6 +24,7 @@ ai-prompt.txt
 
 # Next.js
 .next/
+.next-dev-stub/
 out/
 node_modules/
 next-env.d.ts

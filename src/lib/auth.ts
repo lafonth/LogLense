@@ -1,5 +1,11 @@
 import type { NextAuthOptions } from 'next-auth';
 import BattleNetProvider from 'next-auth/providers/battlenet';
+import {
+  DEV_SESSION_PROVIDER_ID,
+  DEV_STUB_ACCESS_TOKEN,
+  DEV_STUB_BATTLETAG,
+  getDevSessionProviders,
+} from '@/lib/dev-session';
 import { redisGet } from '@/lib/redis';
 
 const WHITELIST_KEY = 'app:whitelist';
@@ -48,16 +54,23 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
+    ...getDevSessionProviders(),
   ],
   session: { strategy: 'jwt' },
   callbacks: {
     async signIn({ account }) {
+      if (account?.provider === DEV_SESSION_PROVIDER_ID) return true;
       if (!account?.access_token) return false;
       const battletag = await fetchBattletag(account.access_token);
       if (!battletag) return false;
       return isAllowed(battletag);
     },
-    async jwt({ token, account }) {
+    async jwt({ token, account, user }) {
+      if (account?.provider === DEV_SESSION_PROVIDER_ID) {
+        token.accessToken = DEV_STUB_ACCESS_TOKEN;
+        token.name = user?.name ?? DEV_STUB_BATTLETAG;
+        return token;
+      }
       if (account?.access_token) {
         token.accessToken = account.access_token;
         const tag = await fetchBattletag(account.access_token);
