@@ -74,13 +74,14 @@ export const Q_COMBATANT_WITH_ACTORS = `
 export const Q_WORLD_RANKINGS = `
   query WorldRankings(
     $encounterID: Int!, $difficulty: Int!,
-    $specName: String!, $className: String!
+    $specName: String!, $className: String!, $page: Int!
   ) {
     worldData {
       encounter(id: $encounterID) {
         characterRankings(
           specName: $specName, className: $className,
-          metric: dps, difficulty: $difficulty, leaderboard: LogsOnly
+          metric: dps, difficulty: $difficulty, leaderboard: LogsOnly,
+          page: $page
         )
       }
     }
