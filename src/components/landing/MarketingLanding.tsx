@@ -48,7 +48,9 @@ export function MarketingLanding() {
         <div className="text-2xs text-muted mb-4 font-mono tracking-[0.2em] uppercase">
           WarcraftLogs · Performance Analysis
         </div>
-        <h1 className="font-display text-brass mb-5 text-4xl leading-none">LogLense</h1>
+        <h1 className="font-display text-brass mb-5 text-4xl leading-none md:text-5xl lg:text-6xl">
+          LogLense
+        </h1>
         <p className="text-dim mx-auto mb-10 max-w-[520px] font-mono text-xs leading-[1.7] md:text-base">
           Stop reading raw logs. <span className="text-text">Understand your performance.</span>
           <br />
