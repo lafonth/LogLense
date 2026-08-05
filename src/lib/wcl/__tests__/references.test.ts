@@ -106,10 +106,17 @@ describe('selectReferencePool', () => {
     ]);
   });
 
-  it('caps the result at TOP_N', () => {
-    const all = Array.from({ length: TOP_N + 5 }, (_, i) => ranking(`r${i}`, 284, 300000));
+  it('caps the pool at TOP_N', () => {
+    // Built by hand, not via the local `ranking` helper above: the original test's
+    // candidates carry no bracketData, and the local helper requires one.
+    const inWindow = Array.from({ length: TOP_N + 4 }, (_, i) => ({
+      name: `R${i}`,
+      amount: 250000,
+      duration: MY_MS,
+      report: { code: `code-R${i}`, fightID: 1 },
+    }));
 
-    expect(selectReferencePool(all, MY_MS, MY_ILVL)).toHaveLength(TOP_N);
+    expect(selectReferencePool(inWindow, MY_MS, MY_ILVL)).toHaveLength(TOP_N);
   });
 
   it('returns nothing when there are no rankings at all', () => {
