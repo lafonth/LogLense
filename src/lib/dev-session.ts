@@ -6,10 +6,12 @@ import CredentialsProvider from 'next-auth/providers/credentials';
  * Lets a browser session be treated as authenticated without a real Battle.net
  * login, so Playwright (or a developer) can reach the logged-in UI locally.
  *
- * This must be impossible to enable in production:
- *  - `isDevSessionEnabled` checks `NODE_ENV !== 'production'` FIRST, as an
- *    independent short-circuit, so a stray `ENABLE_DEV_SESSION=1` in a
- *    production deploy can never turn this on by itself.
+ * This cannot be activated in production:
+ *  - `isDevSessionEnabled` requires `NODE_ENV === 'development'` explicitly
+ *    (an allowlist, not a denylist), as an independent first check, so an
+ *    unset, empty, or unrecognised `NODE_ENV` (e.g. a typo, or `staging`)
+ *    fails closed rather than falling through to "not production, so allow
+ *    it". A stray `ENABLE_DEV_SESSION=1` can never turn this on by itself.
  *  - Only when both that check and the explicit opt-in env var pass does the
  *    Credentials provider get added to the NextAuth `providers` array.
  */
@@ -53,9 +55,11 @@ export const DEV_FIXTURE_CHARACTERS: DevFixtureCharacter[] = [
 ];
 
 export function isDevSessionEnabled(): boolean {
-  // NODE_ENV check first and independent: a misconfigured deploy that only
-  // sets ENABLE_DEV_SESSION cannot enable this in production.
-  if (process.env.NODE_ENV === 'production') return false;
+  // Allowlist, not a denylist: require NODE_ENV === 'development' explicitly
+  // so an unset/unrecognised NODE_ENV (typo, "staging", etc.) fails closed
+  // instead of falling through to "not production, so allow it". This check
+  // is independent of and precedes ENABLE_DEV_SESSION.
+  if (process.env.NODE_ENV !== 'development') return false;
   return process.env.ENABLE_DEV_SESSION === '1';
 }
 

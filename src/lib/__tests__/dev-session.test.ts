@@ -26,7 +26,15 @@ describe('isDevSessionEnabled / getDevSessionProviders', () => {
     expect(getDevSessionProviders()).toEqual([]);
   });
 
-  it('activates only when NODE_ENV is not production AND ENABLE_DEV_SESSION=1', () => {
+  it('fails closed on an unrecognised NODE_ENV, even if ENABLE_DEV_SESSION=1', () => {
+    vi.stubEnv('NODE_ENV', 'staging');
+    vi.stubEnv('ENABLE_DEV_SESSION', '1');
+
+    expect(isDevSessionEnabled()).toBe(false);
+    expect(getDevSessionProviders()).toEqual([]);
+  });
+
+  it('activates only when NODE_ENV is development AND ENABLE_DEV_SESSION=1', () => {
     vi.stubEnv('NODE_ENV', 'development');
     vi.stubEnv('ENABLE_DEV_SESSION', '1');
 

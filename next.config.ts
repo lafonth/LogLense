@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
   // When the dev-only session stub is enabled, build into a separate .next
   // directory so this server's dev-server lockfile doesn't collide with a
   // normal `pnpm dev` already running in the same working copy.
-  ...(process.env.NODE_ENV !== "production" && process.env.ENABLE_DEV_SESSION === "1"
+  ...(process.env.NODE_ENV === "development" && process.env.ENABLE_DEV_SESSION === "1"
     ? { distDir: ".next-dev-stub" }
     : {}),
 };
