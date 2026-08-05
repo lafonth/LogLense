@@ -6,24 +6,6 @@ interface EncounterSelectorProps {
   onChange: (encounters: Encounter[]) => void;
 }
 
-const checkboxStyle: React.CSSProperties = {
-  accentColor: 'var(--gold)',
-  width: '14px',
-  height: '14px',
-  cursor: 'pointer',
-};
-
-const labelStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '8px',
-  fontFamily: 'var(--font-mono)',
-  fontSize: '0.85rem',
-  color: 'var(--text)',
-  cursor: 'pointer',
-  padding: '4px 0',
-};
-
 export function EncounterSelector({ available, selected, onChange }: EncounterSelectorProps) {
   const selectedIds = new Set(selected.map((e) => e.id));
 
@@ -45,21 +27,24 @@ export function EncounterSelector({ available, selected, onChange }: EncounterSe
 
   return (
     <div>
-      <label style={{ ...labelStyle, marginBottom: '8px', color: 'var(--gold-dim)' }}>
+      <label className="text-muted mb-2 flex cursor-pointer items-center gap-2 py-1 font-mono text-xs">
         <input
           type="checkbox"
-          style={checkboxStyle}
+          className="accent-brass h-3.5 w-3.5 cursor-pointer"
           checked={available.length > 0 && selected.length === available.length}
           onChange={toggleAll}
         />
         All bosses
       </label>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 24px' }}>
+      <div className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
         {available.map((enc) => (
-          <label key={enc.id} style={labelStyle}>
+          <label
+            key={enc.id}
+            className="text-text flex cursor-pointer items-center gap-2 py-1 font-mono text-xs"
+          >
             <input
               type="checkbox"
-              style={checkboxStyle}
+              className="accent-brass h-3.5 w-3.5 cursor-pointer"
               checked={selectedIds.has(enc.id)}
               onChange={() => toggle(enc)}
             />

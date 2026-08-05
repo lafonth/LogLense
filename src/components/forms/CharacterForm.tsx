@@ -4,10 +4,12 @@ import type { RealmSelection } from '@/components/forms/RealmAutocomplete';
 import type { AnalysisInput, Zone } from '@/types';
 import { useState } from 'react';
 import { RealmAutocomplete } from '@/components/forms/RealmAutocomplete';
+import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { DifficultyRegionFields } from './DifficultyRegionFields';
 import { EncounterSelector } from './EncounterSelector';
-import { fieldStyle, inputStyle, labelStyle } from './formStyles';
 import { SpecSelector } from './SpecSelector';
 
 interface CharacterFormProps {
@@ -75,143 +77,89 @@ export function CharacterForm({
     !loading;
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '40px 20px',
-        background: 'radial-gradient(ellipse at 50% 0%, rgba(198,168,74,0.06) 0%, var(--bg) 60%)',
-      }}
-    >
-      <h1
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '3rem',
-          color: 'var(--gold)',
-          marginBottom: '8px',
-          letterSpacing: '0.04em',
-        }}
-      >
-        LogLense
-      </h1>
-      <p
-        style={{
-          color: 'var(--text-dim)',
-          fontSize: '0.85rem',
-          marginBottom: '40px',
-          fontFamily: 'var(--font-mono)',
-        }}
-      >
-        WarcraftLogs analyser
-      </p>
+    <div className="flex min-h-screen flex-col items-center justify-center px-5 py-10">
+      <h1 className="font-display text-brass mb-2 text-4xl tracking-[0.04em]">LogLense</h1>
+      <p className="text-dim mb-10 font-mono text-xs">WarcraftLogs analyser</p>
 
       <form
         onSubmit={handleSubmit}
-        style={{
-          width: '100%',
-          maxWidth: '520px',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '6px',
-          padding: '32px',
-        }}
+        className="border-border bg-surface w-full max-w-[520px] rounded-sm border p-8"
       >
-        <DifficultyRegionFields
-          region={region}
-          difficulty={difficulty}
-          onRegionChange={handleRegionChange}
-          onDifficultyChange={setDifficulty}
-        />
+        <div className="flex flex-col gap-4">
+          <DifficultyRegionFields
+            region={region}
+            difficulty={difficulty}
+            onRegionChange={handleRegionChange}
+            onDifficultyChange={setDifficulty}
+          />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Character</label>
-            <input
-              style={inputStyle}
+          <div className="grid grid-cols-2 gap-x-4">
+            <Input
+              label="Character"
               type="text"
               value={characterName}
               onChange={(e) => setCharacterName(e.target.value)}
               placeholder="Jumbaa"
               autoComplete="off"
             />
+            <RealmAutocomplete key={region} region={region} value={realm} onChange={setRealm} />
           </div>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Realm</label>
-            <RealmAutocomplete
-              key={region}
-              region={region}
-              value={realm}
-              onChange={setRealm}
-              inputStyle={inputStyle}
-            />
+
+          <SpecSelector specId={specId} onChange={setSpecId} />
+
+          <div>
+            {zonesLoading ? (
+              <>
+                <div className="text-2xs text-muted mb-1.5 font-sans tracking-[0.1em] uppercase">
+                  Raid
+                </div>
+                <div className="text-dim py-2 font-mono text-xs">Loading raids…</div>
+              </>
+            ) : zonesError ? (
+              <>
+                <div className="text-2xs text-muted mb-1.5 font-sans tracking-[0.1em] uppercase">
+                  Raid
+                </div>
+                <ErrorBanner message={zonesError} />
+              </>
+            ) : (
+              <Select
+                label="Raid"
+                value={selectedZoneId ?? ''}
+                onChange={(e) => handleZoneChange(Number.parseInt(e.target.value, 10))}
+              >
+                {zones.map((z) => (
+                  <option key={z.id} value={z.id}>
+                    {z.name}
+                  </option>
+                ))}
+              </Select>
+            )}
           </div>
-        </div>
 
-        <SpecSelector specId={specId} onChange={setSpecId} />
-
-        <div style={fieldStyle}>
-          <label style={labelStyle}>Raid</label>
-          {zonesLoading ? (
-            <div
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.82rem',
-                color: 'var(--text-dim)',
-                padding: '8px 0',
-              }}
-            >
-              Loading raids…
+          {currentZone && (
+            <div>
+              <div className="text-2xs text-muted mb-1.5 font-sans tracking-[0.1em] uppercase">
+                Bosses
+              </div>
+              <EncounterSelector
+                available={currentZone.encounters}
+                selected={encounters}
+                onChange={(encs) => setSelectedEncounterIds(new Set(encs.map((e) => e.id)))}
+              />
             </div>
-          ) : zonesError ? (
-            <ErrorBanner message={zonesError} />
-          ) : (
-            <select
-              style={inputStyle}
-              value={selectedZoneId ?? ''}
-              onChange={(e) => handleZoneChange(Number.parseInt(e.target.value, 10))}
-            >
-              {zones.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.name}
-                </option>
-              ))}
-            </select>
           )}
+
+          <Button
+            type="submit"
+            variant="primary"
+            size="md"
+            disabled={!canSubmit}
+            className="w-full tracking-[0.06em] uppercase"
+          >
+            {loading ? 'Analysing…' : 'Analyse'}
+          </Button>
         </div>
-
-        {currentZone && (
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Bosses</label>
-            <EncounterSelector
-              available={currentZone.encounters}
-              selected={encounters}
-              onChange={(encs) => setSelectedEncounterIds(new Set(encs.map((e) => e.id)))}
-            />
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          style={{
-            width: '100%',
-            padding: '12px',
-            background: canSubmit ? 'var(--crimson)' : 'var(--border)',
-            color: 'var(--text)',
-            border: 'none',
-            borderRadius: '4px',
-            fontFamily: 'var(--font-display)',
-            fontSize: '1rem',
-            cursor: canSubmit ? 'pointer' : 'not-allowed',
-            letterSpacing: '0.06em',
-            marginTop: '8px',
-          }}
-        >
-          {loading ? 'Analysing…' : 'Analyse'}
-        </button>
       </form>
     </div>
   );

@@ -3,11 +3,12 @@
 import type { AnalysisInput, StoredCharacter, WowCharacter, Zone } from '@/types';
 import { useEffect, useState } from 'react';
 import { EncounterSelector } from '@/components/forms/EncounterSelector';
+import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
+import { Select } from '@/components/ui/Select';
 import { usePreferences } from '@/hooks/usePreferences';
 import { getDpsSpecsForClass } from '@/lib/specs';
 import { DifficultyRegionFields } from './DifficultyRegionFields';
-import { fieldStyle, inputStyle, labelStyle } from './formStyles';
 
 interface LoggedInCharacterFormProps {
   onSubmit: (input: AnalysisInput, zoneId: number) => void;
@@ -16,16 +17,6 @@ interface LoggedInCharacterFormProps {
   zonesLoading: boolean;
   zonesError: string | null;
 }
-
-const sectionLabelStyle: React.CSSProperties = {
-  fontFamily: 'var(--font-mono)',
-  fontSize: '0.62rem',
-  color: 'var(--text-dim)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.1em',
-  marginBottom: '6px',
-  opacity: 0.6,
-};
 
 function toStored(c: WowCharacter, region: string): StoredCharacter {
   return { name: c.name, realmName: c.realmName, realmSlug: c.realmSlug, region, class: c.class };
@@ -53,61 +44,26 @@ function CharacterCard({
   const cls = char.class;
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="relative">
       <button
         type="button"
         onClick={onSelect}
-        style={{
-          width: '100%',
-          padding: '8px 28px 8px 10px',
-          background: isActive ? 'rgba(198,168,74,0.08)' : 'transparent',
-          border: isActive ? '1px solid var(--gold-dim)' : '1px solid var(--border)',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          textAlign: 'left',
-        }}
+        className={`w-full cursor-pointer rounded-sm border py-2 pr-7 pl-2.5 text-left ${
+          isActive ? 'border-muted bg-brass/10' : 'border-border bg-transparent'
+        }`}
       >
-        <div
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '0.82rem',
-            color: isActive ? 'var(--gold)' : 'var(--text)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <div className={`truncate font-mono text-xs ${isActive ? 'text-brass' : 'text-text'}`}>
           {name}-{realmName}
         </div>
-        <div
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '0.68rem',
-            color: 'var(--text-dim)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {cls}
-        </div>
+        <div className="text-dim text-2xs truncate font-mono">{cls}</div>
       </button>
       <button
         type="button"
         onClick={onToggleFav}
         title={isFav ? 'Remove from favourites' : 'Add to favourites'}
-        style={{
-          position: 'absolute',
-          top: '6px',
-          right: '6px',
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          fontSize: '0.82rem',
-          color: isFav ? 'var(--gold)' : 'var(--border)',
-          lineHeight: 1,
-          padding: '2px',
-        }}
+        className={`focus-visible:outline-brass-bright absolute top-1.5 right-1.5 cursor-pointer border-none bg-transparent p-0.5 font-sans text-xs leading-none focus-visible:outline-2 focus-visible:outline-offset-2 ${
+          isFav ? 'text-brass' : 'text-border'
+        }`}
       >
         ★
       </button>
@@ -232,13 +188,7 @@ export function LoggedInCharacterForm({
 
   function renderGrid(chars: StoredCharacter[]) {
     return (
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-          gap: '6px',
-        }}
-      >
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-1.5">
         {chars.map((c) => {
           const k = charKey(c);
           return (
@@ -260,181 +210,121 @@ export function LoggedInCharacterForm({
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '40px 20px',
-        background: 'radial-gradient(ellipse at 50% 0%, rgba(198,168,74,0.06) 0%, var(--bg) 60%)',
-      }}
-    >
-      <h1
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '3rem',
-          color: 'var(--gold)',
-          marginBottom: '8px',
-          letterSpacing: '0.04em',
-        }}
-      >
-        LogLense
-      </h1>
-      <p
-        style={{
-          color: 'var(--text-dim)',
-          fontSize: '0.85rem',
-          marginBottom: '40px',
-          fontFamily: 'var(--font-mono)',
-        }}
-      >
-        WarcraftLogs analyser
-      </p>
+    <div className="flex min-h-screen flex-col items-center justify-center px-5 py-10">
+      <h1 className="font-display text-brass mb-2 text-4xl tracking-[0.04em]">LogLense</h1>
+      <p className="text-dim mb-10 font-mono text-xs">WarcraftLogs analyser</p>
 
       <form
         onSubmit={handleSubmit}
-        style={{
-          width: '100%',
-          maxWidth: '560px',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '6px',
-          padding: '32px',
-        }}
+        className="border-border bg-surface w-full max-w-[560px] rounded-sm border p-8"
       >
-        <DifficultyRegionFields
-          region={region}
-          difficulty={difficulty}
-          onRegionChange={setRegion}
-          onDifficultyChange={setDifficulty}
-        />
+        <div className="flex flex-col gap-4">
+          <DifficultyRegionFields
+            region={region}
+            difficulty={difficulty}
+            onRegionChange={setRegion}
+            onDifficultyChange={setDifficulty}
+          />
 
-        <div style={fieldStyle}>
-          <label style={labelStyle}>
-            Your Characters
-            {charsLoading && (
-              <span
-                style={{
-                  marginLeft: '8px',
-                  color: 'var(--text-dim)',
-                  opacity: 0.6,
-                  textTransform: 'none',
-                }}
-              >
-                Loading…
-              </span>
-            )}
-          </label>
-
-          <div
-            style={{
-              maxHeight: '260px',
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-            }}
-          >
-            {favsForRegion.length > 0 && (
-              <div>
-                <div style={sectionLabelStyle}>★ Starred</div>
-                {renderGrid(favsForRegion)}
-              </div>
-            )}
-
-            {recentsForRegion.length > 0 && (
-              <div>
-                <div style={sectionLabelStyle}>Recent</div>
-                {renderGrid(recentsForRegion)}
-              </div>
-            )}
-
-            {rest.length > 0 && (
-              <div>
-                {(favsForRegion.length > 0 || recentsForRegion.length > 0) && (
-                  <div style={sectionLabelStyle}>All</div>
-                )}
-                {renderGrid(rest.map((c) => toStored(c, region)))}
-              </div>
-            )}
-
-            {!charsLoading && characters.length === 0 && favsForRegion.length === 0 && (
-              <div
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.82rem',
-                  color: 'var(--text-dim)',
-                  padding: '8px 0',
-                }}
-              >
-                No characters found for this region.
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div style={fieldStyle}>
-          <label style={labelStyle}>Raid</label>
-          {zonesLoading ? (
-            <div
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.82rem',
-                color: 'var(--text-dim)',
-                padding: '8px 0',
-              }}
-            >
-              Loading raids…
+          <div>
+            <div className="text-2xs text-muted mb-1.5 font-sans tracking-[0.1em] uppercase">
+              Your Characters
+              {charsLoading && (
+                <span className="text-dim ml-2 font-sans normal-case opacity-60">Loading…</span>
+              )}
             </div>
-          ) : zonesError ? (
-            <ErrorBanner message={zonesError} />
-          ) : (
-            <select
-              style={inputStyle}
-              value={selectedZoneId ?? ''}
-              onChange={(e) => handleZoneChange(Number.parseInt(e.target.value, 10))}
-            >
-              {zones.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
 
-        {currentZone && (
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Bosses</label>
-            <EncounterSelector
-              available={currentZone.encounters}
-              selected={encounters}
-              onChange={(encs) => setSelectedEncounterIds(new Set(encs.map((e) => e.id)))}
-            />
+            <div className="flex max-h-64 flex-col gap-3 overflow-y-auto">
+              {favsForRegion.length > 0 && (
+                <div>
+                  <div className="text-2xs text-dim mb-1.5 font-mono tracking-[0.1em] uppercase opacity-60">
+                    ★ Starred
+                  </div>
+                  {renderGrid(favsForRegion)}
+                </div>
+              )}
+
+              {recentsForRegion.length > 0 && (
+                <div>
+                  <div className="text-2xs text-dim mb-1.5 font-mono tracking-[0.1em] uppercase opacity-60">
+                    Recent
+                  </div>
+                  {renderGrid(recentsForRegion)}
+                </div>
+              )}
+
+              {rest.length > 0 && (
+                <div>
+                  {(favsForRegion.length > 0 || recentsForRegion.length > 0) && (
+                    <div className="text-2xs text-dim mb-1.5 font-mono tracking-[0.1em] uppercase opacity-60">
+                      All
+                    </div>
+                  )}
+                  {renderGrid(rest.map((c) => toStored(c, region)))}
+                </div>
+              )}
+
+              {!charsLoading && characters.length === 0 && favsForRegion.length === 0 && (
+                <div className="text-dim py-2 font-mono text-xs">
+                  No characters found for this region.
+                </div>
+              )}
+            </div>
           </div>
-        )}
 
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          style={{
-            width: '100%',
-            padding: '12px',
-            background: canSubmit ? 'var(--crimson)' : 'var(--border)',
-            color: 'var(--text)',
-            border: 'none',
-            borderRadius: '4px',
-            fontFamily: 'var(--font-display)',
-            fontSize: '1rem',
-            cursor: canSubmit ? 'pointer' : 'not-allowed',
-            letterSpacing: '0.06em',
-            marginTop: '8px',
-          }}
-        >
-          {loading ? 'Analysing…' : 'Analyse'}
-        </button>
+          <div>
+            {zonesLoading ? (
+              <>
+                <div className="text-2xs text-muted mb-1.5 font-sans tracking-[0.1em] uppercase">
+                  Raid
+                </div>
+                <div className="text-dim py-2 font-mono text-xs">Loading raids…</div>
+              </>
+            ) : zonesError ? (
+              <>
+                <div className="text-2xs text-muted mb-1.5 font-sans tracking-[0.1em] uppercase">
+                  Raid
+                </div>
+                <ErrorBanner message={zonesError} />
+              </>
+            ) : (
+              <Select
+                label="Raid"
+                value={selectedZoneId ?? ''}
+                onChange={(e) => handleZoneChange(Number.parseInt(e.target.value, 10))}
+              >
+                {zones.map((z) => (
+                  <option key={z.id} value={z.id}>
+                    {z.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </div>
+
+          {currentZone && (
+            <div>
+              <div className="text-2xs text-muted mb-1.5 font-sans tracking-[0.1em] uppercase">
+                Bosses
+              </div>
+              <EncounterSelector
+                available={currentZone.encounters}
+                selected={encounters}
+                onChange={(encs) => setSelectedEncounterIds(new Set(encs.map((e) => e.id)))}
+              />
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            variant="primary"
+            size="md"
+            disabled={!canSubmit}
+            className="w-full tracking-[0.06em] uppercase"
+          >
+            {loading ? 'Analysing…' : 'Analyse'}
+          </Button>
+        </div>
       </form>
     </div>
   );

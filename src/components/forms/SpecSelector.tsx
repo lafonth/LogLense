@@ -1,7 +1,7 @@
 'use client';
 
+import { Select } from '@/components/ui/Select';
 import { getAllWowClasses, getDpsSpecsForClass } from '@/lib/specs';
-import { fieldStyle, inputStyle, labelStyle } from './formStyles';
 
 interface SpecSelectorProps {
   specId: number | null;
@@ -47,49 +47,31 @@ export function SpecSelector({ specId, lockedClass, onChange }: SpecSelectorProp
   }
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: lockedClass ? '1fr' : '1fr 1fr',
-        gap: '0 16px',
-      }}
-    >
+    <div className={`grid gap-x-4 ${lockedClass ? 'grid-cols-1' : 'grid-cols-2'}`}>
       {!lockedClass && (
-        <div style={fieldStyle}>
-          <label htmlFor="ss-class" style={labelStyle}>
-            Class
-          </label>
-          <select
-            id="ss-class"
-            style={inputStyle}
-            value={activeClass}
-            onChange={(e) => handleClassChange(e.target.value)}
-          >
-            {ALL_CLASSES.map((cls) => (
-              <option key={cls} value={cls}>
-                {cls}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-      <div style={fieldStyle}>
-        <label htmlFor="ss-spec" style={labelStyle}>
-          Spec
-        </label>
-        <select
-          id="ss-spec"
-          style={inputStyle}
-          value={specId ?? ''}
-          onChange={(e) => handleSpecChange(Number(e.target.value))}
+        <Select
+          label="Class"
+          value={activeClass}
+          onChange={(e) => handleClassChange(e.target.value)}
         >
-          {specsForClass.map((s) => (
-            <option key={s.specId} value={s.specId}>
-              {s.specName}
+          {ALL_CLASSES.map((cls) => (
+            <option key={cls} value={cls}>
+              {cls}
             </option>
           ))}
-        </select>
-      </div>
+        </Select>
+      )}
+      <Select
+        label="Spec"
+        value={specId ?? ''}
+        onChange={(e) => handleSpecChange(Number(e.target.value))}
+      >
+        {specsForClass.map((s) => (
+          <option key={s.specId} value={s.specId}>
+            {s.specName}
+          </option>
+        ))}
+      </Select>
     </div>
   );
 }

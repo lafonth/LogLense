@@ -2,22 +2,12 @@
 
 import type { ReportActor, ReportFight } from '@/types';
 import { useState } from 'react';
+import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { useReportMeta } from '@/hooks/useReportMeta';
 import { getDpsSpecsForClass } from '@/lib/specs';
-import { fieldStyle, inputStyle, labelStyle } from './formStyles';
-
-const btnStyle: React.CSSProperties = {
-  background: 'var(--gold-dim)',
-  border: 'none',
-  borderRadius: '4px',
-  color: 'var(--bg)',
-  fontFamily: 'var(--font-mono)',
-  fontSize: '0.8rem',
-  padding: '8px 20px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-};
 
 interface ReportFormProps {
   onSubmit: (
@@ -64,122 +54,72 @@ export function ReportForm({ onSubmit, loading, onBack }: ReportFormProps) {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '40px 24px',
-      }}
-    >
-      <div style={{ width: '100%', maxWidth: '480px' }}>
+    <div className="flex min-h-screen items-center justify-center px-6 py-10">
+      <div className="w-full max-w-[480px]">
         <button
+          type="button"
           onClick={onBack}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-dim)',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '0.75rem',
-            cursor: 'pointer',
-            marginBottom: '24px',
-            padding: 0,
-          }}
+          className="text-dim hover:text-text mb-6 cursor-pointer border-none bg-transparent p-0 font-mono text-xs"
         >
           ← Back
         </button>
 
-        <form onSubmit={handleLoadReport}>
-          <div style={fieldStyle}>
-            <label style={labelStyle} htmlFor="rf-code">
-              WarcraftLogs Report Code
-            </label>
-            <input
-              id="rf-code"
-              style={inputStyle}
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="e.g. aBcDeFgH12345678"
-              disabled={metaLoading}
-            />
-          </div>
+        <form onSubmit={handleLoadReport} className="flex flex-col gap-4">
+          <Input
+            label="WarcraftLogs Report Code"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="e.g. aBcDeFgH12345678"
+            disabled={metaLoading}
+          />
           {metaError && <ErrorBanner message={metaError} />}
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            size="md"
             disabled={metaLoading || !code.trim()}
-            style={{
-              ...btnStyle,
-              cursor: metaLoading || !code.trim() ? 'not-allowed' : 'pointer',
-              opacity: metaLoading || !code.trim() ? 0.6 : 1,
-              marginBottom: '28px',
-            }}
+            className="w-fit tracking-[0.08em] uppercase"
           >
             {metaLoading ? 'Loading…' : 'Load Report'}
-          </button>
+          </Button>
         </form>
 
         {meta && (
-          <form onSubmit={handleSubmit}>
-            <div style={fieldStyle}>
-              <div
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.78rem',
-                  color: 'var(--text-dim)',
-                  marginBottom: '16px',
-                }}
-              >
-                {meta.title}
-              </div>
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle} htmlFor="rf-actor">
-                Character
-              </label>
-              <select
-                id="rf-actor"
-                style={inputStyle}
-                value={selectedActorId}
-                onChange={(e) => handleActorChange(Number(e.target.value))}
-              >
-                <option value="">— Select a character —</option>
-                {meta.actors
-                  .slice()
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} ({a.subType})
-                    </option>
-                  ))}
-              </select>
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle} htmlFor="rf-difficulty">
-                Difficulty
-              </label>
-              <select
-                id="rf-difficulty"
-                style={inputStyle}
-                value={difficulty}
-                onChange={(e) => setDifficulty(Number(e.target.value))}
-              >
-                <option value={5}>Mythic</option>
-                <option value={4}>Heroic</option>
-                <option value={3}>Normal</option>
-              </select>
-            </div>
-            <button
+          <form onSubmit={handleSubmit} className="mt-7 flex flex-col gap-4">
+            <div className="text-dim font-mono text-xs">{meta.title}</div>
+            <Select
+              label="Character"
+              value={selectedActorId}
+              onChange={(e) => handleActorChange(Number(e.target.value))}
+            >
+              <option value="">— Select a character —</option>
+              {meta.actors
+                .slice()
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} ({a.subType})
+                  </option>
+                ))}
+            </Select>
+            <Select
+              label="Difficulty"
+              value={difficulty}
+              onChange={(e) => setDifficulty(Number(e.target.value))}
+            >
+              <option value={5}>Mythic</option>
+              <option value={4}>Heroic</option>
+              <option value={3}>Normal</option>
+            </Select>
+            <Button
               type="submit"
+              variant="primary"
+              size="md"
               disabled={loading || selectedActorId === '' || !specId}
-              style={{
-                ...btnStyle,
-                cursor: loading || selectedActorId === '' || !specId ? 'not-allowed' : 'pointer',
-                opacity: loading || selectedActorId === '' || !specId ? 0.6 : 1,
-              }}
+              className="w-fit tracking-[0.08em] uppercase"
             >
               {loading ? 'Analysing…' : 'Analyse'}
-            </button>
+            </Button>
           </form>
         )}
       </div>

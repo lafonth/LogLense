@@ -1,5 +1,5 @@
 import type { AnalysisInput } from '@/types';
-import { fieldStyle, inputStyle, labelStyle } from './formStyles';
+import { Select } from '@/components/ui/Select';
 
 interface DifficultyRegionFieldsProps {
   region: AnalysisInput['region'];
@@ -15,41 +15,29 @@ export function DifficultyRegionFields({
   onDifficultyChange,
 }: DifficultyRegionFieldsProps) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-      <div style={fieldStyle}>
-        <label style={labelStyle} htmlFor="df-region">
-          Region
-        </label>
-        <select
-          id="df-region"
-          style={inputStyle}
-          value={region}
-          onChange={(e) => onRegionChange(e.target.value as AnalysisInput['region'])}
-        >
-          {(['US', 'EU', 'KR', 'TW', 'CN'] as const).map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle} htmlFor="df-difficulty">
-          Difficulty
-        </label>
-        <select
-          id="df-difficulty"
-          style={inputStyle}
-          value={difficulty}
-          onChange={(e) =>
-            onDifficultyChange(Number.parseInt(e.target.value, 10) as AnalysisInput['difficulty'])
-          }
-        >
-          <option value={5}>Mythic</option>
-          <option value={4}>Heroic</option>
-          <option value={3}>Normal</option>
-        </select>
-      </div>
+    <div className="grid grid-cols-2 gap-x-4">
+      <Select
+        label="Region"
+        value={region}
+        onChange={(e) => onRegionChange(e.target.value as AnalysisInput['region'])}
+      >
+        {(['US', 'EU', 'KR', 'TW', 'CN'] as const).map((r) => (
+          <option key={r} value={r}>
+            {r}
+          </option>
+        ))}
+      </Select>
+      <Select
+        label="Difficulty"
+        value={difficulty}
+        onChange={(e) =>
+          onDifficultyChange(Number.parseInt(e.target.value, 10) as AnalysisInput['difficulty'])
+        }
+      >
+        <option value={5}>Mythic</option>
+        <option value={4}>Heroic</option>
+        <option value={3}>Normal</option>
+      </Select>
     </div>
   );
 }
