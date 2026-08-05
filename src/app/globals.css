@@ -14,6 +14,7 @@
 
   --color-brass: #b08d57;
   --color-brass-bright: #d7b988;
+  --color-brass-dim: #8a7232;
 
   --color-deviation: #6ea8c9;
   --color-positive: #7fc98f;
@@ -31,6 +32,7 @@
   --text-lg: 1.25rem;
   --text-xl: 1.5rem;
   --text-2xl: 2rem;
+  --text-3xl: 2.25rem;
   --text-4xl: 2.5rem;
   --text-5xl: 3.5rem;
   --text-6xl: 5.5rem;

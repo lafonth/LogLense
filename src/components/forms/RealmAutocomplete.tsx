@@ -20,7 +20,7 @@ interface RealmAutocompleteProps {
   onChange: (selection: RealmSelection | null) => void;
 }
 
-export function RealmAutocomplete({ region, value: _value, onChange }: RealmAutocompleteProps) {
+export function RealmAutocomplete({ region, value, onChange }: RealmAutocompleteProps) {
   const [allRealms, setAllRealms] = useState<Realm[]>([]);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -76,6 +76,7 @@ export function RealmAutocomplete({ region, value: _value, onChange }: RealmAuto
         placeholder={allRealms.length === 0 ? 'Loading realms…' : 'Search realm…'}
         autoComplete="off"
         spellCheck={false}
+        className={value ? 'border-brass-dim' : ''}
       />
       {showDropdown && (
         <div className="border-border bg-surface absolute inset-x-0 top-full z-[100] max-h-64 overflow-y-auto rounded-b-sm border border-t-0">

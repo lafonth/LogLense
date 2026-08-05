@@ -19,7 +19,7 @@ export function Input({ label, error, className = '', ...rest }: InputProps) {
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
-        className={`bg-surface text-text placeholder:text-dim focus-visible:outline-brass-bright rounded-sm border px-3 py-2 font-mono text-sm focus-visible:outline-2 focus-visible:outline-offset-1 ${error ? 'border-danger' : 'border-border'} ${className}`}
+        className={`bg-surface text-text placeholder:text-dim focus-visible:outline-brass-bright rounded-sm border px-3 py-2 font-mono text-sm focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-50 ${error ? 'border-danger' : 'border-border'} ${className}`}
         {...rest}
       />
       {error && (

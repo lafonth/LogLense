@@ -16,7 +16,7 @@ export function Select({ label, className = '', children, ...rest }: SelectProps
       </label>
       <select
         id={id}
-        className={`border-border bg-surface text-text focus-visible:outline-brass-bright cursor-pointer rounded-sm border px-3 py-2 font-mono text-sm focus-visible:outline-2 focus-visible:outline-offset-1 ${className}`}
+        className={`border-border bg-surface text-text focus-visible:outline-brass-bright cursor-pointer rounded-sm border px-3 py-2 font-mono text-sm focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
         {...rest}
       >
         {children}

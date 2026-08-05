@@ -42,7 +42,7 @@ export function SidebarItem({
         className={`flex w-full items-center justify-between gap-1.5 rounded-sm border py-2 pl-2 text-left ${
           action ? 'pr-8' : 'pr-2'
         } ${
-          isActive ? 'border-brass/40 bg-brass/10' : 'border-transparent'
+          isActive ? 'border-brass-dim bg-brass/10' : 'border-transparent'
         } cursor-pointer disabled:cursor-default`}
       >
         <div className="min-w-0">

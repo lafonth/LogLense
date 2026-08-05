@@ -55,7 +55,7 @@ export function DashboardHeader({
                 size="xs"
                 onClick={() => !active && onDifficultyChange(id)}
                 className={`rounded-full font-mono tracking-[0.04em] ${
-                  active ? 'border-brass/40 bg-brass/10 text-brass' : 'text-muted'
+                  active ? 'border-brass-dim bg-brass/10 text-brass' : 'text-muted'
                 }`}
               >
                 {label}
