@@ -68,8 +68,6 @@ export function DashboardHeader({
         <Button variant="secondary" size="sm" onClick={onReset} className="font-mono text-xs">
           ← New search
         </Button>
-        {/* Reserves room for the fixed-position AuthHeader widget in the top-right corner. */}
-        <div aria-hidden="true" className="hidden w-44 sm:block" />
       </div>
     </div>
   );

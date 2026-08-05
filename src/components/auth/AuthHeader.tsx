@@ -1,6 +1,7 @@
 'use client';
 
 import { signIn, signOut, useSession } from 'next-auth/react';
+import { Button } from '@/components/ui/Button';
 
 export function AuthHeader() {
   const { data: session, status } = useSession();
@@ -8,65 +9,30 @@ export function AuthHeader() {
   if (status === 'loading') return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: '16px',
-        right: '20px',
-        zIndex: 200,
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-      }}
-    >
+    <div className="flex w-full items-center justify-end gap-2.5 p-4 md:fixed md:top-4 md:right-5 md:z-[200] md:w-auto md:justify-normal md:p-0">
       {session ? (
         <>
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.72rem',
-              color: 'var(--gold-dim)',
-              letterSpacing: '0.04em',
-            }}
-          >
+          <span className="text-muted text-2xs font-mono tracking-[0.04em]">
             {session.user?.name ?? ''}
           </span>
-          <button
+          <Button
+            variant="secondary"
+            size="xs"
             onClick={() => void signOut()}
-            style={{
-              background: 'none',
-              border: '1px solid var(--border)',
-              borderRadius: '4px',
-              color: 'var(--text-dim)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.72rem',
-              padding: '4px 10px',
-              cursor: 'pointer',
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-            }}
+            className="bg-transparent font-mono tracking-[0.06em] uppercase"
           >
             Sign out
-          </button>
+          </Button>
         </>
       ) : (
-        <button
+        <Button
+          variant="secondary"
+          size="xs"
           onClick={() => void signIn('battlenet')}
-          style={{
-            background: 'none',
-            border: '1px solid var(--gold-dim)',
-            borderRadius: '4px',
-            color: 'var(--gold-dim)',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '0.72rem',
-            padding: '4px 12px',
-            cursor: 'pointer',
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-          }}
+          className="border-muted text-muted bg-transparent font-mono tracking-[0.06em] uppercase"
         >
           Sign in with Battle.net
-        </button>
+        </Button>
       )}
     </div>
   );

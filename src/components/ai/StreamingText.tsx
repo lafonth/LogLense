@@ -5,31 +5,11 @@ interface StreamingTextProps {
 
 export function StreamingText({ text, loading }: StreamingTextProps) {
   return (
-    <div
-      style={{
-        fontFamily: 'var(--font-mono)',
-        fontSize: '0.85rem',
-        lineHeight: '1.7',
-        color: 'var(--text)',
-        whiteSpace: 'pre-wrap',
-        minHeight: '120px',
-      }}
-    >
+    <div className="text-text min-h-30 max-w-[70ch] font-sans text-sm leading-relaxed whitespace-pre-wrap">
       {text}
       {loading && (
-        <span
-          style={{
-            display: 'inline-block',
-            width: '2px',
-            height: '1.1em',
-            background: 'var(--gold)',
-            verticalAlign: 'text-bottom',
-            marginLeft: '2px',
-            animation: 'blink 1s step-end infinite',
-          }}
-        />
+        <span className="bg-brass ml-0.5 inline-block h-4 w-0.5 animate-pulse align-text-bottom" />
       )}
-      <style>{`@keyframes blink { 50% { opacity: 0; } }`}</style>
     </div>
   );
 }

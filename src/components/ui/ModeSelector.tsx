@@ -17,7 +17,7 @@ export function ModeSelector({ onSelect }: ModeSelectorProps) {
       <div className="text-muted font-mono text-xs tracking-[0.12em] uppercase">
         LogLense — Choose Analysis Mode
       </div>
-      <div className="flex flex-wrap justify-center gap-6">
+      <div className="flex flex-col flex-wrap justify-center gap-6 sm:flex-row">
         <button onClick={() => onSelect('character')} className={CARD_CLASS}>
           <div className={TITLE_CLASS}>Analyse a Character</div>
           <div className={DESC_CLASS}>
