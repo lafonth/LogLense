@@ -56,11 +56,47 @@ src/lib/wcl/
   references.ts       Sélection des logs de comparaison et récupération des joueurs
   pipeline.ts         Analyse par personnage : nom → rankings → meilleur parse → rapport
   report-pipeline.ts  Analyse par rapport WCL : code + acteur → rapport
+src/lib/comparison/
+  talent-diff.ts      Écarts de build : toi seul / eux seuls / communs, avec le compte k sur n
+  rotation-stats.ts   Par sort : fourchette des références, médiane, écart, tri par écart
 src/lib/ai/           Construction du prompt et appel Claude
 src/lib/specs.ts      Table des specs (id → nom de spec et de classe)
 src/lib/redis.ts      Upstash en REST, GET/SET uniquement — seule persistance existante
 src/data/talents/     Arbres de talents par spec, générés par scripts/
+src/components/ui/    Les primitives : Button, Card, Input, Select, Tabs, StatTile,
+                      ScrollArea, Sheet, Badge, ErrorBanner, LoadingSpinner, ProgressSteps
 ```
+
+Les deux modules de `comparison/` sont des fonctions pures, testables sans rendu. Ils sont
+séparés des composants parce que le sous-projet 3 les réutilisera quand les références
+passeront de trois exemplaires à une distribution.
+
+## Interface : tokens et primitives
+
+**Aucun `style={{}}` dans les composants.** Deux exceptions, toutes deux des géométries
+calculées à l'exécution : la largeur des barres dans `DamageBreakdown` et `RotationCards`.
+
+Les couleurs, tailles, rayons et points de rupture sont déclarés une fois dans
+`src/app/globals.css`, dans un bloc `@theme` Tailwind v4, et consommés uniquement par des
+classes utilitaires. Aucune valeur littérale de couleur, d'espacement, de taille de police
+ou de rayon ne doit apparaître dans un composant.
+
+Trois règles qui ont chacune coûté une ronde de correction :
+
+- **Le rouge (`text-danger`) est réservé aux erreurs.** Un écart par rapport aux références
+  s'affiche en bleu (`text-deviation`) : une position dans une distribution n'est pas une
+  faute. Le rouge doit rester disponible pour signaler une comparaison illégitime.
+- **Tous les chiffres sont en `font-mono`**, y compris à l'intérieur d'une phrase — on
+  enveloppe alors le nombre, pas la phrase. Seul le corps du rapport IA fait exception :
+  c'est de la prose, il est en `font-sans`.
+- **On ne surcharge jamais la taille d'une primitive via son `className`.** Tailwind
+  départage deux utilitaires agissant sur la même propriété par leur ordre dans la feuille
+  générée, pas par leur position dans la chaîne : la surcharge est silencieusement ignorée.
+  Si aucune taille existante ne convient, on étend la primitive.
+
+`Sheet` est le traitement mobile des colonnes latérales : il rend ses enfants directement à
+partir de `md`, et derrière un déclencheur plus un panneau glissant en dessous. L'envelopper
+suffit — pas de media query à écrire.
 
 Les deux pipelines ne diffèrent que sur deux points : **comment le sujet analysé est
 trouvé** (nom de personnage → rankings → meilleur parse, contre `code` + `actorId` déjà
