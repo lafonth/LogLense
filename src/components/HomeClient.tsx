@@ -243,7 +243,7 @@ export function HomeClient() {
 
   if ((char && server) || (reportCode && reportActorId)) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex h-full items-center justify-center">
         <LoadingSpinner label="Loading…" />
       </div>
     );

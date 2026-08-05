@@ -54,7 +54,7 @@ export function ReportForm({ onSubmit, loading, onBack }: ReportFormProps) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6 py-10">
+    <div className="flex h-full items-center justify-center px-6 py-10">
       <div className="w-full max-w-[480px]">
         <button
           type="button"

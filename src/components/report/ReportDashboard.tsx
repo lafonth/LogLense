@@ -81,7 +81,7 @@ export function ReportDashboard({
   };
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
+    <div className="flex h-full flex-col md:flex-row">
       <CharacterSwitcher
         actors={actors}
         selectedActorId={selectedActorId}

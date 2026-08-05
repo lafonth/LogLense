@@ -77,7 +77,7 @@ export function CharacterForm({
     !loading;
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-5 py-10">
+    <div className="flex h-full flex-col items-center justify-center px-5 py-10">
       <h1 className="font-display text-brass mb-2 text-4xl tracking-[0.04em]">LogLense</h1>
       <p className="text-dim mb-10 font-mono text-xs">WarcraftLogs analyser</p>
 
@@ -93,7 +93,7 @@ export function CharacterForm({
             onDifficultyChange={setDifficulty}
           />
 
-          <div className="grid grid-cols-2 gap-x-4">
+          <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
             <Input
               label="Character"
               type="text"

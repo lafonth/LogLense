@@ -36,7 +36,7 @@ function CtaButton({ children }: { children: React.ReactNode }) {
 
 export function MarketingLanding() {
   return (
-    <div className="bg-bg text-text min-h-screen">
+    <div className="bg-bg text-text h-full">
       {/* Nav — logo only. The global AuthHeader (rendered in layout.tsx, above this page)
           already provides the sign-in control, so this nav does not duplicate it. */}
       <nav className="bg-bg/90 border-border sticky top-0 z-30 flex items-center border-b px-8 py-3 backdrop-blur-sm">
@@ -105,7 +105,7 @@ export function MarketingLanding() {
             <div className="flex-1">
               <div className="text-brass mb-2.5 flex items-center justify-center gap-2.5 font-mono text-base font-medium md:justify-start">
                 AI Coaching Report
-                <span className="text-brass border-brass/40 text-2xs rounded-xs border px-1.5 py-0.5 tracking-[0.1em] uppercase">
+                <span className="text-brass border-brass-dim text-2xs rounded-xs border px-1.5 py-0.5 tracking-[0.1em] uppercase">
                   Pro
                 </span>
               </div>

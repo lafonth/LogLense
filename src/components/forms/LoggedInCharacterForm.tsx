@@ -49,7 +49,7 @@ function CharacterCard({
         type="button"
         onClick={onSelect}
         className={`w-full cursor-pointer rounded-sm border py-2 pr-7 pl-2.5 text-left ${
-          isActive ? 'border-muted bg-brass/10' : 'border-border bg-transparent'
+          isActive ? 'border-brass-dim bg-brass/10' : 'border-border bg-transparent'
         }`}
       >
         <div className={`truncate font-mono text-xs ${isActive ? 'text-brass' : 'text-text'}`}>
@@ -210,7 +210,7 @@ export function LoggedInCharacterForm({
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-5 py-10">
+    <div className="flex h-full flex-col items-center justify-center px-5 py-10">
       <h1 className="font-display text-brass mb-2 text-4xl tracking-[0.04em]">LogLense</h1>
       <p className="text-dim mb-10 font-mono text-xs">WarcraftLogs analyser</p>
 
