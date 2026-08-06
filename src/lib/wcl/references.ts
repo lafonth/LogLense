@@ -1,6 +1,6 @@
 import type { Comparability, TopPlayer } from '@/types';
 import { gql } from './client';
-import { findCombatantBySpecId } from './combatant';
+import { findCombatantByName } from './combatant';
 import { comparabilityLevel, medianOf, selectClosest } from './comparability';
 import { CANDIDATE_PAGES, TOP_N } from './constants';
 import { fetchFightData } from './fight-data';
@@ -121,8 +121,7 @@ export function selectReferences(
  */
 export async function fetchReferencePlayers(
   token: string,
-  pool: WorldRanking[],
-  specId: number
+  pool: WorldRanking[]
 ): Promise<TopPlayer[]> {
   const players: TopPlayer[] = [];
 
@@ -130,7 +129,12 @@ export async function fetchReferencePlayers(
     const { code, fightID } = candidate.report;
     if (!code || !fightID) continue;
 
-    const combatant = await findCombatantBySpecId(token, code, fightID, specId);
+    // By name, not by spec: the ranking names one player, but a raid can field two of
+    // the same spec. Matching on spec returned whichever came first, so the panel could
+    // show this candidate's name and damage beside another player's gear, talents and
+    // rotation — including the item level the whole selection is built on. A candidate
+    // we cannot identify is dropped rather than substituted.
+    const combatant = await findCombatantByName(token, code, fightID, candidate.name);
     if (!combatant) continue;
 
     const dps = Math.round(candidate.amount);

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { findCombatantByActorId, findCombatantByName, findCombatantBySpecId } from '../combatant';
+import { findCombatantByActorId, findCombatantByName } from '../combatant';
 
 const EVENTS = [
   { sourceID: 1, specID: 103, agility: 13200 },
@@ -38,21 +38,6 @@ describe('combatant lookups', () => {
     });
   });
 
-  describe('findCombatantBySpecId', () => {
-    it('returns the first combatant of that spec', async () => {
-      mockReport({ reportData: { report: { events: { data: EVENTS } } } });
-
-      const found = await findCombatantBySpecId('token', 'abc', 7, 103);
-      expect(found).toEqual({ sourceID: 1, specID: 103, agility: 13200 });
-    });
-
-    it('returns null when the spec is absent', async () => {
-      mockReport({ reportData: { report: { events: { data: EVENTS } } } });
-
-      expect(await findCombatantBySpecId('token', 'abc', 7, 577)).toBeNull();
-    });
-  });
-
   describe('findCombatantByName', () => {
     it('resolves the actor by name, then returns their combatant', async () => {
       mockReport({
@@ -63,6 +48,23 @@ describe('combatant lookups', () => {
 
       const found = await findCombatantByName('token', 'abc', 7, 'Jumbaa');
       expect(found).toEqual({ sourceID: 1, specID: 103, agility: 13200 });
+    });
+
+    // The reason reference lookup matches on name rather than on spec: a raid can
+    // field two players of the same spec, and picking by spec returned whichever came
+    // first — another player's gear, talents and rotation under this one's name.
+    it('picks the named player, not the first one of their spec', async () => {
+      mockReport({
+        reportData: {
+          report: {
+            events: { data: EVENTS },
+            masterData: { actors: [...ACTORS, { id: 3, name: 'Secondferal', type: 'Player' }] },
+          },
+        },
+      });
+
+      const found = await findCombatantByName('token', 'abc', 7, 'Secondferal');
+      expect(found).toEqual({ sourceID: 3, specID: 103, agility: 12000 });
     });
 
     it('ignores non-player actors sharing the name', async () => {

@@ -186,8 +186,15 @@ describe('selectReferences', () => {
 });
 
 const COMBATANTS = [
+  // Two Ferals in the same raid. Aidan is the one the ranking names, and he is NOT
+  // first — matching on spec would return Baldan's gear under Aidan's name.
+  { sourceID: 5, specID: 103, agility: 9000, gear: [{ itemLevel: 600, id: 1, quality: 4 }] },
   { sourceID: 4, specID: 103, agility: 14000, gear: [{ itemLevel: 640, id: 1, quality: 4 }] },
-  { sourceID: 5, specID: 250, strength: 14000 },
+];
+
+const ACTORS = [
+  { id: 4, name: 'Aidan', type: 'Player' },
+  { id: 5, name: 'Baldan', type: 'Player' },
 ];
 
 const CASTS = { data: { entries: [{ guid: 1, name: 'Rip', total: 20 }] } };
@@ -201,13 +208,15 @@ const DAMAGE = {
   },
 };
 
-function mockCandidateQueries(combatants = COMBATANTS) {
+function mockCandidateQueries(combatants = COMBATANTS, actors = ACTORS) {
   globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
     const body = String(init.body);
     let payload: unknown;
 
     if (body.includes('CombatantInfo')) {
-      payload = { reportData: { report: { events: { data: combatants } } } };
+      payload = {
+        reportData: { report: { events: { data: combatants }, masterData: { actors } } },
+      };
     } else if (body.includes('DamageDone')) {
       payload = { reportData: { report: { table: DAMAGE } } };
     } else {
@@ -224,11 +233,13 @@ describe('fetchReferencePlayers', () => {
   it('builds a reference player from the ranking and the fight data', async () => {
     mockCandidateQueries();
 
-    const [player] = await fetchReferencePlayers('token', [ranking('Aidan', 263000, 310000)], 103);
+    const [player] = await fetchReferencePlayers('token', [ranking('Aidan', 263000, 310000)]);
 
     expect(player.stats.name).toBe('Aidan');
     expect(player.stats.dps).toBe(310000);
     expect(player.stats.killTime).toBe('4:23');
+    // 640, Aidan's own gear — not 600, which is the other Feral's and what matching
+    // on spec would have returned. This is the item level the selection is built on.
     expect(player.stats.avgIlvl).toBe(640);
     expect(player.rotation.dps).toBe(310000);
     expect(player.damageTable.entries).toEqual([
@@ -237,10 +248,10 @@ describe('fetchReferencePlayers', () => {
     ]);
   });
 
-  it('skips candidates whose report has no combatant of that spec', async () => {
+  it('drops a candidate it cannot identify rather than substituting another player', async () => {
     mockCandidateQueries();
 
-    const players = await fetchReferencePlayers('token', [ranking('Aidan', 263000)], 577);
+    const players = await fetchReferencePlayers('token', [ranking('Inconnu', 263000)]);
 
     expect(players).toEqual([]);
   });
@@ -248,11 +259,9 @@ describe('fetchReferencePlayers', () => {
   it('skips candidates with an unusable report reference', async () => {
     mockCandidateQueries();
 
-    const players = await fetchReferencePlayers(
-      'token',
-      [{ name: 'Ghost', amount: 1, duration: 1000, report: { code: '', fightID: 0 } }],
-      103
-    );
+    const players = await fetchReferencePlayers('token', [
+      { name: 'Ghost', amount: 1, duration: 1000, report: { code: '', fightID: 0 } },
+    ]);
 
     expect(players).toEqual([]);
   });

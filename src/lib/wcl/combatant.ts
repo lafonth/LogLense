@@ -42,16 +42,6 @@ export async function findCombatantByActorId(
   return data.reportData.report.events.data.find((e) => e.sourceID === actorId) ?? null;
 }
 
-export async function findCombatantBySpecId(
-  token: string,
-  code: string,
-  fightId: number,
-  specId: number
-): Promise<CombatantEvent | null> {
-  const data = await gql<CombatantResponse>(token, Q_COMBATANT, { code, fightIDs: [fightId] });
-  return data.reportData.report.events.data.find((e) => e.specID === specId) ?? null;
-}
-
 export async function findCombatantByName(
   token: string,
   code: string,

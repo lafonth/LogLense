@@ -100,7 +100,7 @@ export async function analyzeReportBoss(
     myKillTimeMs: fightMs,
     exclude: { code, fightID: fightId },
   });
-  const topPlayers = await fetchReferencePlayers(token, references, charEvent.specID);
+  const topPlayers = await fetchReferencePlayers(token, references);
 
   return {
     encounter: encounterName,

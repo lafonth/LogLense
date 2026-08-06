@@ -297,7 +297,7 @@ décision de stockage (D2).
 |---|---|
 | D1 | **Le pipeline existe en deux exemplaires** — `pipeline.ts` et `report-pipeline.ts` dupliquent sélection des références, fallback, boucle séquentielle et agrégation. Chaque tâche de la section 8 coûte le double tant que ce n'est pas traité |
 | D2 | **Aucune base de données** — la seule persistance est Upstash Redis en `GET`/`SET` (`src/lib/redis.ts`). La capture d'étiquettes n'a pas de substrat |
-| D3 | **Le joueur de référence est apparié par spec, pas par nom** — avec deux joueurs de la même spec dans le raid classé, les stats analysées peuvent être celles du mauvais joueur, alors que le DPS vient du ranking |
+| ~~D3~~ | ~~**Le joueur de référence est apparié par spec, pas par nom**~~ — **clos le 2026-08-06.** `fetchReferencePlayers` apparie par nom ; un candidat non identifiable est écarté, jamais remplacé par un autre joueur. `findCombatantBySpecId` est supprimé |
 | D4 | **Le chemin nominal ne produit pas une distribution** — `slice(0, TOP_N)` retient les trois meilleurs parses, pas trois tirages représentatifs. Le code fait l'inverse du produit décrit en section 2 |
 | D5 | **Les externals sont déjà à portée** — `Q_ROTATION` récupère les buffs de chaque candidat et les ignore. Détecter une PI reçue ne coûte aucune requête supplémentaire |
 | D6 | **Le spec-agnosticisme est atteint côté pipeline** — la spec est détectée depuis le `CombatantInfo`, `src/data/talents/` couvre de nombreuses specs. Reste ouvert côté prompt IA |
@@ -329,8 +329,8 @@ et `references.ts` portent désormais le traitement commun.
    `comparability` livré le 2026-08-06 est le point d'accroche du bouton. *(v1)*
 2. ~~**Rendre C2 visible**~~ — **fait le 2026-08-06.** `ComparabilityBanner` énonce le
    niveau atteint et les écarts signés, sur les deux chemins.
-3. **Corriger D3** — apparier le joueur de référence par nom. Défaut silencieux qui
-   corrompt la donnée de comparaison. *(v1)*
+3. ~~**Corriger D3**~~ — **fait le 2026-08-06.** Le joueur de référence est apparié par
+   nom, et un candidat non identifiable est écarté plutôt que remplacé.
 4. **Set bonus et externals dans la sélection** — l'ilvl est fait (2026-08-06). Les
    buffs sont déjà à portée (D5) ; le set bonus demande le `CombatantInfo` par candidat,
    donc d'inverser le pipeline : récupérer avant de choisir, non après. *(v1)*
