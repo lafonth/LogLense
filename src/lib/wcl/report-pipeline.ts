@@ -106,6 +106,7 @@ export async function analyzeReportBoss(
     encounter: encounterName,
     encounterId,
     specId: charEvent.specID,
+    difficulty,
     fightTargets,
     character: {
       stats,
@@ -119,6 +120,7 @@ export async function analyzeReportBoss(
       todayPct: myDpsRank ? Math.round(myDpsRank.todayPercent * 10) / 10 : null,
       bossDpsPct: myBossRank ? Math.round(myBossRank.rankPercent * 10) / 10 : null,
       bracket: myDpsRank ? Math.round(myDpsRank.bracketData * 10) / 10 : null,
+      source: { code, fightID: fightId, actorId: charEvent.sourceID },
     },
     topPlayers,
     comparability,

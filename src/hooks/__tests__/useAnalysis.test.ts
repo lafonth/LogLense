@@ -7,6 +7,7 @@ const mockBossResult: BossResult = {
   encounter: 'Chimaerus',
   encounterId: 3306,
   specId: 103,
+  difficulty: 5,
   fightTargets: [],
   character: {
     stats: {
@@ -29,6 +30,7 @@ const mockBossResult: BossResult = {
     todayPct: 92.1,
     bossDpsPct: null,
     bracket: 0,
+    source: { code: 'abc', fightID: 17, actorId: 63 },
   },
   topPlayers: [],
   comparability: {

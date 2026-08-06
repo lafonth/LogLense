@@ -26,6 +26,15 @@ function reference(name: string, perMin: Record<string, number>): TopPlayer {
       buffs: {},
     },
     damageTable: { entries: [] },
+    provenance: {
+      code: `code-${name}`,
+      fightID: 1,
+      name,
+      ilvl: 639,
+      killTimeMs: 263000,
+      dps: 300000,
+      distance: 0.5,
+    },
   };
 }
 

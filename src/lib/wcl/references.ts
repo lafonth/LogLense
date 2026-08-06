@@ -1,3 +1,4 @@
+import type { ScoredCandidate } from './comparability';
 import type { Comparability, TopPlayer } from '@/types';
 import { gql } from './client';
 import { findCombatantByName } from './combatant';
@@ -69,7 +70,7 @@ export async function fetchCandidatePool(
 }
 
 export interface ReferenceSelection {
-  references: WorldRanking[];
+  references: ScoredCandidate<WorldRanking>[];
   comparability: Comparability;
 }
 
@@ -98,21 +99,20 @@ export function selectReferences(
   );
 
   const scored = selectClosest(filtered, myIlvl, myKillTimeMs, TOP_N);
-  const references = scored.map((s) => s.candidate);
 
   const comparability: Comparability = {
     level: comparabilityLevel(scored),
     referenceIlvl: medianOf(
-      references.map((r) => r.bracketData).filter((v): v is number => v !== undefined)
+      scored.map((s) => s.candidate.bracketData).filter((v): v is number => v !== undefined)
     ),
     myIlvl,
-    referenceKillTimeMs: medianOf(references.map((r) => r.duration)),
+    referenceKillTimeMs: medianOf(scored.map((s) => s.candidate.duration)),
     myKillTimeMs,
     candidatesConsidered: filtered.length,
     pagesFetched: pool.pagesFetched,
   };
 
-  return { references, comparability };
+  return { references: scored, comparability };
 }
 
 /**
@@ -121,11 +121,11 @@ export function selectReferences(
  */
 export async function fetchReferencePlayers(
   token: string,
-  pool: WorldRanking[]
+  pool: ScoredCandidate<WorldRanking>[]
 ): Promise<TopPlayer[]> {
   const players: TopPlayer[] = [];
 
-  for (const candidate of pool) {
+  for (const { candidate, distance } of pool) {
     const { code, fightID } = candidate.report;
     if (!code || !fightID) continue;
 
@@ -151,6 +151,15 @@ export async function fetchReferencePlayers(
       stats: { ...stats, dps, killTime: fmtMs(candidate.duration) },
       rotation,
       damageTable: { entries: damageEntries },
+      provenance: {
+        code,
+        fightID,
+        name: candidate.name,
+        ilvl: candidate.bracketData ?? null,
+        killTimeMs: candidate.duration,
+        dps,
+        distance,
+      },
     });
   }
 

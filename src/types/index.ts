@@ -65,10 +65,28 @@ export interface DamageEntry {
   total: number;
 }
 
+/**
+ * D'où vient une référence et ce que la sélection a vu d'elle.
+ *
+ * `ilvl` est le `bracketData` du classement — l'ilvl sur lequel la distance a été
+ * calculée — et non `stats.avgIlvl`, qui est recalculé depuis l'équipement. Le corpus
+ * doit pouvoir redériver l'écart consigné à partir des entrées consignées.
+ */
+export interface ReferenceProvenance {
+  code: string;
+  fightID: number;
+  name: string;
+  ilvl: number | null;
+  killTimeMs: number;
+  dps: number;
+  distance: number;
+}
+
 export interface TopPlayer {
   stats: CharacterStats & { dps: number; killTime: string };
   rotation: RotationSummary;
   damageTable: { entries: DamageEntry[] };
+  provenance: ReferenceProvenance;
 }
 
 export interface FightTarget {
@@ -94,6 +112,7 @@ export interface BossResult {
   encounter: string;
   encounterId: number;
   specId: number;
+  difficulty: number;
   fightTargets: FightTarget[];
   character: {
     stats: CharacterStats;
@@ -107,6 +126,8 @@ export interface BossResult {
     todayPct: number | null;
     bossDpsPct: number | null;
     bracket: number | null;
+    /** Le combat analysé, pour que l'écran puisse nommer ce qu'il étiquette. */
+    source: { code: string; fightID: number; actorId: number };
   };
   topPlayers: TopPlayer[];
   comparability: Comparability;

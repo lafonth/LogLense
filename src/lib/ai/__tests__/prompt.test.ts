@@ -7,6 +7,7 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
     encounter: 'Chimaerus',
     encounterId: 3306,
     specId: 103,
+    difficulty: 5,
     fightTargets: [{ name: 'Chimaerus', type: 'Boss', damagePct: 95.0 }],
     character: {
       stats: {
@@ -47,6 +48,7 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
       bossDpsPct: null,
       bracket: 0,
       ...overrides,
+      source: { code: 'abc', fightID: 17, actorId: 63 },
     },
     topPlayers: [
       {
@@ -80,6 +82,15 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
             { name: 'Rake', total: 2000000 },
             { name: 'Shred', total: 1500000 },
           ],
+        },
+        provenance: {
+          code: 'ref1',
+          fightID: 4,
+          name: 'TopPlayer1',
+          ilvl: 639,
+          killTimeMs: 175000,
+          dps: 290000,
+          distance: 0.42,
         },
       },
     ],

@@ -109,7 +109,7 @@ describe('selectReferences', () => {
       ranking('close', 285, 305000),
     ];
 
-    expect(select(all).references.map((r) => r.name)).toEqual(['close', 'strong']);
+    expect(select(all).references.map((r) => r.candidate.name)).toEqual(['close', 'strong']);
   });
 
   it('caps the pool at TOP_N, keeping the closest', () => {
@@ -122,7 +122,9 @@ describe('selectReferences', () => {
 
     const { references } = select(inWindow);
     expect(references).toHaveLength(TOP_N);
-    expect(references.map((r) => r.name)).toEqual(Array.from({ length: TOP_N }, (_, i) => `R${i}`));
+    expect(references.map((r) => r.candidate.name)).toEqual(
+      Array.from({ length: TOP_N }, (_, i) => `R${i}`)
+    );
   });
 
   it('returns nothing when there are no rankings at all', () => {
@@ -132,7 +134,7 @@ describe('selectReferences', () => {
   it('still returns references when none is within tolerance', () => {
     const all = [ranking('far', 320, 120000), ranking('further', 340, 100000)];
 
-    expect(select(all).references.map((r) => r.name)).toEqual(['far', 'further']);
+    expect(select(all).references.map((r) => r.candidate.name)).toEqual(['far', 'further']);
   });
 
   it('excludes the player own log even though it scores a perfect zero distance', () => {
@@ -146,7 +148,7 @@ describe('selectReferences', () => {
 
     const { references, comparability } = select(all, { code: 'me', fightID: 1 });
 
-    expect(references.map((r) => r.name)).not.toContain('me');
+    expect(references.map((r) => r.candidate.name)).not.toContain('me');
     expect(comparability.candidatesConsidered).toBe(3);
   });
 
@@ -168,7 +170,7 @@ describe('selectReferences', () => {
 
     const { references } = select([mine, otherFight], { code: 'shared-report', fightID: 1 });
 
-    expect(references.map((r) => r.name)).toEqual(['me-other-boss']);
+    expect(references.map((r) => r.candidate.name)).toEqual(['me-other-boss']);
   });
 
   it('derives comparability.level from the same scored set that produced the references', () => {
@@ -233,7 +235,8 @@ describe('fetchReferencePlayers', () => {
   it('builds a reference player from the ranking and the fight data', async () => {
     mockCandidateQueries();
 
-    const [player] = await fetchReferencePlayers('token', [ranking('Aidan', 263000, 310000)]);
+    const candidate = { ...ranking('Aidan', 263000, 310000), bracketData: 285 };
+    const [player] = await fetchReferencePlayers('token', [{ candidate, distance: 0.42 }]);
 
     expect(player.stats.name).toBe('Aidan');
     expect(player.stats.dps).toBe(310000);
@@ -248,10 +251,40 @@ describe('fetchReferencePlayers', () => {
     ]);
   });
 
+  it('carries the provenance the corpus needs, ilvl from the ranking', async () => {
+    mockCandidateQueries();
+
+    const candidate = { ...ranking('Aidan', 263000, 310000), bracketData: 285 };
+    const [player] = await fetchReferencePlayers('token', [{ candidate, distance: 0.42 }]);
+
+    expect(player.provenance).toEqual({
+      code: 'code-Aidan',
+      fightID: 1,
+      name: 'Aidan',
+      // The ranking's bracketData, not stats.avgIlvl (640) — the selection scored on this.
+      ilvl: 285,
+      killTimeMs: 263000,
+      dps: 310000,
+      distance: 0.42,
+    });
+  });
+
+  it('records a null ilvl when the ranking entry has no bracketData', async () => {
+    mockCandidateQueries();
+
+    const [player] = await fetchReferencePlayers('token', [
+      { candidate: ranking('Aidan', 263000, 310000), distance: 3 },
+    ]);
+
+    expect(player.provenance.ilvl).toBeNull();
+  });
+
   it('drops a candidate it cannot identify rather than substituting another player', async () => {
     mockCandidateQueries();
 
-    const players = await fetchReferencePlayers('token', [ranking('Inconnu', 263000)]);
+    const players = await fetchReferencePlayers('token', [
+      { candidate: ranking('Inconnu', 263000), distance: 1 },
+    ]);
 
     expect(players).toEqual([]);
   });
@@ -260,7 +293,10 @@ describe('fetchReferencePlayers', () => {
     mockCandidateQueries();
 
     const players = await fetchReferencePlayers('token', [
-      { name: 'Ghost', amount: 1, duration: 1000, report: { code: '', fightID: 0 } },
+      {
+        candidate: { name: 'Ghost', amount: 1, duration: 1000, report: { code: '', fightID: 0 } },
+        distance: 1,
+      },
     ]);
 
     expect(players).toEqual([]);
