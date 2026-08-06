@@ -381,10 +381,23 @@ plus coûteux. Il reproduisait exactement la comparaison illégitime que l'outil
 éviter, et l'utilisateur ne pouvait pas distinguer un rapport fiable d'un rapport
 trompeur. Il cassait la confiance précisément quand l'outil se trompait.
 
-Le même défaut subsiste ailleurs, sous une autre forme : le percentile affiché ne mesure
-pas la même chose selon le chemin d'analyse — 81,1 % par le chemin personnage contre 67 %
-par le chemin rapport, pour le même kill, sous le même libellé. Non corrigé, à confirmer
-contre la documentation WCL avant toute intervention.
+Le même défaut existait ailleurs, sous une autre forme : le percentile affiché ne mesurait
+pas la même chose selon le chemin d'analyse — sous un seul libellé, deux nombres.
+**Clos le 2026-08-07**, après mesure contre l'API et non contre l'intuition. Sur le même
+kill, au même DPS au millième près : 60,9 % par le chemin personnage, 55,0 % par le chemin
+rapport. L'hypothèse de départ — « meilleur parse contre combat demandé » — était fausse.
+La cause est un homonyme dans l'API : `characterData…encounterRankings.rankPercent` est le
+percentile **verrouillé** au moment du kill (353 parses de la partition), tandis que
+`report.rankings…rankPercent`, du même nom, est le percentile **du jour** recalculé contre
+la population courante (7 695 parses). Le nombre que le raider cite est le premier ; le
+chemin rapport lit désormais le parse historique du personnage, apparié sur `code` **et**
+`fightID` (`historical-parse.ts`), et dégrade vers le percentile du jour si la
+réconciliation échoue.
+
+La même mesure a levé un défaut latent : l'entrée de `report.rankings` ne porte ni
+`todayPercent` ni `rankTotalParses`. `todayPct` valait donc `NaN` — sans conséquence
+visible, faute de consommateur — et `overallPctOf` valait toujours `null`, ce qui privait
+le percentile affiché de son effectif.
 
 **Sur ±20 %** : sur un kill de 5 min, c'est ±60 s. Le kill time et le DPS sont
 mécaniquement corrélés (moins de phases, plus d'uptime CD). Se comparer à un kill

@@ -19,9 +19,10 @@
 import { Buffer } from 'node:buffer';
 import { resolve } from 'node:path';
 import process from 'node:process';
-import { config } from 'dotenv';
 
-config({ path: resolve(process.cwd(), '.env.local') });
+// Node charge lui-même le fichier depuis la 20.12 : pas de dotenv, qui n'est de toute façon
+// pas une dépendance de ce dépôt.
+process.loadEnvFile(resolve(process.cwd(), '.env.local'));
 
 const TOKEN_URL = 'https://www.warcraftlogs.com/oauth/token';
 const API_URL = 'https://www.warcraftlogs.com/api/v2/client';

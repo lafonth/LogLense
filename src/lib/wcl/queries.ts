@@ -58,6 +58,29 @@ export const Q_CHARACTER_RANKINGS_SPEC = `
   }
 `;
 
+/**
+ * Le percentile historique d'un joueur sur une rencontre, sans les rankings bossdps.
+ *
+ * `report.rankings` ne rend que le percentile du jour ; le nombre que le raider connaît est
+ * le percentile verrouillé (`lockedIn`). Il faut passer par le personnage pour l'obtenir,
+ * même quand on part d'un rapport.
+ */
+export const Q_CHARACTER_PARSE_DPS = `
+  query CharacterParseDps(
+    $name: String!, $slug: String!, $region: String!,
+    $encounterID: Int!, $difficulty: Int!, $specName: String!, $className: String!
+  ) {
+    characterData {
+      character(name: $name, serverSlug: $slug, serverRegion: $region) {
+        dps: encounterRankings(
+          encounterID: $encounterID, difficulty: $difficulty,
+          metric: dps, specName: $specName, className: $className
+        )
+      }
+    }
+  }
+`;
+
 export const Q_COMBATANT_WITH_ACTORS = `
   query CombatantWithActors($code: String!, $fightIDs: [Int]!) {
     reportData {
