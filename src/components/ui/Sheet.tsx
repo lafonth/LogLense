@@ -52,11 +52,13 @@ export function Sheet({ triggerLabel, title, children }: SheetProps) {
         {open && (
           <div className="fixed inset-0 z-50 flex items-end">
             <div className="bg-bg/80 absolute inset-0" onClick={handleClose} aria-hidden="true" />
+            {/* `relative` on the panel is load-bearing: the backdrop is absolutely positioned
+                and would otherwise paint over this static block, swallowing every click. */}
             <div
               role="dialog"
               aria-modal="true"
               aria-labelledby={titleId}
-              className="border-border bg-surface max-h-[70vh] w-full overflow-y-auto rounded-t-md border-t p-4"
+              className="border-border bg-surface relative max-h-[70vh] w-full overflow-y-auto rounded-t-md border-t p-4"
               onClick={(event) => event.stopPropagation()}
               onKeyDown={handleKeyDown}
             >

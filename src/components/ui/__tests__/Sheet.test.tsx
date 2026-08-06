@@ -106,4 +106,25 @@ describe('sheet', () => {
     // Verify dialog is never inside an aria-hidden="true" element
     expect(dialog.closest('[aria-hidden="true"]')).toBeNull();
   });
+
+  // jsdom does no painting or hit-testing, so it cannot see that an absolutely
+  // positioned backdrop paints over a static sibling and swallows its clicks.
+  // A real browser did: every click inside the panel closed the sheet instead of
+  // selecting. Assert the stacking structure that keeps the panel reachable.
+  it('stacks the panel above the backdrop rather than under it', async () => {
+    const user = userEvent.setup();
+    render(
+      <Sheet triggerLabel="Rotmire" title="Bosses">
+        <p>Boss list</p>
+      </Sheet>
+    );
+
+    await user.click(screen.getByRole('button', { name: /Rotmire/ }));
+    const dialog = screen.getByRole('dialog');
+    const backdrop = dialog.parentElement!.querySelector('[aria-hidden="true"]')!;
+
+    expect(backdrop.className).toContain('absolute');
+    // The panel must be positioned too, or the positioned backdrop paints on top.
+    expect(dialog.className).toMatch(/\b(relative|absolute|fixed|sticky)\b/);
+  });
 });
