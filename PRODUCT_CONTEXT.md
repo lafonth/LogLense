@@ -288,15 +288,32 @@ l'équipement des références.** Les deux chemins d'analyse rendent désormais 
 `comparability` identique pour le même combat.
 
 Ce que ce chantier n'a **pas** traité : les critères éliminatoires (externals reçus,
-palier de set bonus) restent absents, et la capture d'étiquettes attend toujours une
-décision de stockage (D2).
+palier de set bonus) restent absents.
+
+### D2 clos le 2026-08-06 — et sa prémisse était fausse
+
+Plan : [docs/superpowers/plans/2026-08-06-capture-etiquettes.md](docs/superpowers/plans/2026-08-06-capture-etiquettes.md).
+
+D2 affirmait que « la capture d'étiquettes n'a pas de substrat ». C'est faux depuis
+qu'un `ReferenceLabels` poste sur `/api/labels/comparability`, qui `RPUSH` dans une liste
+mensuelle `labels:comparability:<YYYY-MM>`.
+
+Mais la formulation était déjà fausse quand elle a été écrite. `redis.ts` n'était pas un
+magasin à usage unique : c'était un client générique, et lui ajouter un `RPUSH` a coûté
+quelques lignes. Le vrai verrou n'était pas le stockage, il était en amont — **le code ne
+savait pas de quel log venait une référence.** Sans `code`, `fightID`, `ilvl` et
+`killTimeMs` par référence, une étiquette « pas comparable » n'aurait désigné rien de
+réidentifiable. La provenance a dû être portée jusqu'à l'écran (commit `39f5549`) avant
+que la capture ait un sens. Attribuer un blocage à l'infrastructure alors qu'il tenait à
+un manque d'information dans le modèle de données a retardé la tâche la plus
+irréversible de la liste.
 
 ### Divergences non prévues par le snapshot
 
 | # | Divergence |
 |---|---|
 | D1 | **Le pipeline existe en deux exemplaires** — `pipeline.ts` et `report-pipeline.ts` dupliquent sélection des références, fallback, boucle séquentielle et agrégation. Chaque tâche de la section 8 coûte le double tant que ce n'est pas traité |
-| D2 | **Aucune base de données** — la seule persistance est Upstash Redis en `GET`/`SET` (`src/lib/redis.ts`). La capture d'étiquettes n'a pas de substrat |
+| ~~D2~~ | ~~**Aucune base de données** — la capture d'étiquettes n'a pas de substrat~~ — **clos le 2026-08-06.** Voir ci-dessous : la prémisse était fausse dès l'écriture |
 | ~~D3~~ | ~~**Le joueur de référence est apparié par spec, pas par nom**~~ — **clos le 2026-08-06.** `fetchReferencePlayers` apparie par nom ; un candidat non identifiable est écarté, jamais remplacé par un autre joueur. `findCombatantBySpecId` est supprimé |
 | D4 | **Le chemin nominal ne produit pas une distribution** — `slice(0, TOP_N)` retient les trois meilleurs parses, pas trois tirages représentatifs. Le code fait l'inverse du produit décrit en section 2 |
 | D5 | **Les externals sont déjà à portée** — `Q_ROTATION` récupère les buffs de chaque candidat et les ignore. Détecter une PI reçue ne coûte aucune requête supplémentaire |
@@ -324,9 +341,18 @@ mécaniquement corrélés (moins de phases, plus d'uptime CD). Se comparer à un
 touchaient toutes le même bloc de code, présent deux fois ; `combatant.ts`, `fight-data.ts`
 et `references.ts` portent désormais le traitement commun.
 
-1. **Capture des étiquettes** — irréversible si repoussée. Stockage + endpoint +
-   bouton « pas comparable » avec raison. Le choix du stockage précède (D2). Le bloc
-   `comparability` livré le 2026-08-06 est le point d'accroche du bouton. *(v1)*
+1. ~~**Capture des étiquettes**~~ — **fait le 2026-08-06.** Schéma versionné (`v: 1`),
+   identité `by` hachée avec `LABEL_SALT` — l'endpoint refuse d'écrire sans sel plutôt
+   que d'écrire en clair —, `POST /api/labels/comparability` en append-only, et le
+   contrôle « pas comparable » avec raison dans `ComparisonTab`.
+
+   Deux choses à ne pas croire acquises. **Rien n'exploite ces étiquettes** : elles
+   s'accumulent, aucune route ne les relit, aucun modèle ne s'en sert, et l'affichage
+   n'en tient pas compte. C'était l'objectif — capturer d'abord, le calcul se rattrape,
+   la donnée non capturée est perdue. Et **le stockage reste un Redis append-only** :
+   assumé comme insuffisant pour de l'entraînement, à migrer le jour où il y aura assez
+   de volume pour valoir une vraie base. Les CGU WCL sur le stockage de données dérivées
+   restent à trancher avant cette migration. *(v1)*
 2. ~~**Rendre C2 visible**~~ — **fait le 2026-08-06.** `ComparabilityBanner` énonce le
    niveau atteint et les écarts signés, sur les deux chemins.
 3. ~~**Corriger D3**~~ — **fait le 2026-08-06.** Le joueur de référence est apparié par
