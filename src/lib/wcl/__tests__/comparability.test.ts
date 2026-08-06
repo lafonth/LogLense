@@ -32,6 +32,12 @@ describe('scoreCandidate', () => {
     expect(scoreCandidate({ duration: 300000 }, MY_ILVL, MY_MS)).toBe(Number.POSITIVE_INFINITY);
   });
 
+  it('returns Infinity when the player has no item level', () => {
+    expect(scoreCandidate({ bracketData: 284, duration: 300000 }, 0, MY_MS)).toBe(
+      Number.POSITIVE_INFINITY
+    );
+  });
+
   it('treats the kill-time gap as zero rather than dividing by zero', () => {
     expect(scoreCandidate({ bracketData: 284, duration: 5000 }, MY_ILVL, 0)).toBe(0);
   });
@@ -90,6 +96,15 @@ describe('comparabilityLevel', () => {
 
   it('is poor when every candidate is unscorable', () => {
     expect(comparabilityLevel([at(Number.POSITIVE_INFINITY)])).toBe('poor');
+  });
+
+  it('is poor, not close, when the player has no item level', () => {
+    const candidates = [
+      { name: 'near', bracketData: 285, duration: 310000 },
+      { name: 'mid', bracketData: 290, duration: 330000 },
+    ];
+    const scored = selectClosest(candidates, 0, MY_MS, candidates.length);
+    expect(comparabilityLevel(scored)).toBe('poor');
   });
 });
 

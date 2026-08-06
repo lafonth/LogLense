@@ -1,12 +1,11 @@
-import type { BossResult, Comparability } from '@/types';
+import type { BossResult } from '@/types';
 import { getSpecInfo } from '@/lib/specs';
 import { gql } from './client';
 import { findCombatantByActorId } from './combatant';
-import { comparabilityLevel, medianOf, selectClosest } from './comparability';
 import { fetchFightData } from './fight-data';
 import { fmtMs } from './parsers';
 import { Q_REPORT_RANKINGS_BOSSDPS, Q_REPORT_RANKINGS_DPS } from './queries';
-import { fetchCandidatePool, fetchReferencePlayers, selectReferencePool } from './references';
+import { fetchCandidatePool, fetchReferencePlayers, selectReferences } from './references';
 
 interface RankingChar {
   name: string;
@@ -96,21 +95,12 @@ export async function analyzeReportBoss(
   const myDpsRank = findInRankings(dpsRankingsRaw.reportData.report.rankings, actorName);
   const myBossRank = findInRankings(bossRankingsRaw.reportData.report.rankings, actorName);
 
-  const references = selectReferencePool(pool.candidates, fightMs, stats.avgIlvl);
-  const topPlayers = await fetchReferencePlayers(token, references, charEvent.specID);
-
-  const scored = selectClosest(references, stats.avgIlvl, fightMs, references.length);
-  const comparability: Comparability = {
-    level: comparabilityLevel(scored),
-    referenceIlvl: medianOf(
-      references.map((r) => r.bracketData).filter((v): v is number => v !== undefined)
-    ),
+  const { references, comparability } = selectReferences(pool, {
     myIlvl: stats.avgIlvl,
-    referenceKillTimeMs: medianOf(references.map((r) => r.duration)),
     myKillTimeMs: fightMs,
-    candidatesConsidered: pool.candidates.length,
-    pagesFetched: pool.pagesFetched,
-  };
+    exclude: { code, fightID: fightId },
+  });
+  const topPlayers = await fetchReferencePlayers(token, references, charEvent.specID);
 
   return {
     encounter: encounterName,

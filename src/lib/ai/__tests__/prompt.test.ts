@@ -157,6 +157,67 @@ describe('buildAnalysisPrompt', () => {
   });
 });
 
+describe('comparability section', () => {
+  it('names the level in the prompt', () => {
+    const input: AnalysisResult = {
+      input: {
+        characterName: 'Jumbaa',
+        serverSlug: 'ysondre',
+        region: 'EU',
+        difficulty: 5,
+        encounters: [{ id: 3306, name: 'Chimaerus' }],
+        specId: 103,
+      },
+      bosses: [makeBoss()],
+      generatedAt: '2026-05-09T00:00:00.000Z',
+    };
+
+    const prompt = buildAnalysisPrompt(input);
+    expect(prompt).toContain('Comparable');
+  });
+
+  it('instructs the model not to attribute the gap to the player on a poor comparison', () => {
+    const boss = makeBoss();
+    boss.comparability = { ...boss.comparability, level: 'poor' };
+    const input: AnalysisResult = {
+      input: {
+        characterName: 'Jumbaa',
+        serverSlug: 'ysondre',
+        region: 'EU',
+        difficulty: 5,
+        encounters: [{ id: 3306, name: 'Chimaerus' }],
+        specId: 103,
+      },
+      bosses: [boss],
+      generatedAt: '2026-05-09T00:00:00.000Z',
+    };
+
+    const prompt = buildAnalysisPrompt(input);
+    expect(prompt).toContain('Not comparable');
+    expect(prompt).toContain('attribute the DPS gap to the difference in context');
+  });
+
+  it('does not add the caution instruction on a close comparison', () => {
+    const boss = makeBoss();
+    boss.comparability = { ...boss.comparability, level: 'close' };
+    const input: AnalysisResult = {
+      input: {
+        characterName: 'Jumbaa',
+        serverSlug: 'ysondre',
+        region: 'EU',
+        difficulty: 5,
+        encounters: [{ id: 3306, name: 'Chimaerus' }],
+        specId: 103,
+      },
+      bosses: [boss],
+      generatedAt: '2026-05-09T00:00:00.000Z',
+    };
+
+    const prompt = buildAnalysisPrompt(input);
+    expect(prompt).not.toContain('attribute the DPS gap to the difference in context');
+  });
+});
+
 describe('system prompt', () => {
   it('exists and describes the analysis process', () => {
     expect(SYSTEM_PROMPT).toContain('WarcraftLogs');

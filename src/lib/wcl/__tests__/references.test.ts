@@ -1,7 +1,9 @@
 import type { WorldRanking } from '../references';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CANDIDATE_PAGES, TOP_N } from '../constants';
-import { fetchCandidatePool, fetchReferencePlayers, selectReferencePool } from '../references';
+import { fetchCandidatePool, fetchReferencePlayers, selectReferences } from '../references';
+
+const NO_EXCLUDE = { code: '__none__', fightID: -1 };
 
 function ranking(name: string, duration: number, amount = 250000): WorldRanking {
   return { name, amount, duration, report: { code: `code-${name}`, fightID: 1 } };
@@ -86,12 +88,19 @@ describe('fetchCandidatePool', () => {
   });
 });
 
-describe('selectReferencePool', () => {
+describe('selectReferences', () => {
   const MY_ILVL = 284;
   const MY_MS = 300000;
 
   function ranking(name: string, bracketData: number, duration: number): WorldRanking {
     return { name, amount: 200000, duration, bracketData, report: { code: name, fightID: 1 } };
+  }
+
+  function select(candidates: WorldRanking[], exclude = NO_EXCLUDE) {
+    return selectReferences(
+      { candidates, pagesFetched: 1 },
+      { myIlvl: MY_ILVL, myKillTimeMs: MY_MS, exclude }
+    );
   }
 
   it('prefers the closest candidate over the highest-dps one', () => {
@@ -100,10 +109,7 @@ describe('selectReferencePool', () => {
       ranking('close', 285, 305000),
     ];
 
-    expect(selectReferencePool(all, MY_MS, MY_ILVL).map((r) => r.name)).toEqual([
-      'close',
-      'strong',
-    ]);
+    expect(select(all).references.map((r) => r.name)).toEqual(['close', 'strong']);
   });
 
   it('caps the pool at TOP_N', () => {
@@ -116,17 +122,66 @@ describe('selectReferencePool', () => {
       report: { code: `code-R${i}`, fightID: 1 },
     }));
 
-    expect(selectReferencePool(inWindow, MY_MS, MY_ILVL)).toHaveLength(TOP_N);
+    expect(select(inWindow).references).toHaveLength(TOP_N);
   });
 
   it('returns nothing when there are no rankings at all', () => {
-    expect(selectReferencePool([], MY_MS, MY_ILVL)).toEqual([]);
+    expect(select([]).references).toEqual([]);
   });
 
   it('still returns references when none is within tolerance', () => {
     const all = [ranking('far', 320, 120000), ranking('further', 340, 100000)];
 
-    expect(selectReferencePool(all, MY_MS, MY_ILVL).map((r) => r.name)).toEqual(['far', 'further']);
+    expect(select(all).references.map((r) => r.name)).toEqual(['far', 'further']);
+  });
+
+  it('excludes the player own log even though it scores a perfect zero distance', () => {
+    const mine = ranking('me', MY_ILVL, MY_MS);
+    const all = [
+      mine,
+      ranking('near', 285, 305000),
+      ranking('mid', 288, 310000),
+      ranking('far', 292, 320000),
+    ];
+
+    const { references, comparability } = select(all, { code: 'me', fightID: 1 });
+
+    expect(references.map((r) => r.name)).not.toContain('me');
+    expect(comparability.candidatesConsidered).toBe(3);
+  });
+
+  it('keeps a candidate that shares the report code but not the fightID', () => {
+    const mine: WorldRanking = {
+      name: 'me',
+      amount: 200000,
+      duration: MY_MS,
+      bracketData: MY_ILVL,
+      report: { code: 'shared-report', fightID: 1 },
+    };
+    const otherFight: WorldRanking = {
+      name: 'me-other-boss',
+      amount: 200000,
+      duration: MY_MS,
+      bracketData: MY_ILVL,
+      report: { code: 'shared-report', fightID: 2 },
+    };
+
+    const { references } = select([mine, otherFight], { code: 'shared-report', fightID: 1 });
+
+    expect(references.map((r) => r.name)).toEqual(['me-other-boss']);
+  });
+
+  it('derives comparability.level from the same scored set that produced the references', () => {
+    const all = [
+      ranking('far', 320, 120000),
+      ranking('further', 340, 100000),
+      ranking('even-further', 360, 90000),
+    ];
+
+    const { references, comparability } = select(all);
+
+    expect(references).toHaveLength(3);
+    expect(comparability.level).toBe('poor');
   });
 });
 

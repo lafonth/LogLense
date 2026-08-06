@@ -48,6 +48,39 @@ function fmt(n: number): string {
   return n.toLocaleString('en-US');
 }
 
+const COMPARABILITY_LABEL: Record<BossResult['comparability']['level'], string> = {
+  close: 'Comparable',
+  approximate: 'Roughly comparable',
+  poor: 'Not comparable',
+  none: 'No comparable logs',
+};
+
+/** Same arithmetic as ComparabilityBanner: gap = reference − mine. */
+function comparabilitySection(comparability: BossResult['comparability']): string {
+  const { level, referenceIlvl, myIlvl, referenceKillTimeMs, myKillTimeMs } = comparability;
+
+  const lines = [`### Comparison basis`, `${COMPARABILITY_LABEL[level]}.`];
+
+  if (referenceIlvl !== null && referenceKillTimeMs !== null && myKillTimeMs !== 0) {
+    const ilvlGap = referenceIlvl - myIlvl;
+    const killTimeGapPct = ((referenceKillTimeMs - myKillTimeMs) / myKillTimeMs) * 100;
+    const sign = (n: number) => (n < 0 ? '' : '+');
+    lines.push(
+      `References sit at ${referenceIlvl} item level (${sign(ilvlGap)}${ilvlGap.toFixed(1)} against your ${myIlvl}), ` +
+        `kill time ${sign(killTimeGapPct)}${killTimeGapPct.toFixed(1)}% against yours.`
+    );
+  }
+
+  if (level === 'poor' || level === 'none') {
+    lines.push(
+      'The comparison basis is weak — attribute the DPS gap to the difference in context ' +
+        '(kill time, item level) rather than to the player, and say so explicitly.'
+    );
+  }
+
+  return lines.join('\n');
+}
+
 function fightTargetsLine(targets: FightTarget[]): string {
   if (targets.length === 0) return 'unknown';
   return targets.map((t) => `${t.name} (${t.type}, ${t.damagePct}%)`).join(', ');
@@ -271,6 +304,8 @@ export function buildAnalysisPrompt(
       const sections: string[] = [
         `## ${boss.encounter}`,
         `Fight targets: ${fightTargetsLine(boss.fightTargets)}`,
+        '',
+        comparabilitySection(boss.comparability),
         '',
         '### Gear & Stats',
         statsTable(charStats, topPlayers),

@@ -1,7 +1,7 @@
-import type { TopPlayer } from '@/types';
+import type { Comparability, TopPlayer } from '@/types';
 import { gql } from './client';
 import { findCombatantBySpecId } from './combatant';
-import { selectClosest } from './comparability';
+import { comparabilityLevel, medianOf, selectClosest } from './comparability';
 import { CANDIDATE_PAGES, TOP_N } from './constants';
 import { fetchFightData } from './fight-data';
 import { fmtMs } from './parsers';
@@ -68,16 +68,51 @@ export async function fetchCandidatePool(
   return { candidates, pagesFetched };
 }
 
+export interface ReferenceSelection {
+  references: WorldRanking[];
+  comparability: Comparability;
+}
+
 /**
- * Picks the references a character is compared against: the candidates closest
- * to them in item level and kill time, not the ones with the highest damage.
+ * Picks the references a character is compared against — the candidates closest to
+ * them in item level and kill time, not the ones with the highest damage — and reports
+ * how legitimate the resulting comparison is.
+ *
+ * `exclude` is the player's own log. It sits in the candidate pool whenever their parse
+ * ranks inside the fetched pages, and it scores a perfect zero distance against itself,
+ * so without this it would be selected as the closest reference and the banner would
+ * call a self-comparison `close`.
  */
-export function selectReferencePool(
-  all: WorldRanking[],
-  fightMs: number,
-  myIlvl: number
-): WorldRanking[] {
-  return selectClosest(all, myIlvl, fightMs, TOP_N).map((s) => s.candidate);
+export function selectReferences(
+  pool: CandidatePool,
+  args: {
+    myIlvl: number;
+    myKillTimeMs: number;
+    exclude: { code: string; fightID: number };
+  }
+): ReferenceSelection {
+  const { myIlvl, myKillTimeMs, exclude } = args;
+
+  const filtered = pool.candidates.filter(
+    (c) => !(c.report.code === exclude.code && c.report.fightID === exclude.fightID)
+  );
+
+  const scored = selectClosest(filtered, myIlvl, myKillTimeMs, TOP_N);
+  const references = scored.map((s) => s.candidate);
+
+  const comparability: Comparability = {
+    level: comparabilityLevel(scored),
+    referenceIlvl: medianOf(
+      references.map((r) => r.bracketData).filter((v): v is number => v !== undefined)
+    ),
+    myIlvl,
+    referenceKillTimeMs: medianOf(references.map((r) => r.duration)),
+    myKillTimeMs,
+    candidatesConsidered: filtered.length,
+    pagesFetched: pool.pagesFetched,
+  };
+
+  return { references, comparability };
 }
 
 /**

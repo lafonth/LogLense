@@ -65,6 +65,28 @@ describe('comparabilityBanner', () => {
     expect(screen.getByText(/No comparable logs/i)).toBeInTheDocument();
   });
 
+  it('signs the kill-time gap upward when references are slower', () => {
+    render(
+      <ComparabilityBanner
+        comparability={comparability({ referenceKillTimeMs: 330000, myKillTimeMs: 300000 })}
+      />
+    );
+
+    // (330000 - 300000) / 300000 * 100 = 10.0
+    expect(screen.getByText(/\+10%/)).toBeInTheDocument();
+  });
+
+  it('signs the kill-time gap downward when references are faster', () => {
+    render(
+      <ComparabilityBanner
+        comparability={comparability({ referenceKillTimeMs: 270000, myKillTimeMs: 300000 })}
+      />
+    );
+
+    // (270000 - 300000) / 300000 * 100 = -10.0
+    expect(screen.getByText(/−10%/)).toBeInTheDocument();
+  });
+
   it('reports how wide a net was cast', () => {
     render(<ComparabilityBanner comparability={comparability()} />);
 

@@ -30,6 +30,13 @@ export function scoreCandidate(
     return Number.POSITIVE_INFINITY;
   }
 
+  // Same convention as the missing-bracketData guard above: with no item level for the
+  // player, no candidate can be judged comparable on gear, so the comparison is reported
+  // as `poor` rather than silently scored on kill time alone.
+  if (myIlvl <= 0) {
+    return Number.POSITIVE_INFINITY;
+  }
+
   const ilvlGap = Math.abs(candidate.bracketData - myIlvl) / ILVL_TOLERANCE;
 
   const killTimeGap =
