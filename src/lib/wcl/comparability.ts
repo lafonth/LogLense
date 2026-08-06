@@ -26,7 +26,11 @@ export function scoreCandidate(
   myIlvl: number,
   myDurationMs: number
 ): number {
-  if (candidate.bracketData === undefined || candidate.bracketData === null) {
+  // Finiteness, not just a null check: a NaN gets through an undefined/null guard and
+  // then scores NaN, which the sort comparator coerces to +0 — the entry keeps its
+  // position and is selected first, unscored.
+  const { bracketData, duration } = candidate;
+  if (bracketData == null || !Number.isFinite(bracketData) || !Number.isFinite(duration)) {
     return Number.POSITIVE_INFINITY;
   }
 
@@ -37,12 +41,10 @@ export function scoreCandidate(
     return Number.POSITIVE_INFINITY;
   }
 
-  const ilvlGap = Math.abs(candidate.bracketData - myIlvl) / ILVL_TOLERANCE;
+  const ilvlGap = Math.abs(bracketData - myIlvl) / ILVL_TOLERANCE;
 
   const killTimeGap =
-    myDurationMs > 0
-      ? Math.abs(candidate.duration - myDurationMs) / myDurationMs / KILL_TIME_TOLERANCE
-      : 0;
+    myDurationMs > 0 ? Math.abs(duration - myDurationMs) / myDurationMs / KILL_TIME_TOLERANCE : 0;
 
   return Math.sqrt(ilvlGap ** 2 + killTimeGap ** 2);
 }

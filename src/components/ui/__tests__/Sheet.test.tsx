@@ -125,6 +125,9 @@ describe('sheet', () => {
 
     expect(backdrop.className).toContain('absolute');
     // The panel must be positioned too, or the positioned backdrop paints on top.
-    expect(dialog.className).toMatch(/\b(relative|absolute|fixed|sticky)\b/);
+    // Token equality, not a substring or /\b/ match: `md:relative` would satisfy those
+    // while leaving the mobile panel unclickable — the exact regression guarded here.
+    const panelClasses = dialog.className.split(/\s+/);
+    expect(panelClasses).toContain('relative');
   });
 });

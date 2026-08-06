@@ -32,6 +32,31 @@ describe('scoreCandidate', () => {
     expect(scoreCandidate({ duration: 300000 }, MY_ILVL, MY_MS)).toBe(Number.POSITIVE_INFINITY);
   });
 
+  // A NaN would pass an undefined/null guard and then score NaN. The sort comparator
+  // coerces NaN to +0, so the entry keeps its position and is picked first, unscored.
+  it('sorts a candidate with a non-numeric ilvl or duration after every scorable one', () => {
+    expect(scoreCandidate({ bracketData: Number.NaN, duration: 300000 }, MY_ILVL, MY_MS)).toBe(
+      Number.POSITIVE_INFINITY
+    );
+    expect(scoreCandidate({ bracketData: 284, duration: Number.NaN }, MY_ILVL, MY_MS)).toBe(
+      Number.POSITIVE_INFINITY
+    );
+  });
+
+  it('does not let a non-numeric candidate outrank a scorable one', () => {
+    const picked = selectClosest(
+      [
+        { name: 'nan', bracketData: 284, duration: Number.NaN },
+        { name: 'ok', bracketData: 285, duration: 300000 },
+      ],
+      MY_ILVL,
+      MY_MS,
+      2
+    );
+
+    expect(picked.map((p) => p.candidate.name)).toEqual(['ok', 'nan']);
+  });
+
   it('returns Infinity when the player has no item level', () => {
     expect(scoreCandidate({ bracketData: 284, duration: 300000 }, 0, MY_MS)).toBe(
       Number.POSITIVE_INFINITY

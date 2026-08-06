@@ -112,17 +112,17 @@ describe('selectReferences', () => {
     expect(select(all).references.map((r) => r.name)).toEqual(['close', 'strong']);
   });
 
-  it('caps the pool at TOP_N', () => {
-    // Built by hand, not via the local `ranking` helper above: the original test's
-    // candidates carry no bracketData, and the local helper requires one.
-    const inWindow = Array.from({ length: TOP_N + 4 }, (_, i) => ({
-      name: `R${i}`,
-      amount: 250000,
-      duration: MY_MS,
-      report: { code: `code-R${i}`, fightID: 1 },
-    }));
+  it('caps the pool at TOP_N, keeping the closest', () => {
+    // Each candidate sits one ilvl further from the player than the last, so the cap
+    // is exercised against a real ordering. With no bracketData every distance would
+    // be Infinity and this would pass even if the scoring were deleted entirely.
+    const inWindow = Array.from({ length: TOP_N + 4 }, (_, i) =>
+      ranking(`R${i}`, MY_ILVL + i, MY_MS)
+    );
 
-    expect(select(inWindow).references).toHaveLength(TOP_N);
+    const { references } = select(inWindow);
+    expect(references).toHaveLength(TOP_N);
+    expect(references.map((r) => r.name)).toEqual(Array.from({ length: TOP_N }, (_, i) => `R${i}`));
   });
 
   it('returns nothing when there are no rankings at all', () => {
