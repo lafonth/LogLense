@@ -72,7 +72,7 @@ Besoin stable depuis toujours, pas conjoncturel à une extension.
 | # | Friction | Statut |
 |---|---|---|
 | 1 | Sélection de logs comparables | **Non défini** — trié à la main, aucun outil |
-| 2 | Comparaison sur 5 axes | **Partiel** — LogLense couvre 4/5, opening chain absent |
+| 2 | Comparaison sur 5 axes | **Couvert** — 5/5 depuis le 2026-08-06, l'opening chain incluse |
 | 3 | Plan de CD qui casse (comp non optimisée) | Structurel, pas un gap produit |
 | 4 | Dépôt centralisé de routes M+ guilde | **Écarté** — stockage de strings MDT, ne justifie pas un service payant |
 | 5 | Décisions en combat | Couvert (addons in-game) |
@@ -244,7 +244,7 @@ Rapport complet : [docs/superpowers/specs/2026-08-03-audit-pipeline-wcl.md](docs
 | C1 | `KILL_TIME_TOLERANCE = 0.2` et `TOP_N = 3` en constantes | `src/lib/wcl/constants.ts:4-5` |
 | ~~C2~~ | ~~**Fallback silencieux**~~ — **clos le 2026-08-06.** Voir « Constats clos » ci-dessous | — |
 | ~~C3~~ | ~~La requête world rankings ne pagine pas~~ — **clos le 2026-08-06.** Le filtrage reste par `specName` / `className` seuls, mais l'univers n'est plus plafonné à la première page | — |
-| C5 | La rotation est requêtée via `table(dataType: Casts)` → agrégats. L'ordre temporel est perdu à la source ; l'opening chain impose de passer sur `events(dataType: Casts)` | `src/lib/wcl/queries.ts:110-119`, `src/lib/wcl/parsers.ts:48-58` |
+| ~~C5~~ | ~~L'ordre temporel est perdu à la source~~ — **clos le 2026-08-06.** `events(dataType: Casts)` s'ajoute au tableau agrégé, qui reste la source des fréquences. Voir « Constats clos » ci-dessous | — |
 | ~~C6~~ | ~~Boucle séquentielle sur les logs de référence~~ — **clos le 2026-08-06.** La fenêtre de vérification est parallèle, et la récupération des références retenues avec elle | — |
 | C8 | `legacy/` (12 scripts Python) et `prototypes/` (4 maquettes HTML) — le projet a déjà été réécrit une fois | racine |
 
@@ -340,6 +340,31 @@ que la capture ait un sens. Attribuer un blocage à l'infrastructure alors qu'il
 un manque d'information dans le modèle de données a retardé la tâche la plus
 irréversible de la liste.
 
+### C5 clos le 2026-08-06 — l'ordre, là où l'agrégat ne dit rien
+
+`table(dataType: Casts)` compte les sorts ; il ne dit pas dans quel ordre ils sont
+lancés. Deux ouvertures identiques en fréquences peuvent diverger au premier bouton, et
+c'est précisément la faute que le joueur qui plafonne ne voit plus. `Q_CAST_EVENTS`
+interroge `events(dataType: Casts, limit: OPENING_LENGTH)` : les événements sortent
+depuis le début du combat, donc **la première page *est* l'ouverture** — aucune
+pagination à écrire.
+
+Trois décisions portent le reste :
+
+- **Le nommage est gratuit.** Les événements ne portent qu'un `abilityGameID` ; les noms
+  viennent des paires `guid` → `name` du tableau agrégé, déjà payé. Zéro requête
+  supplémentaire pour nommer la chaîne.
+- **Les offsets partent du premier cast, pas du pull.** Réagir lentement au décompte
+  n'est pas une faute de rotation. Les `begincast` sont écartés : un canalisé
+  apparaîtrait deux fois.
+- **Seule la première divergence est un constat.** Tous les rangs suivants sont décalés
+  par elle ; les énumérer inventerait des fautes. `diffOpening` ne remonte donc que
+  `firstDivergence`, et le prompt l'impose au modèle.
+
+L'ouverture est **un axe, pas une dépendance** : la requête est en `.catch(() => null)`
+et `opening: []` est un état « inconnu » déclaré, que l'écran et le prompt énoncent au
+lieu de le masquer. Un échec de cette requête coûte l'axe, jamais le rapport.
+
 ### Divergences non prévues par le snapshot
 
 | # | Divergence |
@@ -405,7 +430,11 @@ et `references.ts` portent désormais le traitement commun.
    déjà payé à la vérification — donc seuls dégâts et rotation restent à `TOP_N`.
    La distribution porte sur les qualifiés, et retombe sur l'échantillon entier quand
    aucun ne l'est, en le disant.
-7. **Opening chain** — chantier séparé, migration vers `events` (C5). *(v1.5)*
+7. ~~**Opening chain**~~ (C5) — **fait le 2026-08-06.** `Q_CAST_EVENTS` interroge
+   `events(dataType: Casts)` en plus du tableau agrégé, `parseOpening` en tire la
+   séquence, `src/lib/comparison/opening-diff.ts` la confronte à la majorité des
+   références, et `OpeningChain` comme la section `### Opening` du prompt n'énoncent
+   que la **première** divergence. Voir « Constats clos » ci-dessous.
 8. **ML** — seulement après accumulation d'étiquettes. *(v2)*
 
 ### Points ouverts à trancher
