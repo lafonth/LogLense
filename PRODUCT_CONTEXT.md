@@ -347,7 +347,7 @@ irréversible de la liste.
 | D1 | **Le pipeline existe en deux exemplaires** — `pipeline.ts` et `report-pipeline.ts` dupliquent sélection des références, fallback, boucle séquentielle et agrégation. Chaque tâche de la section 8 coûte le double tant que ce n'est pas traité |
 | ~~D2~~ | ~~**Aucune base de données** — la capture d'étiquettes n'a pas de substrat~~ — **clos le 2026-08-06.** Voir ci-dessous : la prémisse était fausse dès l'écriture |
 | ~~D3~~ | ~~**Le joueur de référence est apparié par spec, pas par nom**~~ — **clos le 2026-08-06.** `fetchReferencePlayers` apparie par nom ; un candidat non identifiable est écarté, jamais remplacé par un autre joueur. `findCombatantBySpecId` est supprimé |
-| D4 | **Le chemin nominal ne produit pas une distribution** — `slice(0, TOP_N)` retient les trois meilleurs parses, pas trois tirages représentatifs. Le code fait l'inverse du produit décrit en section 2 |
+| ~~D4~~ | ~~**Le chemin nominal ne produit pas une distribution**~~ — **clos le 2026-08-06.** `BossResult.sample` porte toute la fenêtre vérifiée : stats et talents se lisent en min / médiane / max / percentile sur cet effectif. `topPlayers` reste à `TOP_N` pour dégâts et rotation, qui coûtent une requête par référence — et l'écran comme le prompt disent lequel des deux effectifs porte quel tableau |
 | ~~D5~~ | ~~**Les externals sont déjà à portée**~~ — **clos le 2026-08-06.** Les buffs sont désormais requêtés pour la fenêtre de vérification et appariés par guid ; une PI reçue au-delà de la tolérance élimine le candidat |
 | D6 | **Le spec-agnosticisme est atteint côté pipeline** — la spec est détectée depuis le `CombatantInfo`, `src/data/talents/` couvre de nombreuses specs. Reste ouvert côté prompt IA |
 
@@ -397,9 +397,14 @@ et `references.ts` portent désormais le traitement commun.
 5. ~~**Paralléliser et élargir la fenêtre de candidats**~~ (C3) — **fait le 2026-08-06**,
    dix pages en parallèle. La boucle séquentielle sur les logs de référence eux-mêmes
    (C6) est tombée avec la tâche 4.
-6. **Agréger les références au lieu de les juxtaposer** (D4) — l'utilisateur cherche une
-   distribution, pas 3 exemples. Change `BossResult.topPlayers` et ses consommateurs
-   (`ComparisonTab`, `src/lib/ai/prompt.ts`). *(v1)*
+6. ~~**Agréger les références au lieu de les juxtaposer**~~ (D4) — **fait le 2026-08-06.**
+   `BossResult.sample` s'ajoute à `topPlayers` et porte toute la fenêtre vérifiée.
+   `src/lib/comparison/stat-distribution.ts` en tire min, médiane, max et percentile de
+   rang moyen ; `StatsTable`, `TalentDiff` et `src/lib/ai/prompt.ts` le consomment.
+   L'échantillon est gratuit — `parseStats` dérive stats et talents du `CombatantInfo`
+   déjà payé à la vérification — donc seuls dégâts et rotation restent à `TOP_N`.
+   La distribution porte sur les qualifiés, et retombe sur l'échantillon entier quand
+   aucun ne l'est, en le disant.
 7. **Opening chain** — chantier séparé, migration vers `events` (C5). *(v1.5)*
 8. **ML** — seulement après accumulation d'étiquettes. *(v2)*
 
