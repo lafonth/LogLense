@@ -10,8 +10,12 @@
 scripts/TraitNodeXTraitNodeEntry.csv
 *.csv
 
-# config
-.claude
+# config — the agent definitions, hooks and settings are versioned; the rest is not.
+# Config that is not versioned is config that disappears at the next clone.
+.claude/*
+!.claude/settings.json
+!.claude/agents/
+!.claude/hooks/
 legacy/config.json
 legacy/character_analysis.json
 

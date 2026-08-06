@@ -1,0 +1,15 @@
+{
+  "autoCompactWindow": 120000,
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/session-start.mjs", "timeout": 15 }]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/pre-compact.mjs", "timeout": 15 }]
+      }
+    ]
+  }
+}

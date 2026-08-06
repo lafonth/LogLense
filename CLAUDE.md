@@ -29,6 +29,31 @@ données ne l'est pas.** Le calcul se rattrape ; les données non capturées son
   laisser filer.
 - Distinguer systématiquement PoC et décision de production.
 
+## Coût et contexte
+
+Ces règles s'appliquent en permanence, y compris après un `/clear`. Elles viennent d'un
+relevé de consommation réel : la dépense vient des sous-agents lancés, du volume brut
+laissé en contexte, et de la durée d'une session avant compaction.
+
+- **Filtrer la sortie de chaque commande.** `pnpm test` passe par
+  `| grep -E "Tests |FAIL"`, un build par `| tail`. Un dump complet de vitest fait des
+  centaines de lignes qui restent en contexte et sont relues à chaque tour suivant.
+- **Choisir l'agent, pas le modèle.** Les définitions de `.claude/agents/` épinglent le
+  modèle : `implementer` et `task-reviewer` sur Sonnet, `branch-reviewer` sur Opus.
+  Ne pas passer par `general-purpose`, dont le défaut est `inherit` — donc Opus.
+- **Une seule dispatch de revue, pas une chaîne.** Revue puis correctif puis re-revue,
+  c'est trois démarrages à froid. Corriger soi-même les points mineurs et les vérifier ;
+  ne déléguer que ce qui a réellement besoin d'un regard neuf.
+- **Regrouper les tâches minuscules.** Deux modules de fonctions pures de dix lignes sont
+  une tâche, pas deux : chaque lancement reconstruit son contexte depuis zéro.
+- **Exécuter en ligne quand le plan contient le code littéral.** La délégation se justifie
+  sur du jugement, pas sur de la transcription.
+- **Proposer explicitement les points de coupure.** Je ne peux ni compacter ni vider le
+  contexte moi-même — mais je dois dire quand le faire. `/clear` au changement de sujet,
+  c'est le cas courant et le moins cher : le hook `SessionStart` réinjecte l'état du
+  dépôt, donc repartir de zéro ne coûte rien. `/compact` seulement si la suite a besoin
+  des conclusions intermédiaires.
+
 ## Vocabulaire du domaine
 
 | Terme | Sens |
