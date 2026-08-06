@@ -2,6 +2,7 @@ import type { BossState } from '@/hooks/useAnalysis';
 import type { Encounter, TalentNode } from '@/types';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { usableSample } from '@/lib/comparison/stat-distribution';
 import { ComparabilityBanner } from './ComparabilityBanner';
 import { DpsBanner } from './DpsBanner';
 import { ReferenceLabels } from './ReferenceLabels';
@@ -63,9 +64,9 @@ export function ComparisonTab({ encounter, bossState, specName, talentNodes }: C
       </div>
       <div className="mt-6">
         <h3 className="text-muted mb-2 font-mono text-xs tracking-[0.08em] uppercase">
-          Stats vs top players
+          Where you sit in the field
         </h3>
-        <StatsTable character={result.character.stats} topPlayers={result.topPlayers} />
+        <StatsTable character={result.character.stats} sample={result.sample} />
       </div>
       <div className="mt-6">
         <RotationCards character={result.character.rotation} topPlayers={result.topPlayers} />
@@ -74,7 +75,7 @@ export function ComparisonTab({ encounter, bossState, specName, talentNodes }: C
         <TalentDiff
           nodes={talentNodes}
           myTalents={result.character.stats.talents}
-          topPlayers={result.topPlayers}
+          references={usableSample(result.sample).entries}
         />
       </div>
     </div>

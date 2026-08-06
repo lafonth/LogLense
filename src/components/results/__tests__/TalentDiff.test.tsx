@@ -70,7 +70,7 @@ function textMatch(regex: RegExp) {
 
 describe('talentDiff', () => {
   it('shows both difference groups and hides the shared nodes behind a count', () => {
-    render(<TalentDiff nodes={NODES} myTalents={{ 101: 1, 103: 1 }} topPlayers={REFERENCES} />);
+    render(<TalentDiff nodes={NODES} myTalents={{ 101: 1, 103: 1 }} references={REFERENCES} />);
 
     expect(screen.getByText('Sabertooth')).toBeInTheDocument();
     expect(screen.getByText('Veinripper')).toBeInTheDocument();
@@ -78,20 +78,20 @@ describe('talentDiff', () => {
   });
 
   it('shows how many references took each of their talents', () => {
-    render(<TalentDiff nodes={NODES} myTalents={{ 101: 1, 103: 1 }} topPlayers={REFERENCES} />);
+    render(<TalentDiff nodes={NODES} myTalents={{ 101: 1, 103: 1 }} references={REFERENCES} />);
 
     expect(screen.getByText('2 / 2')).toBeInTheDocument();
   });
 
   it('says so when there is nothing to compare against', () => {
-    render(<TalentDiff nodes={NODES} myTalents={{ 101: 1 }} topPlayers={[]} />);
+    render(<TalentDiff nodes={NODES} myTalents={{ 101: 1 }} references={[]} />);
 
     expect(screen.getByText(/No comparable logs/)).toBeInTheDocument();
     expect(screen.queryByText('2 / 2')).not.toBeInTheDocument();
   });
 
   it('reports an identical build rather than showing empty groups', () => {
-    render(<TalentDiff nodes={NODES} myTalents={{ 102: 3, 103: 1 }} topPlayers={REFERENCES} />);
+    render(<TalentDiff nodes={NODES} myTalents={{ 102: 3, 103: 1 }} references={REFERENCES} />);
 
     expect(screen.getByText(/Identical build/)).toBeInTheDocument();
   });
@@ -109,14 +109,14 @@ describe('talentDiff', () => {
     ];
 
     render(
-      <TalentDiff nodes={nodes} myTalents={{ 101: 1, 103: 1, 104: 2 }} topPlayers={references} />
+      <TalentDiff nodes={nodes} myTalents={{ 101: 1, 103: 1, 104: 2 }} references={references} />
     );
 
     expect(screen.getByText(textMatch(/2 identical nodes/))).toBeInTheDocument();
   });
 
   it('shows only the non-empty group when one side of the diff has no entries', () => {
-    render(<TalentDiff nodes={NODES} myTalents={{ 102: 3 }} topPlayers={REFERENCES} />);
+    render(<TalentDiff nodes={NODES} myTalents={{ 102: 3 }} references={REFERENCES} />);
 
     expect(screen.queryByText(/You only/)).not.toBeInTheDocument();
     expect(screen.getByText(/References only/)).toBeInTheDocument();

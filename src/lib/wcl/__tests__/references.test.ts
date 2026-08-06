@@ -383,4 +383,24 @@ describe('resolveReferences', () => {
     expect(comparability.disqualified).toBe(1);
     expect(comparability.substituted).toBe(1);
   });
+
+  it('carries the whole verified window in the sample, marked qualified or not', async () => {
+    mockFights((code) =>
+      code === 'boosted' ? plainFight(code, { buffs: PI_BUFFS }) : plainFight(code)
+    );
+
+    // Quatre candidats pour un panel de trois : le sample doit garder celui que le panel
+    // laisse tomber, sans quoi la distribution serait payée puis jetée.
+    const { topPlayers, sample } = await resolve([
+      ranking('a', MY_ILVL),
+      ranking('boosted', MY_ILVL + 1),
+      ranking('c', MY_ILVL + 2),
+      ranking('d', MY_ILVL + 3),
+    ]);
+
+    expect(topPlayers).toHaveLength(3);
+    expect(sample.map((s) => s.name)).toEqual(['a', 'boosted', 'c', 'd']);
+    expect(sample.map((s) => s.qualified)).toEqual([true, false, true, true]);
+    expect(sample[0].stats.avgIlvl).toBe(640);
+  });
 });

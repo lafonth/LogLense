@@ -98,7 +98,7 @@ export async function analyzeReportBoss(
   const myDpsRank = findInRankings(dpsRankingsRaw.reportData.report.rankings, actorName);
   const myBossRank = findInRankings(bossRankingsRaw.reportData.report.rankings, actorName);
 
-  const { topPlayers, comparability } = await resolveReferences(token, pool, {
+  const { topPlayers, sample, comparability } = await resolveReferences(token, pool, {
     myIlvl: stats.avgIlvl,
     myKillTimeMs: fightMs,
     exclude: { code, fightID: fightId },
@@ -127,6 +127,7 @@ export async function analyzeReportBoss(
       eligibility,
     },
     topPlayers,
+    sample,
     comparability,
   };
 }

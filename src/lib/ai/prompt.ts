@@ -4,10 +4,13 @@ import type {
   CharacterStats,
   DamageEntry,
   FightTarget,
+  ReferenceSample,
   RotationSummary,
   TalentNode,
   TopPlayer,
 } from '@/types';
+import { describeValues, STAT_AXES, usableSample } from '@/lib/comparison/stat-distribution';
+import { fmtMs } from '@/lib/wcl/parsers';
 
 export const SYSTEM_PROMPT = `You are a WarcraftLogs performance coach. Speak directly to the player. \
 Each ## section is one boss encounter — treat it as a single fight even if the name contains multiple names (council fights).
@@ -30,16 +33,20 @@ Check whether the damage split reflects the fight type. On multi-target fights, 
 If your damage is concentrated on a single-target ability that barely appears in top players' breakdowns, that confirms the substitution.
 
 STEP 4 — STATS
-Read exact values from the Gear & Stats table. Flag any secondary stat where the gap between you and the top players' average exceeds 30%.
+The Gear & Stats table gives, for each axis, your value and the comparable field's min, median, max and your percentile within it. \
+Read it as a position, not as a duel: report where the player sits (below p25, around the median, above p75) and by how much against the MEDIAN. \
+A value inside the field's min–max range is normal even when it is not the highest — do not call it a problem. \
+Flag an axis only when the player sits at or beyond the edge of the field, and say how many logs the field contains.
 
 STEP 5 — TALENTS
-Report only meaningful differences — abilities with a direct rotation impact. Skip cosmetic or utility differences.
+Every talent line carries an adoption count k/n over the field. Weight your advice by it: n−1 out of n is a standard the player is missing, \
+2 out of 12 is a niche pick and not a mistake. Report only differences with a direct rotation impact, and always cite the count.
 
 Output format per boss:
 1. Primary issue — the single largest gap, with exact numbers from the table.
 2. Secondary issues — other meaningful spell usage or damage split differences.
-3. Stats — any gaps over 30% vs top player average.
-4. Talents — only if impactful.
+3. Stats — where the player sits in the field, with the percentile and the gap to the median.
+4. Talents — only if impactful, with the adoption count.
 5. One thing to fix next raid.
 
 Be concise. Every number you cite must come directly from the data tables.`;
@@ -95,63 +102,108 @@ function mdTable(headers: string[], rows: string[][]): string {
   return [headerRow, sepRow, ...dataRows].join('\n');
 }
 
+type PromptCharStats = CharacterStats & {
+  dps: number;
+  killTime: string;
+  overallPct: number | null;
+  bossDps: number | null;
+  bossDpsPct: number | null;
+};
+
+/** Un axe chiffré : ma valeur, celles du champ, et comment les écrire. */
+interface StatAxis {
+  label: string;
+  mine: number;
+  values: number[];
+  format: (v: number) => string;
+  /** Rendu de ma cellule quand elle porte plus que le nombre (le DPS boss, par exemple). */
+  mineCell?: string;
+}
+
+function promptAxes(
+  char: PromptCharStats,
+  myKillTimeMs: number,
+  entries: ReferenceSample[]
+): StatAxis[] {
+  const statAxes = STAT_AXES.map(({ key, label }) => ({
+    label,
+    mine: char[key],
+    values: entries.map((e) => e.stats[key]),
+    format: key === 'avgIlvl' ? (v: number) => v.toFixed(1) : fmt,
+  }));
+
+  return [
+    {
+      label: 'DPS',
+      mine: char.dps,
+      values: entries.map((e) => e.dps),
+      format: fmt,
+      mineCell: char.bossDps
+        ? `${fmt(char.dps)} (boss: ${fmt(char.bossDps)}, ${char.bossDpsPct}th)`
+        : undefined,
+    },
+    {
+      label: 'Kill time',
+      mine: myKillTimeMs,
+      values: entries.map((e) => e.killTimeMs),
+      format: fmtMs,
+      mineCell: char.killTime,
+    },
+    ...statAxes,
+  ];
+}
+
+/**
+ * La distribution du champ comparable, pas trois colonnes juxtaposées.
+ *
+ * L'échantillon vient de toute la fenêtre vérifiée : le modèle doit répondre « où se situe
+ * ce joueur », question à laquelle trois exemples ne répondent pas. Le percentile est un
+ * rang moyen — 50 veut dire médian, pas « moitié moins bien ».
+ */
 function statsTable(
-  char: CharacterStats & {
-    dps: number;
-    killTime: string;
-    overallPct: number | null;
-    bossDps: number | null;
-    bossDpsPct: number | null;
-  },
-  topPlayers: TopPlayer[]
+  char: PromptCharStats,
+  myKillTimeMs: number,
+  sample: ReferenceSample[]
 ): string {
   const youLabel = char.overallPct != null ? `You (${char.overallPct}th pct)` : 'You';
-  const headers = ['', youLabel, ...topPlayers.map((_, i) => `P${i + 1}`)];
+  const { entries, includesDisqualified } = usableSample(sample);
+  const axes = promptAxes(char, myKillTimeMs, entries);
 
-  const rows: [string, (c: typeof char, p: TopPlayer) => string][] = [
-    ['DPS', (c, p) => fmt(p?.stats.dps ?? c.dps)],
-    ['Kill time', (c, p) => p?.stats.killTime ?? c.killTime],
-    ['ilvl', (c, p) => (p?.stats.avgIlvl ?? c.avgIlvl).toFixed(1)],
-    ['Primary Stat', (c, p) => fmt(p?.stats.primaryStat ?? c.primaryStat)],
-    ['Crit', (c, p) => fmt(p?.stats.crit ?? c.crit)],
-    ['Haste', (c, p) => fmt(p?.stats.haste ?? c.haste)],
-    ['Mastery', (c, p) => fmt(p?.stats.mastery ?? c.mastery)],
-    ['Vers', (c, p) => fmt(p?.stats.vers ?? c.vers)],
-  ];
+  if (entries.length === 0) {
+    return mdTable(
+      ['', youLabel],
+      axes.map((a) => [a.label, a.mineCell ?? a.format(a.mine)])
+    );
+  }
 
-  const tableRows = rows.map(([label, fn]) => [
-    label,
-    label === 'DPS' && char.bossDps
-      ? `${fmt(char.dps)} (boss: ${fmt(char.bossDps)}, ${char.bossDpsPct}th)`
-      : fn(char, topPlayers[0]),
-    ...topPlayers.map((p) => fn(char, p)),
-  ]);
-
-  // Fix first column (character values use the char object directly)
-  const fixedRows = rows.map(([label, fn]) => {
-    const charVal =
-      label === 'DPS' && char.bossDps
-        ? `${fmt(char.dps)} (boss: ${fmt(char.bossDps)}, ${char.bossDpsPct}th)`
-        : label === 'DPS'
-          ? fmt(char.dps)
-          : label === 'Kill time'
-            ? char.killTime
-            : label === 'ilvl'
-              ? char.avgIlvl.toFixed(1)
-              : label === 'Primary Stat'
-                ? fmt(char.primaryStat)
-                : label === 'Crit'
-                  ? fmt(char.crit)
-                  : label === 'Haste'
-                    ? fmt(char.haste)
-                    : label === 'Mastery'
-                      ? fmt(char.mastery)
-                      : fmt(char.vers);
-    return [label, charVal, ...topPlayers.map((p) => fn(char, p))];
+  const headers = ['', youLabel, 'Field min', 'Field median', 'Field max', 'Your percentile'];
+  const rows = axes.flatMap((a) => {
+    const d = describeValues(a.mine, a.values);
+    if (!d) return [];
+    return [
+      [
+        a.label,
+        a.mineCell ?? a.format(d.mine),
+        a.format(d.min),
+        a.format(d.median),
+        a.format(d.max),
+        `p${d.percentile}`,
+      ],
+    ];
   });
 
-  void tableRows; // unused after refactor above
-  return mdTable(headers, fixedRows);
+  const notes = [
+    `Field = ${entries.length} comparable logs. Percentile is your rank within that field; ` +
+      'on the kill time row a low percentile means a faster kill, which is better.',
+  ];
+  if (includesDisqualified) {
+    notes.push(
+      'None of these logs passed the eliminatory criteria — every one of them was helped ' +
+        'more than the player. Treat the whole field as unreliable and say so.'
+    );
+  }
+
+  return [mdTable(headers, rows), '', ...notes].join('\n');
 }
 
 function spellUsageTable(charRotation: RotationSummary, topPlayers: TopPlayer[]): string {
@@ -240,43 +292,66 @@ function makeTalentNameFn(nodes: TalentNode[]) {
   };
 }
 
+/**
+ * L'écart de build en taux d'adoption, pas en trois avis.
+ *
+ * « Deux références sur trois prennent X » et « onze sur douze prennent X » n'appellent pas
+ * la même conclusion, et seule la seconde formulation permet au modèle de distinguer un
+ * choix de niche d'un standard. Le dénominateur est donc toujours écrit.
+ */
 function talentDiff(
   myTalents: Record<number, number>,
-  topPlayers: BossResult['topPlayers'],
+  sample: ReferenceSample[],
   talentName: (id: number) => string
 ): string {
-  if (topPlayers.length === 0) return '';
+  const { entries } = usableSample(sample);
+  if (entries.length === 0) return '';
 
-  const lines: string[] = [];
-
-  const topAllIds = new Set(topPlayers.flatMap((p) => Object.keys(p.stats.talents).map(Number)));
-  const onlyMe = Object.keys(myTalents)
-    .map(Number)
-    .filter((id) => !topAllIds.has(id));
-  if (onlyMe.length > 0)
-    lines.push(`You have, top players don't: ${onlyMe.map(talentName).join(', ')}`);
+  const total = entries.length;
+  const takenBy = (id: number) => entries.filter((e) => e.stats.talents[id] !== undefined).length;
 
   const myIds = new Set(Object.keys(myTalents).map(Number));
-  const topShared = [...topAllIds].filter(
-    (id) => !myIds.has(id) && topPlayers.every((p) => p.stats.talents[id] !== undefined)
-  );
-  if (topShared.length > 0)
-    lines.push(`Top players have, you don't: ${topShared.map(talentName).join(', ')}`);
+  const fieldIds = new Set(entries.flatMap((e) => Object.keys(e.stats.talents).map(Number)));
 
-  const rankDiffs: string[] = [];
-  for (const id of myIds) {
-    if (!topAllIds.has(id)) continue;
-    const myRank = myTalents[id];
-    for (let pi = 0; pi < topPlayers.length; pi++) {
-      const topRank = topPlayers[pi].stats.talents[id];
-      if (topRank !== undefined && topRank !== myRank) {
-        rankDiffs.push(`${talentName(id)}: you rank ${myRank}, P${pi + 1} rank ${topRank}`);
-      }
-    }
+  const lines: string[] = [`Field size: ${total} comparable logs.`];
+
+  const mine = [...myIds]
+    .map((id) => ({ id, count: takenBy(id) }))
+    .filter(({ count }) => count < total)
+    .sort((a, b) => a.count - b.count);
+  if (mine.length > 0) {
+    lines.push(
+      `Your picks the field does not share: ${mine
+        .map(({ id, count }) => `${talentName(id)} (${count}/${total})`)
+        .join(', ')}`
+    );
   }
+
+  const theirs = [...fieldIds]
+    .filter((id) => !myIds.has(id))
+    .map((id) => ({ id, count: takenBy(id) }))
+    .sort((a, b) => b.count - a.count);
+  if (theirs.length > 0) {
+    lines.push(
+      `Taken by the field, not by you: ${theirs
+        .map(({ id, count }) => `${talentName(id)} (${count}/${total})`)
+        .join(', ')}`
+    );
+  }
+
+  const rankDiffs = [...myIds].flatMap((id) => {
+    const ranks = entries
+      .map((e) => e.stats.talents[id])
+      .filter((r): r is number => r !== undefined);
+    const d = ranks.length > 0 ? describeValues(myTalents[id], ranks) : null;
+    if (!d || d.median === d.mine) return [];
+    return [
+      `${talentName(id)}: you rank ${d.mine}, field median ${d.median} (${ranks.length}/${total})`,
+    ];
+  });
   if (rankDiffs.length > 0) lines.push(`Rank differences: ${rankDiffs.join('; ')}`);
 
-  return lines.join('\n') || 'Talent builds are identical.';
+  return lines.length === 1 ? 'Your build matches the field on every node.' : lines.join('\n');
 }
 
 export function buildAnalysisPrompt(
@@ -292,6 +367,10 @@ export function buildAnalysisPrompt(
       if (!boss) return `## Boss ${i + 1}\nNo data available for this boss.`;
 
       const topPlayers = boss.topPlayers.slice(0, 3);
+      // Le champ, c'est l'échantillon retenu — pas la fenêtre brute. Annoncer `sample.length`
+      // alors que les tableaux se lisent sur les seuls qualifiés donnerait deux effectifs
+      // différents pour la même chose.
+      const fieldSize = usableSample(boss.sample).entries.length;
       const charStats = {
         ...boss.character.stats,
         dps: boss.character.dps,
@@ -307,8 +386,16 @@ export function buildAnalysisPrompt(
         '',
         comparabilitySection(boss.comparability),
         '',
+        // Les deux échantillons n'ont pas le même prix : stats et talents sortent d'un
+        // `CombatantInfo` déjà payé, dégâts et rotation coûtent une requête par référence.
+        // Le modèle doit savoir sur combien de logs chaque tableau repose, sans quoi il
+        // parlera d'une tendance là où il n'y a que trois joueurs.
+        `Stats and talents are compared against the full comparable field (${fieldSize} logs). ` +
+          `Spell usage, buff uptimes and damage breakdown are compared against the ${topPlayers.length} closest of them only — ` +
+          'do not present those as the behaviour of a whole population.',
+        '',
         '### Gear & Stats',
-        statsTable(charStats, topPlayers),
+        statsTable(charStats, boss.comparability.myKillTimeMs, boss.sample),
         '',
         '### Spell Usage',
         spellUsageTable(boss.character.rotation, topPlayers),
@@ -325,7 +412,7 @@ export function buildAnalysisPrompt(
         damageTable(boss.character.damageTable.entries, topPlayers),
         '',
         '### Talent Differences',
-        talentDiff(boss.character.stats.talents, topPlayers, talentName)
+        talentDiff(boss.character.stats.talents, boss.sample, talentName)
       );
 
       return sections.join('\n');
@@ -342,8 +429,8 @@ export function buildAnalysisPrompt(
     'For each boss with data, provide:',
     '1. The single most impactful rotation fix with exact numbers.',
     '2. Any secondary rotation issues (cast frequency, damage contribution of key abilities).',
-    '3. Stat observations vs top players.',
-    '4. Talent notes if differences exist.',
+    '3. Where the player sits in the comparable field on stats.',
+    '4. Talent notes if differences exist, with their adoption count.',
     '5. One thing to focus on next raid.',
     '',
     'Be concise. Cite exact numbers. Skip bosses marked "No data available".',

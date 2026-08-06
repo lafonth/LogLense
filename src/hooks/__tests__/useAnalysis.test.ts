@@ -34,6 +34,7 @@ const mockBossResult: BossResult = {
     eligibility: { tierPieces: 4, externalUptime: 0, externals: [] },
   },
   topPlayers: [],
+  sample: [],
   comparability: {
     level: 'close',
     referenceIlvl: 636,

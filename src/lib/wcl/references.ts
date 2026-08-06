@@ -2,14 +2,14 @@ import type { CombatantEvent } from './combatant';
 import type { ScoredCandidate } from './comparability';
 import type { DisqualificationReason, EligibilityProfile } from './eligibility';
 import type { WCLTable } from './parsers';
-import type { Comparability, TopPlayer } from '@/types';
+import type { Comparability, ReferenceSample, TopPlayer } from '@/types';
 import { gql } from './client';
 import { findCombatantByName } from './combatant';
 import { comparabilityLevel, medianOf, selectClosest } from './comparability';
 import { CANDIDATE_PAGES, TOP_N, VERIFICATION_WINDOW } from './constants';
 import { disqualify, eligibilityOf } from './eligibility';
 import { fetchFightData } from './fight-data';
-import { fmtMs } from './parsers';
+import { fmtMs, parseStats } from './parsers';
 import { Q_BUFFS, Q_WORLD_RANKINGS } from './queries';
 
 export interface WorldRanking {
@@ -75,6 +75,7 @@ export async function fetchCandidatePool(
 
 export interface ResolvedReferences {
   topPlayers: TopPlayer[];
+  sample: ReferenceSample[];
   comparability: Comparability;
 }
 
@@ -118,6 +119,33 @@ async function verifyCandidate(
   } catch {
     return null;
   }
+}
+
+/**
+ * L'échantillon statistique, tiré de toute la fenêtre vérifiée.
+ *
+ * `parseStats` ne lit que le `CombatantInfo`, déjà payé pour juger le candidat : stats et
+ * talents des douze coûtent zéro requête de plus, là où dégâts et rotation en coûteraient
+ * quatre fois plus que le panel. C'est ce qui rend l'agrégation gratuite — et c'est aussi
+ * pourquoi elle s'arrête aux stats et aux talents.
+ */
+function sampleOf(verified: VerifiedCandidate[]): ReferenceSample[] {
+  return verified.flatMap((v) => {
+    const { candidate } = v.scored;
+    const stats = parseStats(v.combatant, candidate.name);
+    if (!stats) return [];
+    return [
+      {
+        name: candidate.name,
+        code: candidate.report.code,
+        fightID: candidate.report.fightID,
+        stats,
+        dps: Math.round(candidate.amount),
+        killTimeMs: candidate.duration,
+        qualified: v.disqualifiedBy.length === 0,
+      },
+    ];
+  });
 }
 
 async function buildTopPlayer(token: string, verified: VerifiedCandidate): Promise<TopPlayer> {
@@ -172,6 +200,10 @@ async function buildTopPlayer(token: string, verified: VerifiedCandidate): Promi
  * eliminated ones rather than left short — but the comparison drops to `poor` and each
  * substituted reference carries the reason it should not have been there. A full panel
  * that stays silent about what it is made of is the failure this is built to avoid.
+ *
+ * Le panel est le sous-produit cher : `sample` porte toute la fenêtre, parce que la
+ * question posée à l'écran est « où je me situe dans la distribution », pas « voici trois
+ * joueurs ». Il n'y a pas de requête de plus à payer pour l'élargir.
  */
 export async function resolveReferences(
   token: string,
@@ -223,5 +255,5 @@ export async function resolveReferences(
     substituted: substitutes.length,
   };
 
-  return { topPlayers, comparability };
+  return { topPlayers, sample: sampleOf(verified), comparability };
 }

@@ -1,4 +1,13 @@
-import type { TalentNode, TopPlayer } from '@/types';
+import type { TalentNode } from '@/types';
+
+/**
+ * Le minimum dont l'écart de build a besoin : les talents pris. Volontairement plus large
+ * que `TopPlayer`, pour que la comparaison porte sur toute la fenêtre vérifiée
+ * (`ReferenceSample`) et non sur les trois seules références dont les dégâts ont été payés.
+ */
+export interface TalentSource {
+  stats: { talents: Record<number, number> };
+}
 
 export interface TalentDiffEntry {
   nodeId: number;
@@ -60,9 +69,9 @@ function idTakenIn(node: TalentNode, talents: Record<number, number>): number | 
 }
 
 /** How many references took each specific talentId at this node. */
-function countReferenceChoices(node: TalentNode, topPlayers: TopPlayer[]): Map<number, number> {
+function countReferenceChoices(node: TalentNode, references: TalentSource[]): Map<number, number> {
   const counts = new Map<number, number>();
-  for (const player of topPlayers) {
+  for (const player of references) {
     const id = idTakenIn(node, player.stats.talents);
     if (id !== null) counts.set(id, (counts.get(id) ?? 0) + 1);
   }
@@ -93,16 +102,16 @@ function makeEntry(
 export function diffTalents(
   nodes: TalentNode[],
   myTalents: Record<number, number>,
-  topPlayers: TopPlayer[]
+  references: TalentSource[]
 ): TalentDiffResult {
-  const referenceTotal = topPlayers.length;
+  const referenceTotal = references.length;
   const mineOnly: TalentDiffEntry[] = [];
   const theirsOnly: TalentDiffEntry[] = [];
   let sharedCount = 0;
 
   for (const node of dedupeByPosition(nodes)) {
     const myId = idTakenIn(node, myTalents);
-    const refIdCounts = countReferenceChoices(node, topPlayers);
+    const refIdCounts = countReferenceChoices(node, references);
 
     if (myId === null && refIdCounts.size === 0) continue;
 

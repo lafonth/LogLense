@@ -72,6 +72,7 @@ function result(): BossResult {
       eligibility: { tierPieces: 4, externalUptime: 0, externals: [] },
     },
     topPlayers: [topPlayer('Aidan', 1), topPlayer('Baldan', 2)],
+    sample: [],
     comparability: {
       level: 'close',
       referenceIlvl: 285,

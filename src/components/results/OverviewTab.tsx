@@ -53,7 +53,7 @@ export function OverviewTab({ encounter, bossState, specName }: OverviewTabProps
       />
       <div className="mt-6">
         <h3 className="text-muted mb-2 font-mono text-xs tracking-[0.08em] uppercase">Stats</h3>
-        <StatsTable character={result.character.stats} topPlayers={[]} />
+        <StatsTable character={result.character.stats} sample={[]} />
       </div>
       <div className="mt-6">
         <h3 className="text-muted mb-2 font-mono text-xs tracking-[0.08em] uppercase">

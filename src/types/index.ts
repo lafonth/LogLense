@@ -100,6 +100,25 @@ export interface TopPlayer {
   provenance: ReferenceProvenance;
 }
 
+/**
+ * Un candidat de la fenêtre de vérification, retenu comme référence ou non.
+ *
+ * Stats et talents sortent du `CombatantInfo` déjà récupéré pour juger le candidat :
+ * élargir l'échantillon *statistique* à toute la fenêtre ne coûte aucune requête. Dégâts
+ * et rotation, eux, en coûtent — ils restent limités aux `TOP_N` de `topPlayers`, et
+ * l'écran comme le prompt doivent dire lequel des deux ils montrent.
+ */
+export interface ReferenceSample {
+  name: string;
+  code: string;
+  fightID: number;
+  stats: CharacterStats;
+  dps: number;
+  killTimeMs: number;
+  /** Faux quand un critère éliminatoire l'a écarté : la distribution doit pouvoir l'exclure. */
+  qualified: boolean;
+}
+
 export interface FightTarget {
   name: string;
   type: string;
@@ -153,7 +172,13 @@ export interface BossResult {
      */
     eligibility: EligibilityProfile;
   };
+  /** Les `TOP_N` références dont dégâts et rotation ont été récupérés. */
   topPlayers: TopPlayer[];
+  /**
+   * Toute la fenêtre vérifiée, `topPlayers` compris. C'est l'échantillon sur lequel se
+   * lisent stats et talents : la question est « où je me situe », pas « qui copier ».
+   */
+  sample: ReferenceSample[];
   comparability: Comparability;
 }
 

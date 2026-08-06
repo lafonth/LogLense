@@ -1,12 +1,14 @@
-import type { TalentDiffEntry } from '@/lib/comparison/talent-diff';
-import type { TalentNode, TopPlayer } from '@/types';
+import type { TalentDiffEntry, TalentSource } from '@/lib/comparison/talent-diff';
+import type { TalentNode } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { diffTalents } from '@/lib/comparison/talent-diff';
 
 interface TalentDiffProps {
   nodes: TalentNode[];
   myTalents: Record<number, number>;
-  topPlayers: TopPlayer[];
+  /** Toute la fenêtre comparable, pas les trois références chères : l'adoption d'un talent
+   * se lit sur un effectif, et douze en disent plus que trois pour le même prix. */
+  references: TalentSource[];
 }
 
 function EntryRow({ entry, accent }: { entry: TalentDiffEntry; accent: 'mine' | 'theirs' }) {
@@ -24,11 +26,11 @@ function EntryRow({ entry, accent }: { entry: TalentDiffEntry; accent: 'mine' | 
   );
 }
 
-export function TalentDiff({ nodes, myTalents, topPlayers }: TalentDiffProps) {
+export function TalentDiff({ nodes, myTalents, references }: TalentDiffProps) {
   const { mineOnly, theirsOnly, sharedCount, referenceTotal } = diffTalents(
     nodes,
     myTalents,
-    topPlayers
+    references
   );
 
   if (referenceTotal === 0) {

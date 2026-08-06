@@ -108,7 +108,7 @@ export async function analyzeBoss(
   );
 
   const pool = await poolPromise;
-  const { topPlayers, comparability } = await resolveReferences(token, pool, {
+  const { topPlayers, sample, comparability } = await resolveReferences(token, pool, {
     myIlvl: stats.avgIlvl,
     myKillTimeMs: bestKillMs,
     exclude: { code: bestCode, fightID: bestFightId },
@@ -137,6 +137,7 @@ export async function analyzeBoss(
       eligibility,
     },
     topPlayers,
+    sample,
     comparability,
   };
 }

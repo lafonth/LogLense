@@ -1,6 +1,37 @@
-import type { AnalysisResult, BossResult } from '@/types';
+import type { AnalysisResult, BossResult, ReferenceSample } from '@/types';
 import { describe, expect, it } from 'vitest';
 import { buildAnalysisPrompt, SYSTEM_PROMPT } from '../prompt';
+
+/**
+ * La fenêtre vérifiée est plus large que les trois références chères : c'est sur elle que
+ * se lisent stats et talents. Trois entrées suffisent à donner min, médiane et max distincts.
+ */
+function sampleEntry(
+  name: string,
+  avgIlvl: number,
+  dps: number,
+  talents: Record<number, number>,
+  qualified = true
+): ReferenceSample {
+  return {
+    name,
+    code: `code-${name}`,
+    fightID: 4,
+    stats: {
+      name,
+      avgIlvl,
+      primaryStat: 13800,
+      crit: 4100,
+      haste: 3600,
+      mastery: 5900,
+      vers: 800,
+      talents,
+    },
+    dps,
+    killTimeMs: 175000,
+    qualified,
+  };
+}
 
 function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult {
   return {
@@ -98,6 +129,11 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
         },
       },
     ],
+    sample: [
+      sampleEntry('TopPlayer1', 639, 290000, { 391528: 1, 395152: 1 }),
+      sampleEntry('TopPlayer2', 641, 305000, { 391528: 1, 395152: 1 }),
+      sampleEntry('TopPlayer3', 637, 275000, { 391528: 1 }),
+    ],
     comparability: {
       level: 'close',
       referenceIlvl: 636,
@@ -171,6 +207,50 @@ describe('buildAnalysisPrompt', () => {
 
     const prompt = buildAnalysisPrompt(input);
     expect(prompt).toContain('Talent Differences');
+  });
+
+  it('describes the stats as a distribution and names the size of the field', () => {
+    const input: AnalysisResult = {
+      input: {
+        characterName: 'Jumbaa',
+        serverSlug: 'ysondre',
+        region: 'EU',
+        difficulty: 5,
+        encounters: [{ id: 3306, name: 'Chimaerus' }],
+        specId: 103,
+      },
+      bosses: [makeBoss()],
+      generatedAt: '2026-05-09T00:00:00.000Z',
+    };
+
+    const prompt = buildAnalysisPrompt(input);
+    expect(prompt).toContain('Field median');
+    expect(prompt).toContain('Field = 3 comparable logs');
+    // Le partage des effectifs doit être dit : trois logs de rotation ne sont pas une population.
+    expect(prompt).toContain('full comparable field (3 logs)');
+    expect(prompt).toContain('1 closest of them only');
+    // L'adoption d'un talent se compte sur le champ, pas sur les trois références chères.
+    expect(prompt).toContain('Field size: 3 comparable logs');
+  });
+
+  it('marks the field as unreliable when no log passed the eliminatory criteria', () => {
+    const boss = makeBoss();
+    boss.sample = boss.sample.map((s) => ({ ...s, qualified: false }));
+
+    const prompt = buildAnalysisPrompt({
+      input: {
+        characterName: 'Jumbaa',
+        serverSlug: 'ysondre',
+        region: 'EU',
+        difficulty: 5,
+        encounters: [{ id: 3306, name: 'Chimaerus' }],
+        specId: 103,
+      },
+      bosses: [boss],
+      generatedAt: '2026-05-09T00:00:00.000Z',
+    });
+
+    expect(prompt).toContain('None of these logs passed the eliminatory criteria');
   });
 });
 
