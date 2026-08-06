@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { hashUserId } from '@/lib/labels/identity';
+import { consumeLabelQuota } from '@/lib/labels/rate-limit';
 import { monthKey, parseSubmission } from '@/lib/labels/schema';
 import { redisAppend } from '@/lib/redis';
 
@@ -57,6 +58,17 @@ export async function POST(req: NextRequest) {
   }
 
   const at = new Date().toISOString();
+
+  // Le quota se compte sur l'identité hachée, jamais sur l'IP : c'est le compte qui écrit
+  // dans le corpus, et c'est lui qu'un flot de verdicts fabriqués empoisonnerait.
+  const quota = await consumeLabelQuota(by, Date.parse(at));
+  if (!quota.allowed) {
+    return NextResponse.json(
+      { error: 'Too many labels' },
+      { status: 429, headers: { 'Retry-After': String(quota.retryAfterSeconds) } }
+    );
+  }
+
   const label: ComparabilityLabel = { v: 2, at, by, ...submission };
 
   try {
