@@ -242,8 +242,8 @@ Rapport complet : [docs/superpowers/specs/2026-08-03-audit-pipeline-wcl.md](docs
 | # | Constat | Localisation réelle |
 |---|---|---|
 | C1 | `KILL_TIME_TOLERANCE = 0.2` et `TOP_N = 3` en constantes | `src/lib/wcl/constants.ts:4-5` |
-| C2 | **Fallback silencieux** : si aucun log ne tombe dans la fenêtre, comparaison au top 3 mondial brut, sans signalement | `src/lib/wcl/pipeline.ts:227-230` **et** `src/lib/wcl/report-pipeline.ts:197-200` |
-| C3 | La requête world rankings ne filtre que sur `specName` / `className`. Elle ne pagine pas non plus : l'univers de candidats est plafonné à la première page | `src/lib/wcl/queries.ts:74-88` |
+| ~~C2~~ | ~~**Fallback silencieux**~~ — **clos le 2026-08-06.** Voir « Constats clos » ci-dessous | — |
+| ~~C3~~ | ~~La requête world rankings ne pagine pas~~ — **clos le 2026-08-06.** Le filtrage reste par `specName` / `className` seuls, mais l'univers n'est plus plafonné à la première page | — |
 | C5 | La rotation est requêtée via `table(dataType: Casts)` → agrégats. L'ordre temporel est perdu à la source ; l'opening chain impose de passer sur `events(dataType: Casts)` | `src/lib/wcl/queries.ts:110-119`, `src/lib/wcl/parsers.ts:48-58` |
 | C6 | Boucle séquentielle sur les logs de référence. La boucle sur les **boss** est déjà parallélisée | `src/lib/wcl/pipeline.ts:233`, `src/lib/wcl/report-pipeline.ts:203` |
 | C8 | `legacy/` (12 scripts Python) et `prototypes/` (4 maquettes HTML) — le projet a déjà été réécrit une fois | racine |
@@ -251,10 +251,45 @@ Rapport complet : [docs/superpowers/specs/2026-08-03-audit-pipeline-wcl.md](docs
 ### Constats corrigés
 
 - **C4 — partiellement exact.** `avgIlvl` est bien calculé (`src/lib/wcl/parsers.ts:31-34`)
-  et **il est utilisé** : affiché dans l'UI et injecté dans le prompt IA. Il n'est
-  inutilisé que pour **la sélection des candidats**.
+  et **il est utilisé** : affiché dans l'UI et injecté dans le prompt IA. Il n'était
+  inutilisé que pour **la sélection des candidats** — ce dernier point est clos, voir
+  ci-dessous.
 - **C7 — corrigé.** `CLAUDE.md` contient désormais le contexte projet et le vocabulaire
   du domaine, et ne charge plus les skills par `@`-import.
+
+### Constats clos le 2026-08-06 — comparabilité légitime et visible
+
+Spec : [docs/superpowers/specs/2026-08-05-comparabilite-legitime-design.md](docs/superpowers/specs/2026-08-05-comparabilite-legitime-design.md).
+
+- **C2 — clos.** Le repli silencieux n'existe plus. `selectReferencePool` classe désormais
+  tous les candidats par une distance de comparabilité et remonte le niveau atteint ;
+  `BossResult.comparability` le porte, et `ComparabilityBanner` l'énonce au-dessus de la
+  comparaison, avec les écarts **signés** d'ilvl et de kill time. `text-danger` sert enfin
+  à ce pour quoi il était réservé : signaler une comparaison illégitime.
+- **C3 — clos.** `Q_WORLD_RANKINGS` accepte `page` et le vivier est constitué des
+  `CANDIDATE_PAGES = 10` premières pages, récupérées **en parallèle**. Une page en échec
+  n'annule pas les autres et `pagesFetched` le remonte à l'écran.
+- **C4 — clos pour la sélection.** L'ilvl entre dans le score, via `bracketData`, que
+  la réponse WCL portait déjà et que le code ne lisait pas.
+
+**L'effet mesuré**, sur le cas qui avait servi à établir le défaut — Jumbaa, Feral,
+Vorasius mythique, ilvl 284,1 :
+
+| | Avant | Après |
+|---|---|---|
+| ilvl des références | 292,1 · 292,7 · 292,7 | 284,7 · 285,9 · 285,1 |
+| Écart d'ilvl | +8 | +0,9 |
+| DPS des références | 158–164 k | 123–134 k |
+| Écart de DPS présenté | ~55 k | ~25 k |
+| Latence, chemin personnage | 5,3 s | 8,0 s |
+
+**Plus de la moitié de ce qui était présenté au joueur comme son retard venait de
+l'équipement des références.** Les deux chemins d'analyse rendent désormais un bloc
+`comparability` identique pour le même combat.
+
+Ce que ce chantier n'a **pas** traité : les critères éliminatoires (externals reçus,
+palier de set bonus) restent absents, et la capture d'étiquettes attend toujours une
+décision de stockage (D2).
 
 ### Divergences non prévues par le snapshot
 
@@ -267,10 +302,15 @@ Rapport complet : [docs/superpowers/specs/2026-08-03-audit-pipeline-wcl.md](docs
 | D5 | **Les externals sont déjà à portée** — `Q_ROTATION` récupère les buffs de chaque candidat et les ignore. Détecter une PI reçue ne coûte aucune requête supplémentaire |
 | D6 | **Le spec-agnosticisme est atteint côté pipeline** — la spec est détectée depuis le `CombatantInfo`, `src/data/talents/` couvre de nombreuses specs. Reste ouvert côté prompt IA |
 
-**Gravité produit de C2** : c'est le défaut le plus coûteux. Il reproduit exactement
-la comparaison illégitime que l'outil est censé éviter, et l'utilisateur ne peut pas
-distinguer un rapport fiable d'un rapport trompeur. Casse la confiance précisément
-quand l'outil se trompe.
+**Gravité produit de C2** — pourquoi il a été traité en premier : c'était le défaut le
+plus coûteux. Il reproduisait exactement la comparaison illégitime que l'outil est censé
+éviter, et l'utilisateur ne pouvait pas distinguer un rapport fiable d'un rapport
+trompeur. Il cassait la confiance précisément quand l'outil se trompait.
+
+Le même défaut subsiste ailleurs, sous une autre forme : le percentile affiché ne mesure
+pas la même chose selon le chemin d'analyse — 81,1 % par le chemin personnage contre 67 %
+par le chemin rapport, pour le même kill, sous le même libellé. Non corrigé, à confirmer
+contre la documentation WCL avant toute intervention.
 
 **Sur ±20 %** : sur un kill de 5 min, c'est ±60 s. Le kill time et le DPS sont
 mécaniquement corrélés (moins de phases, plus d'uptime CD). Se comparer à un kill
@@ -280,19 +320,23 @@ mécaniquement corrélés (moins de phases, plus d'uptime CD). Se comparer à un
 
 ## 8. Tâches, par ordre de valeur
 
-**Préalable — déduplication du pipeline (D1).** Les tâches 1 à 5 touchent toutes le même
-bloc de code, présent deux fois. L'extraction d'un traitement commun les rend faisables
-une seule fois.
+**Préalable — déduplication du pipeline (D1). Fait le 2026-08-03.** Les tâches ci-dessous
+touchaient toutes le même bloc de code, présent deux fois ; `combatant.ts`, `fight-data.ts`
+et `references.ts` portent désormais le traitement commun.
 
 1. **Capture des étiquettes** — irréversible si repoussée. Stockage + endpoint +
-   bouton « pas comparable » avec raison. Le choix du stockage précède (D2). *(v1)*
-2. **Rendre C2 visible** — afficher explicitement quand le fallback se déclenche et
-   sur quelle qualité de comparaison le rapport est bâti. *(v1)*
+   bouton « pas comparable » avec raison. Le choix du stockage précède (D2). Le bloc
+   `comparability` livré le 2026-08-06 est le point d'accroche du bouton. *(v1)*
+2. ~~**Rendre C2 visible**~~ — **fait le 2026-08-06.** `ComparabilityBanner` énonce le
+   niveau atteint et les écarts signés, sur les deux chemins.
 3. **Corriger D3** — apparier le joueur de référence par nom. Défaut silencieux qui
    corrompt la donnée de comparaison. *(v1)*
-4. **Utiliser l'ilvl, le set bonus et les externals dans la sélection** — l'ilvl existe
-   déjà (C4), les buffs aussi (D5) ; le set bonus demande le CombatantInfo par candidat. *(v1)*
-5. **Paralléliser et élargir la fenêtre de candidats** (C6, C3). *(v1)*
+4. **Set bonus et externals dans la sélection** — l'ilvl est fait (2026-08-06). Les
+   buffs sont déjà à portée (D5) ; le set bonus demande le `CombatantInfo` par candidat,
+   donc d'inverser le pipeline : récupérer avant de choisir, non après. *(v1)*
+5. ~~**Paralléliser et élargir la fenêtre de candidats**~~ (C3) — **fait le 2026-08-06**,
+   dix pages en parallèle. Reste ouvert : la boucle séquentielle sur les logs de
+   référence eux-mêmes (C6).
 6. **Agréger les références au lieu de les juxtaposer** (D4) — l'utilisateur cherche une
    distribution, pas 3 exemples. Change `BossResult.topPlayers` et ses consommateurs
    (`ComparisonTab`, `src/lib/ai/prompt.ts`). *(v1)*
