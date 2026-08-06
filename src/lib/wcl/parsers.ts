@@ -1,5 +1,5 @@
 import type { CombatantEvent } from './combatant';
-import type { CastEntry, CharacterStats, RotationSummary } from '@/types';
+import type { CastEntry, CharacterStats, OpeningCast, RotationSummary } from '@/types';
 
 /** parseStats reads gear, stats and talents — it never needs the combatant's identity. */
 type CombatantStats = Omit<CombatantEvent, 'sourceID'>;
@@ -56,12 +56,52 @@ export function parseUptime(table: WCLTable, fightMs: number): Record<string, nu
   return result;
 }
 
+/** One entry of `events(dataType: Casts)`. Only what the opening chain reads. */
+export interface CastEvent {
+  timestamp: number;
+  type: string;
+  abilityGameID?: number;
+  ability?: { guid?: number; name?: string };
+}
+
+/**
+ * The ordered opening, from raw cast events.
+ *
+ * Three decisions worth stating. `begincast` is dropped: a channel would otherwise appear
+ * twice, and what is compared is what landed. Names come from the aggregate `Casts` table,
+ * which covers the whole fight and therefore every ability of its opening — so naming the
+ * chain costs no further query. And offsets are counted from the *first* cast rather than
+ * from the pull, because a slow reaction to the countdown is not a rotation mistake.
+ */
+export function parseOpening(
+  events: CastEvent[],
+  castTable: WCLTable,
+  length: number
+): OpeningCast[] {
+  const names = new Map<number, string>();
+  for (const entry of castTable.data?.entries ?? []) names.set(entry.guid, entry.name);
+
+  const casts = events.filter((e) => e.type === 'cast').slice(0, length);
+  if (casts.length === 0) return [];
+
+  const start = casts[0].timestamp;
+  return casts.map((event) => {
+    const guid = event.abilityGameID ?? event.ability?.guid ?? 0;
+    return {
+      guid,
+      name: event.ability?.name ?? names.get(guid) ?? `#${guid}`,
+      offsetMs: event.timestamp - start,
+    };
+  });
+}
+
 export function summarizeRotation(
   name: string,
   casts: Record<string, CastEntry>,
   buffs: Record<string, number>,
   fightMs: number,
+  opening: OpeningCast[],
   dps?: number
 ): RotationSummary {
-  return { name, dps, fightDurationMs: fightMs, casts, buffs };
+  return { name, dps, fightDurationMs: fightMs, casts, buffs, opening };
 }

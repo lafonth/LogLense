@@ -146,6 +146,8 @@ function mockFights(fixture: (code: string) => FightFixture = (c) => plainFight(
       };
     } else if (body.includes('query Buffs')) {
       payload = { reportData: { report: { buffs: fight.buffs } } };
+    } else if (body.includes('CastEvents')) {
+      payload = { reportData: { report: { events: { data: [] } } } };
     } else if (body.includes('DamageDone')) {
       payload = { reportData: { report: { table: DAMAGE } } };
     } else {

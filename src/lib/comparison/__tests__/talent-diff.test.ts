@@ -33,7 +33,7 @@ function player(name: string, talents: Record<number, number>): TopPlayer {
       dps: 300000,
       killTime: '4:23',
     },
-    rotation: { name, fightDurationMs: 263000, casts: {}, buffs: {} },
+    rotation: { name, fightDurationMs: 263000, casts: {}, buffs: {}, opening: [] },
     damageTable: { entries: [] },
     provenance: {
       code: `code-${name}`,

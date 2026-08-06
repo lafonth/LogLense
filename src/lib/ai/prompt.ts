@@ -9,6 +9,7 @@ import type {
   TalentNode,
   TopPlayer,
 } from '@/types';
+import { diffOpening } from '@/lib/comparison/opening-diff';
 import { describeValues, STAT_AXES, usableSample } from '@/lib/comparison/stat-distribution';
 import { fmtMs } from '@/lib/wcl/parsers';
 
@@ -42,12 +43,18 @@ STEP 5 — TALENTS
 Every talent line carries an adoption count k/n over the field. Weight your advice by it: n−1 out of n is a standard the player is missing, \
 2 out of 12 is a niche pick and not a mistake. Report only differences with a direct rotation impact, and always cite the count.
 
+STEP 6 — OPENING
+The Opening table is the only ordered data you have: rank, what you cast, and what the majority of references cast at that rank. \
+Judge it only on the FIRST rank where you leave the majority — every later rank is shifted by that one divergence, so listing them all invents mistakes. \
+Say nothing about the opening when the section is absent, when it states no reference opening is available, or when you follow the majority throughout.
+
 Output format per boss:
 1. Primary issue — the single largest gap, with exact numbers from the table.
 2. Secondary issues — other meaningful spell usage or damage split differences.
-3. Stats — where the player sits in the field, with the percentile and the gap to the median.
-4. Talents — only if impactful, with the adoption count.
-5. One thing to fix next raid.
+3. Opening — the first divergence rank and the two abilities involved, only if there is one.
+4. Stats — where the player sits in the field, with the percentile and the gap to the median.
+5. Talents — only if impactful, with the adoption count.
+6. One thing to fix next raid.
 
 Be concise. Every number you cite must come directly from the data tables.`;
 
@@ -232,6 +239,44 @@ function spellUsageTable(charRotation: RotationSummary, topPlayers: TopPlayer[])
   return mdTable(headers, rows);
 }
 
+/**
+ * L'ouverture, rang par rang — le seul tableau du prompt où l'ordre porte l'information.
+ *
+ * Les agrégats disent combien de fois un sort est lancé ; ils ne disent pas dans quel ordre.
+ * Une séquence identique en fréquences peut être fausse au premier bouton, et c'est
+ * précisément la faute que le joueur qui plafonne ne voit plus.
+ */
+function openingSection(charRotation: RotationSummary, topPlayers: TopPlayer[]): string {
+  const { steps, referenceTotal, firstDivergence } = diffOpening(charRotation.opening, topPlayers);
+  if (steps.length === 0) return '';
+
+  const rows = steps.map((step) => [
+    String(step.index + 1),
+    step.mine ?? '—',
+    charRotation.opening[step.index]
+      ? `+${(charRotation.opening[step.index].offsetMs / 1000).toFixed(1)}s`
+      : '—',
+    step.consensus === null
+      ? '—'
+      : `${step.consensus} (${step.consensusCount}/${step.referenceTotal})`,
+  ]);
+
+  const table = mdTable(['#', 'You', 'Offset', 'References (majority)'], rows);
+
+  if (referenceTotal === 0) {
+    return [table, '', 'No reference opening available — do not judge this sequence.'].join('\n');
+  }
+
+  const note =
+    firstDivergence === null
+      ? 'Your opening follows the reference majority at every rank.'
+      : `Your opening leaves the reference majority at cast ${firstDivergence + 1}. ` +
+        'Ranks after it are shifted, so treat that first divergence as the finding rather than ' +
+        'listing every later mismatch.';
+
+  return [table, '', `Openings compared against ${referenceTotal} references. ${note}`].join('\n');
+}
+
 function uptimeTable(charRotation: RotationSummary, topPlayers: TopPlayer[]): string {
   const allBuffs = [
     ...new Set([
@@ -401,6 +446,11 @@ export function buildAnalysisPrompt(
         spellUsageTable(boss.character.rotation, topPlayers),
         '',
       ];
+
+      const opening = openingSection(boss.character.rotation, topPlayers);
+      if (opening) {
+        sections.push('### Opening', opening, '');
+      }
 
       const uptimes = uptimeTable(boss.character.rotation, topPlayers);
       if (uptimes) {

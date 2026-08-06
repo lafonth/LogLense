@@ -44,13 +44,20 @@ const BUFFS = {
   data: { auras: [{ guid: 5, name: 'Tiger’s Fury', totalUptime: 30000, totalUses: 5 }] },
 };
 
-/** Routes the two parallel queries by looking at the GraphQL body. */
+const CAST_EVENTS = [
+  { timestamp: 1000, type: 'cast', abilityGameID: 1 },
+  { timestamp: 2500, type: 'cast', abilityGameID: 1 },
+];
+
+/** Routes the three parallel queries by looking at the GraphQL body. */
 function mockQueries(damageEntries = DAMAGE_ENTRIES) {
   globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
     const body = String(init.body);
     const payload = body.includes('DamageDone')
       ? { reportData: { report: { table: { data: { entries: damageEntries } } } } }
-      : { reportData: { report: { casts: CASTS, buffs: BUFFS } } };
+      : body.includes('CastEvents')
+        ? { reportData: { report: { events: { data: CAST_EVENTS } } } }
+        : { reportData: { report: { casts: CASTS, buffs: BUFFS } } };
 
     return { ok: true, json: async () => ({ data: payload }) } as Response;
   });
@@ -136,5 +143,32 @@ describe('fetchFightData', () => {
     expect(result.damageEntries).toEqual([]);
     expect(result.fightTargets).toEqual([]);
     expect(result.dps).toBe(0);
+  });
+
+  it('reads the opening in order, named from the cast table', async () => {
+    mockQueries();
+
+    const result = await fetchFightData('token', ARGS);
+
+    expect(result.rotation.opening).toEqual([
+      { guid: 1, name: 'Rip', offsetMs: 0 },
+      { guid: 1, name: 'Rip', offsetMs: 1500 },
+    ]);
+  });
+
+  it('still produces a report when the cast events query fails', async () => {
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      const body = String(init.body);
+      if (body.includes('CastEvents')) throw new Error('rate limited');
+      const payload = body.includes('DamageDone')
+        ? { reportData: { report: { table: { data: { entries: DAMAGE_ENTRIES } } } } }
+        : { reportData: { report: { casts: CASTS, buffs: BUFFS } } };
+      return { ok: true, json: async () => ({ data: payload }) } as Response;
+    });
+
+    const result = await fetchFightData('token', ARGS);
+
+    expect(result.rotation.opening).toEqual([]);
+    expect(result.rotation.casts.Rip).toEqual({ casts: 12, perMin: 12 });
   });
 });

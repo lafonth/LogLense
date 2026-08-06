@@ -34,6 +34,7 @@ const mockBossResult: BossResult = {
       fightDurationMs: 180000,
       casts: {},
       buffs: {},
+      opening: [],
     },
     damageTable: { entries: [] },
     dps: 250000,

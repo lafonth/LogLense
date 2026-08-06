@@ -1,11 +1,12 @@
 import type { CombatantEvent } from './combatant';
 import type { EligibilityProfile } from './eligibility';
-import type { WCLTable } from './parsers';
+import type { CastEvent, WCLTable } from './parsers';
 import type { CharacterStats, DamageEntry, FightTarget, RotationSummary } from '@/types';
 import { gql } from './client';
+import { OPENING_EVENT_LIMIT, OPENING_LENGTH } from './constants';
 import { eligibilityOf } from './eligibility';
-import { parseCasts, parseStats, parseUptime, summarizeRotation } from './parsers';
-import { Q_DAMAGE, Q_ROTATION } from './queries';
+import { parseCasts, parseOpening, parseStats, parseUptime, summarizeRotation } from './parsers';
+import { Q_CAST_EVENTS, Q_DAMAGE, Q_ROTATION } from './queries';
 
 interface DamageResponse {
   reportData: {
@@ -26,6 +27,10 @@ interface DamageResponse {
 
 interface RotationResponse {
   reportData: { report: { casts: WCLTable; buffs: WCLTable } };
+}
+
+interface CastEventsResponse {
+  reportData: { report: { events: { data?: CastEvent[] } } };
 }
 
 export interface FightData {
@@ -58,17 +63,17 @@ const MIN_TARGET_PCT = 1;
 export async function fetchFightData(token: string, args: FightDataArgs): Promise<FightData> {
   const { code, fightId, combatant, name, fightMs } = args;
 
-  const [dmgData, rotData] = await Promise.all([
-    gql<DamageResponse>(token, Q_DAMAGE, {
-      code,
-      fightIDs: [fightId],
-      sourceID: combatant.sourceID,
-    }),
-    gql<RotationResponse>(token, Q_ROTATION, {
-      code,
-      fightIDs: [fightId],
-      sourceID: combatant.sourceID,
-    }),
+  const vars = { code, fightIDs: [fightId], sourceID: combatant.sourceID };
+
+  const [dmgData, rotData, castEvents] = await Promise.all([
+    gql<DamageResponse>(token, Q_DAMAGE, vars),
+    gql<RotationResponse>(token, Q_ROTATION, vars),
+    // L'ouverture est un axe de plus, pas une dépendance : un log qui ne rend pas ses
+    // événements de cast doit produire un rapport sans ouverture, pas une erreur.
+    gql<CastEventsResponse>(token, Q_CAST_EVENTS, {
+      ...vars,
+      limit: OPENING_EVENT_LIMIT,
+    }).catch(() => null),
   ]);
 
   const allDmgEntries = dmgData.reportData.report.table.data?.entries ?? [];
@@ -77,9 +82,15 @@ export async function fetchFightData(token: string, args: FightDataArgs): Promis
   const dps = args.dps ?? (fightMs > 0 ? Math.round(totalDamage / (fightMs / 1000)) : 0);
 
   const stats = parseStats(combatant, name)!;
-  const casts = parseCasts(rotData.reportData.report.casts, fightMs);
+  const castTable = rotData.reportData.report.casts;
+  const casts = parseCasts(castTable, fightMs);
   const buffs = parseUptime(rotData.reportData.report.buffs, fightMs);
-  const rotation = summarizeRotation(name, casts, buffs, fightMs, dps);
+  const opening = parseOpening(
+    castEvents?.reportData?.report?.events?.data ?? [],
+    castTable,
+    OPENING_LENGTH
+  );
+  const rotation = summarizeRotation(name, casts, buffs, fightMs, opening, dps);
 
   const damageEntries: DamageEntry[] = allDmgEntries
     .map((e) => ({ name: e.name, total: e.total }))

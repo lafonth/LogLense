@@ -53,12 +53,29 @@ export interface CastEntry {
   perMin: number;
 }
 
+/**
+ * Un sort de l'ouverture, à sa place dans la séquence.
+ *
+ * `offsetMs` compte depuis le premier cast du combat, pas depuis le pull : ce qui se
+ * compare, c'est l'espacement des sorts entre eux, pas le temps de réaction au décompte.
+ */
+export interface OpeningCast {
+  guid: number;
+  name: string;
+  offsetMs: number;
+}
+
 export interface RotationSummary {
   name: string;
   dps?: number;
   fightDurationMs: number;
   casts: Record<string, CastEntry>;
   buffs: Record<string, number>; // ability name → uptime %
+  /**
+   * Les premiers sorts, dans l'ordre. Vide quand le log ne porte aucun événement de cast
+   * exploitable — l'écran doit alors dire qu'il ne sait pas, pas afficher une ouverture vide.
+   */
+  opening: OpeningCast[];
 }
 
 export interface DamageEntry {

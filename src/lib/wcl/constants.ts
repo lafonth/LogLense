@@ -21,6 +21,21 @@ export const CANDIDATE_PAGES = 10;
 export const VERIFICATION_WINDOW = 12;
 
 /**
+ * Casts kept as the opening chain.
+ *
+ * Long enough to cover a burst window and the ramp into it, short enough that what follows —
+ * where the fight, not the plan, decides the next button — stays out. Beyond it the chain
+ * stops being a sequence and becomes a priority list, which the aggregate table already says.
+ */
+export const OPENING_LENGTH = 12;
+
+/**
+ * How many raw cast events are fetched to extract the opening. Larger than
+ * `OPENING_LENGTH` because `begincast` events are interleaved and then dropped.
+ */
+export const OPENING_EVENT_LIMIT = 40;
+
+/**
  * Uptime points of offensive externals a reference may hold over the player before it
  * stops being comparable. An incidental Power Infusion clipped onto a candidate is noise;
  * a full-fight Ebon Might they had and the player did not is a different fight.

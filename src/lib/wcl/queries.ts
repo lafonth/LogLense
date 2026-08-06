@@ -120,6 +120,21 @@ export const Q_ROTATION = `
 `;
 
 /**
+ * The opening chain, which the `Casts` *table* cannot give: it aggregates, so the order is
+ * lost at the source. `events` keeps it. `limit` is what makes this cheap — the API returns
+ * the fight's events from its start, so the first page *is* the opening; no pagination.
+ */
+export const Q_CAST_EVENTS = `
+  query CastEvents($code: String!, $fightIDs: [Int]!, $sourceID: Int!, $limit: Int!) {
+    reportData {
+      report(code: $code) {
+        events(dataType: Casts, fightIDs: $fightIDs, sourceID: $sourceID, limit: $limit) { data }
+      }
+    }
+  }
+`;
+
+/**
  * Buffs alone. The verification stage judges a candidate before deciding to keep it, so
  * it must not pay for the casts and damage of the ones it is about to eliminate.
  */

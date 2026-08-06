@@ -1,5 +1,13 @@
+import type { CastEvent } from '../parsers';
 import { describe, expect, it } from 'vitest';
-import { fmtMs, parseCasts, parseStats, parseUptime, summarizeRotation } from '../parsers';
+import {
+  fmtMs,
+  parseCasts,
+  parseOpening,
+  parseStats,
+  parseUptime,
+  summarizeRotation,
+} from '../parsers';
 
 describe('fmtMs', () => {
   it('formats milliseconds to M:SS', () => {
@@ -90,11 +98,73 @@ describe('summarizeRotation', () => {
     };
     const buffs = { "Tiger's Fury": 28 };
 
-    const summary = summarizeRotation('Jumbaa', casts, buffs, 120000, 250000);
+    const summary = summarizeRotation('Jumbaa', casts, buffs, 120000, [], 250000);
 
     expect(summary.casts.Shred.casts).toBe(40);
     expect(summary.casts["Tiger's Fury"].casts).toBe(10);
     expect(summary.buffs["Tiger's Fury"]).toBe(28);
     expect(summary.dps).toBe(250000);
+  });
+});
+
+describe('parseOpening', () => {
+  const NAMES = {
+    data: {
+      entries: [
+        { guid: 5217, name: "Tiger's Fury", total: 10 },
+        { guid: 5221, name: 'Shred', total: 60 },
+        { guid: 1079, name: 'Rip', total: 9 },
+      ],
+    },
+  };
+
+  function event(timestamp: number, abilityGameID: number, type = 'cast'): CastEvent {
+    return { timestamp, type, abilityGameID };
+  }
+
+  it('keeps the order and counts offsets from the first cast, not from the pull', () => {
+    const opening = parseOpening(
+      [event(103000, 5217), event(104500, 5221), event(106000, 1079)],
+      NAMES,
+      12
+    );
+
+    expect(opening.map((c) => c.name)).toEqual(["Tiger's Fury", 'Shred', 'Rip']);
+    expect(opening.map((c) => c.offsetMs)).toEqual([0, 1500, 3000]);
+  });
+
+  it('drops begincast so a channel is not counted twice', () => {
+    const opening = parseOpening(
+      [event(1000, 5221, 'begincast'), event(2500, 5221), event(4000, 1079)],
+      NAMES,
+      12
+    );
+
+    expect(opening.map((c) => c.name)).toEqual(['Shred', 'Rip']);
+    expect(opening[0].offsetMs).toBe(0);
+  });
+
+  it('truncates to the requested length', () => {
+    const events = [event(0, 5217), event(1000, 5221), event(2000, 1079)];
+    expect(parseOpening(events, NAMES, 2)).toHaveLength(2);
+  });
+
+  it('falls back to the guid when the cast table does not name the ability', () => {
+    const opening = parseOpening([event(0, 9999)], NAMES, 12);
+    expect(opening[0]).toMatchObject({ guid: 9999, name: '#9999' });
+  });
+
+  it('prefers an inline ability name when WCL sends one', () => {
+    const opening = parseOpening(
+      [{ timestamp: 0, type: 'cast', ability: { guid: 9999, name: 'Convoke the Spirits' } }],
+      NAMES,
+      12
+    );
+    expect(opening[0]).toMatchObject({ guid: 9999, name: 'Convoke the Spirits' });
+  });
+
+  it('returns an empty opening when the log carries no usable cast event', () => {
+    expect(parseOpening([], NAMES, 12)).toEqual([]);
+    expect(parseOpening([event(0, 5221, 'begincast')], NAMES, 12)).toEqual([]);
   });
 });

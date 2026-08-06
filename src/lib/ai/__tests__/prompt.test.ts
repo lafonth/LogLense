@@ -63,6 +63,7 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
           'Ferocious Bite': { casts: 12, perMin: 4 },
         },
         buffs: { "Tiger's Fury": 28 },
+        opening: [],
       },
       damageTable: {
         entries: [
@@ -107,6 +108,7 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
             'Ferocious Bite': { casts: 14, perMin: 4.8 },
           },
           buffs: { "Tiger's Fury": 35 },
+          opening: [],
         },
         damageTable: {
           entries: [
@@ -207,6 +209,54 @@ describe('buildAnalysisPrompt', () => {
 
     const prompt = buildAnalysisPrompt(input);
     expect(prompt).toContain('Talent Differences');
+  });
+
+  it('omits the opening section entirely when no cast order is available', () => {
+    const input: AnalysisResult = {
+      input: {
+        characterName: 'Jumbaa',
+        serverSlug: 'ysondre',
+        region: 'EU',
+        difficulty: 5,
+        encounters: [{ id: 3306, name: 'Chimaerus' }],
+        specId: 103,
+      },
+      bosses: [makeBoss()],
+      generatedAt: '2026-05-09T00:00:00.000Z',
+    };
+
+    expect(buildAnalysisPrompt(input)).not.toContain('### Opening');
+  });
+
+  it('gives the opening rank by rank and names the first divergence', () => {
+    const boss = makeBoss();
+    boss.character.rotation.opening = [
+      { guid: 5217, name: "Tiger's Fury", offsetMs: 0 },
+      { guid: 1079, name: 'Rip', offsetMs: 1500 },
+    ];
+    boss.topPlayers[0].rotation.opening = [
+      { guid: 5217, name: "Tiger's Fury", offsetMs: 0 },
+      { guid: 5221, name: 'Shred', offsetMs: 1400 },
+    ];
+
+    const input: AnalysisResult = {
+      input: {
+        characterName: 'Jumbaa',
+        serverSlug: 'ysondre',
+        region: 'EU',
+        difficulty: 5,
+        encounters: [{ id: 3306, name: 'Chimaerus' }],
+        specId: 103,
+      },
+      bosses: [boss],
+      generatedAt: '2026-05-09T00:00:00.000Z',
+    };
+
+    const prompt = buildAnalysisPrompt(input);
+    expect(prompt).toContain('### Opening');
+    expect(prompt).toContain('+1.5s');
+    expect(prompt).toContain('Shred (1/1)');
+    expect(prompt).toContain('leaves the reference majority at cast 2');
   });
 
   it('describes the stats as a distribution and names the size of the field', () => {

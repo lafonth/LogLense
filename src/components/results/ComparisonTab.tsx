@@ -5,6 +5,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { usableSample } from '@/lib/comparison/stat-distribution';
 import { ComparabilityBanner } from './ComparabilityBanner';
 import { DpsBanner } from './DpsBanner';
+import { OpeningChain } from './OpeningChain';
 import { ReferenceLabels } from './ReferenceLabels';
 import { RotationCards } from './RotationCards';
 import { StatsTable } from './StatsTable';
@@ -67,6 +68,9 @@ export function ComparisonTab({ encounter, bossState, specName, talentNodes }: C
           Where you sit in the field
         </h3>
         <StatsTable character={result.character.stats} sample={result.sample} />
+      </div>
+      <div className="mt-6">
+        <OpeningChain mine={result.character.rotation.opening} references={result.topPlayers} />
       </div>
       <div className="mt-6">
         <RotationCards character={result.character.rotation} topPlayers={result.topPlayers} />

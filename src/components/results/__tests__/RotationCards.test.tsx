@@ -24,6 +24,7 @@ function reference(name: string, perMin: Record<string, number>): TopPlayer {
         Object.entries(perMin).map(([k, v]) => [k, { casts: Math.round(v * 4), perMin: v }])
       ),
       buffs: {},
+      opening: [],
     },
     damageTable: { entries: [] },
     provenance: {
@@ -46,6 +47,7 @@ const MINE: RotationSummary = {
   fightDurationMs: 263000,
   casts: { 'Ferocious Bite': { casts: 18, perMin: 4.1 } },
   buffs: {},
+  opening: [],
 };
 
 const REFERENCES = [
@@ -85,6 +87,7 @@ describe('rotationCards', () => {
         Rip: { casts: 4, perMin: 0.9 },
       },
       buffs: {},
+      opening: [],
     };
     const references = [
       reference('Aidan', { 'Ferocious Bite': 6.6 }),

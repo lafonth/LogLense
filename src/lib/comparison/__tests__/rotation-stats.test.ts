@@ -27,6 +27,7 @@ function reference(
         Object.entries(perMin).map(([k, v]) => [k, { casts: Math.round(v * 4), perMin: v }])
       ),
       buffs,
+      opening: [],
     },
     damageTable: { entries: [] },
     provenance: {
@@ -52,6 +53,7 @@ const MINE: RotationSummary = {
     'Ferocious Bite': { casts: 18, perMin: 4.1 },
   },
   buffs: { "Tiger's Fury": 42 },
+  opening: [],
 };
 
 const REFERENCES = [
