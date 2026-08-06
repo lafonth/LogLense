@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { redisGet, redisSet } from '@/lib/redis';
+import { redisAppend, redisGet, redisSet } from '@/lib/redis';
 
 const BASE = 'https://test.upstash.io';
 const TOKEN = 'test-token';
@@ -56,5 +56,33 @@ describe('redisSet', () => {
         body: JSON.stringify(['SET', 'my-key', 'my-value']),
       })
     );
+  });
+});
+
+describe('redisAppend', () => {
+  it('appends with RPUSH and returns the new list length', async () => {
+    mockUpstash(7);
+
+    await expect(redisAppend('labels:comparability:2026-08', '{"v":1}')).resolves.toBe(7);
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      BASE,
+      expect.objectContaining({
+        body: JSON.stringify(['RPUSH', 'labels:comparability:2026-08', '{"v":1}']),
+      })
+    );
+  });
+
+  // exec() does not check res.ok, so a failed write would otherwise resolve to undefined
+  // and the route would answer 200 for a label that was never stored.
+  it('throws when Redis does not return a list length', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        json: () => Promise.resolve({ error: 'ERR wrong number of arguments' }),
+      } as Response)
+    );
+
+    await expect(redisAppend('k', 'v')).rejects.toThrow(/list length/);
   });
 });
