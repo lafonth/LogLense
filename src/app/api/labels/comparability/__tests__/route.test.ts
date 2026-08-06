@@ -53,12 +53,20 @@ describe('pOST /api/labels/comparability', () => {
     else process.env.LABEL_SALT = originalSalt;
   });
 
-  it('stores a valid label and reports the new list length', async () => {
+  it('stores a valid label without disclosing the corpus size', async () => {
     const res = await POST(request(body()));
 
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toEqual({ ok: true, length: 1 });
+    await expect(res.json()).resolves.toEqual({ ok: true });
     expect(redisAppend).toHaveBeenCalledTimes(1);
+  });
+
+  // Append-only and unclean-able: an oversized body must never reach the corpus.
+  it('rejects a body past the size cap', async () => {
+    const res = await POST(request(body({ reason: 'externals', padding: 'x'.repeat(5000) })));
+
+    expect(res.status).toBe(413);
+    expect(redisAppend).not.toHaveBeenCalled();
   });
 
   it('writes to the month bucket of the current time', async () => {

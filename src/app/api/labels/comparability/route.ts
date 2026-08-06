@@ -10,6 +10,16 @@ import { redisAppend } from '@/lib/redis';
 export const runtime = 'nodejs';
 
 /**
+ * Plafond du corps entrant, en octets.
+ *
+ * Une soumission légitime fait moins de 600 octets. Les route handlers App Router
+ * n'appliquent aucune limite par défaut, et le corpus est en écriture seule : une session
+ * valide pourrait pousser en boucle des mégaoctets dans la clé du mois. Saturer Upstash ne
+ * détruirait pas que le corpus — c'est le même client qui sert la whitelist d'auth.
+ */
+const MAX_BODY_BYTES = 4096;
+
+/**
  * Enregistre une décision « pas comparable ».
  *
  * Aucune réponse ne prétend qu'une écriture a eu lieu si elle n'a pas eu lieu : un clic
@@ -25,7 +35,11 @@ export async function POST(req: NextRequest) {
 
   let raw: unknown;
   try {
-    raw = await req.json();
+    const text = await req.text();
+    if (text.length > MAX_BODY_BYTES) {
+      return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
+    }
+    raw = JSON.parse(text);
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
@@ -46,8 +60,10 @@ export async function POST(req: NextRequest) {
   const label: ComparabilityLabel = { v: 1, at, by, ...submission };
 
   try {
-    const length = await redisAppend(monthKey(at), JSON.stringify(label));
-    return NextResponse.json({ ok: true, length });
+    // La longueur renvoyée par Redis reste ici : elle mesure la croissance du corpus, qui
+    // est l'actif du produit, et l'appelant n'en a aucun usage.
+    await redisAppend(monthKey(at), JSON.stringify(label));
+    return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: 'Label capture unavailable' }, { status: 503 });
   }

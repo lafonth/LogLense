@@ -20,8 +20,15 @@ export interface LabelSubmission {
     killTimeMs: number;
     dps: number;
   };
-  /** Écarts signés, référence − sujet. */
-  scores: { distance: number; ilvlGap: number | null; killTimeGapPct: number; rank: number };
+  /**
+   * Écarts signés, référence − sujet.
+   *
+   * `distance` est `null` quand la sélection n'a pas pu la calculer — pas de `bracketData`
+   * sur l'entrée de classement, ou pas d'ilvl pour le sujet. C'est une information, pas une
+   * absence : c'est justement le cas où la comparaison est illégitime, donc celui où
+   * l'étiquette vaut le plus. La refuser reviendrait à ne capturer que les cas faciles.
+   */
+  scores: { distance: number | null; ilvlGap: number | null; killTimeGapPct: number; rank: number };
   pool: { candidatesConsidered: number; pagesFetched: number; level: ComparabilityLevel };
 }
 
@@ -50,8 +57,17 @@ function nullableNum(v: unknown): v is number | null {
   return v === null || num(v);
 }
 
+/**
+ * Plafond de longueur de chaîne.
+ *
+ * Aucun champ légitime n'en approche : un code de rapport fait 16 caractères, un nom de
+ * personnage 12. Le plafond n'est pas là pour les cadrer au plus juste mais pour empêcher
+ * qu'une session valide gonfle indéfiniment un corpus qu'on ne peut pas nettoyer après coup.
+ */
+export const MAX_FIELD_LENGTH = 64;
+
 function str(v: unknown): v is string {
-  return typeof v === 'string' && v.length > 0;
+  return typeof v === 'string' && v.length > 0 && v.length <= MAX_FIELD_LENGTH;
 }
 
 /**
@@ -79,7 +95,7 @@ export function parseSubmission(input: unknown): LabelSubmission | null {
     return null;
 
   if (!isRecord(scores)) return null;
-  if (!num(scores.distance) || !nullableNum(scores.ilvlGap)) return null;
+  if (!nullableNum(scores.distance) || !nullableNum(scores.ilvlGap)) return null;
   if (!num(scores.killTimeGapPct) || !num(scores.rank)) return null;
 
   if (!isRecord(pool)) return null;

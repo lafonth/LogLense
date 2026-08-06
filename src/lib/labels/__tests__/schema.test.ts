@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LABEL_REASONS, monthKey, parseSubmission } from '../schema';
+import { LABEL_REASONS, MAX_FIELD_LENGTH, monthKey, parseSubmission } from '../schema';
 
 function validBody() {
   return {
@@ -67,8 +67,24 @@ describe('parseSubmission', () => {
   it('rejects a non-finite number', () => {
     const body = validBody();
     expect(
-      parseSubmission({ ...body, scores: { ...body.scores, distance: Number.POSITIVE_INFINITY } })
+      parseSubmission({ ...body, scores: { ...body.scores, killTimeGapPct: Number.NaN } })
     ).toBeNull();
+  });
+
+  // The unscorable candidate is exactly the illegitimate comparison — the label worth most.
+  it('accepts a null distance', () => {
+    const body = validBody();
+    const parsed = parseSubmission({ ...body, scores: { ...body.scores, distance: null } });
+    expect(parsed?.scores.distance).toBeNull();
+  });
+
+  it('rejects a string past the field length cap', () => {
+    const body = validBody();
+    const parsed = parseSubmission({
+      ...body,
+      reference: { ...body.reference, name: 'A'.repeat(MAX_FIELD_LENGTH + 1) },
+    });
+    expect(parsed).toBeNull();
   });
 
   it('rejects an empty report code', () => {

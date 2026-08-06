@@ -1,7 +1,7 @@
 'use client';
 
 import type { LabelReason } from '@/lib/labels/schema';
-import type { BossResult } from '@/types';
+import type { BossResult, ReferenceProvenance } from '@/types';
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -21,15 +21,28 @@ interface ReferenceLabelsProps {
   result: BossResult;
 }
 
+/**
+ * Identifie une référence, pas sa position.
+ *
+ * L'état est indexé là-dessus parce que le composant n'est pas remonté quand on change de
+ * boss dans la barre latérale : seul `result` change. Indexé par rang, un « Recorded »
+ * survivrait au changement et affirmerait une écriture qui n'a pas eu lieu — tout en
+ * retirant le bouton qui permettait de la faire.
+ */
+function referenceKey(provenance: ReferenceProvenance): string {
+  return `${provenance.code}:${provenance.fightID}`;
+}
+
 export function ReferenceLabels({ result }: ReferenceLabelsProps) {
-  const [status, setStatus] = useState<Record<number, Status>>({});
+  const [status, setStatus] = useState<Record<string, Status>>({});
 
   const { character, comparability } = result;
 
   async function submit(rank: number, reason: LabelReason) {
     const { provenance } = result.topPlayers[rank - 1];
+    const key = referenceKey(provenance);
 
-    setStatus((s) => ({ ...s, [rank]: 'sending' }));
+    setStatus((s) => ({ ...s, [key]: 'sending' }));
 
     const body = {
       reason,
@@ -50,7 +63,9 @@ export function ReferenceLabels({ result }: ReferenceLabelsProps) {
         dps: provenance.dps,
       },
       scores: {
-        distance: provenance.distance,
+        // `Infinity` quand la sélection n'a pas pu scorer le candidat. Explicité en `null`
+        // ici plutôt que laissé à `JSON.stringify`, qui le ferait silencieusement.
+        distance: Number.isFinite(provenance.distance) ? provenance.distance : null,
         // Signed, reference − subject: being better geared than your references is not
         // the same situation as the reverse, and an absolute value loses that.
         ilvlGap: provenance.ilvl === null ? null : provenance.ilvl - comparability.myIlvl,
@@ -74,9 +89,9 @@ export function ReferenceLabels({ result }: ReferenceLabelsProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      setStatus((s) => ({ ...s, [rank]: res.ok ? 'done' : 'error' }));
+      setStatus((s) => ({ ...s, [key]: res.ok ? 'done' : 'error' }));
     } catch {
-      setStatus((s) => ({ ...s, [rank]: 'error' }));
+      setStatus((s) => ({ ...s, [key]: 'error' }));
     }
   }
 
@@ -87,10 +102,11 @@ export function ReferenceLabels({ result }: ReferenceLabelsProps) {
       <ul className="flex flex-col gap-3">
         {result.topPlayers.map((player, i) => {
           const rank = i + 1;
-          const state = status[rank] ?? 'idle';
+          const key = referenceKey(player.provenance);
+          const state = status[key] ?? 'idle';
 
           return (
-            <li key={`${player.provenance.code}:${player.provenance.fightID}`}>
+            <li key={key}>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-xs">{player.provenance.name}</span>
 
@@ -98,7 +114,7 @@ export function ReferenceLabels({ result }: ReferenceLabelsProps) {
                   <Button
                     variant="ghost"
                     size="xs"
-                    onClick={() => setStatus((s) => ({ ...s, [rank]: 'choosing' }))}
+                    onClick={() => setStatus((s) => ({ ...s, [key]: 'choosing' }))}
                   >
                     Not comparable
                   </Button>
