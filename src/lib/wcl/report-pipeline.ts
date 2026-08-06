@@ -1,12 +1,12 @@
-import type { WorldRanking } from './references';
-import type { BossResult } from '@/types';
+import type { BossResult, Comparability } from '@/types';
 import { getSpecInfo } from '@/lib/specs';
 import { gql } from './client';
 import { findCombatantByActorId } from './combatant';
+import { comparabilityLevel, medianOf, selectClosest } from './comparability';
 import { fetchFightData } from './fight-data';
 import { fmtMs } from './parsers';
-import { Q_REPORT_RANKINGS_BOSSDPS, Q_REPORT_RANKINGS_DPS, Q_WORLD_RANKINGS } from './queries';
-import { fetchReferencePlayers, selectReferencePool } from './references';
+import { Q_REPORT_RANKINGS_BOSSDPS, Q_REPORT_RANKINGS_DPS } from './queries';
+import { fetchCandidatePool, fetchReferencePlayers, selectReferencePool } from './references';
 
 interface RankingChar {
   name: string;
@@ -71,9 +71,12 @@ export async function analyzeReportBoss(
   if (!specInfo) return null;
   const { specName, className } = specInfo;
 
-  const worldDataPromise = gql<{
-    worldData: { encounter: { characterRankings: { rankings: WorldRanking[] } } };
-  }>(token, Q_WORLD_RANKINGS, { encounterID: encounterId, difficulty, specName, className });
+  const poolPromise = fetchCandidatePool(token, {
+    encounterId,
+    difficulty,
+    specName,
+    className,
+  });
 
   const { stats, rotation, damageEntries, fightTargets, dps } = await fetchFightData(token, {
     code,
@@ -83,8 +86,8 @@ export async function analyzeReportBoss(
     fightMs,
   });
 
-  const [worldData, dpsRankingsRaw, bossRankingsRaw] = await Promise.all([
-    worldDataPromise,
+  const [pool, dpsRankingsRaw, bossRankingsRaw] = await Promise.all([
+    poolPromise,
     dpsRankingsPromise,
     bossRankingsPromise,
   ]);
@@ -93,12 +96,21 @@ export async function analyzeReportBoss(
   const myDpsRank = findInRankings(dpsRankingsRaw.reportData.report.rankings, actorName);
   const myBossRank = findInRankings(bossRankingsRaw.reportData.report.rankings, actorName);
 
-  const allWorld = worldData.worldData.encounter.characterRankings.rankings ?? [];
-  const topPlayers = await fetchReferencePlayers(
-    token,
-    selectReferencePool(allWorld, fightMs, stats.avgIlvl),
-    charEvent.specID
-  );
+  const references = selectReferencePool(pool.candidates, fightMs, stats.avgIlvl);
+  const topPlayers = await fetchReferencePlayers(token, references, charEvent.specID);
+
+  const scored = selectClosest(references, stats.avgIlvl, fightMs, references.length);
+  const comparability: Comparability = {
+    level: comparabilityLevel(scored),
+    referenceIlvl: medianOf(
+      references.map((r) => r.bracketData).filter((v): v is number => v !== undefined)
+    ),
+    myIlvl: stats.avgIlvl,
+    referenceKillTimeMs: medianOf(references.map((r) => r.duration)),
+    myKillTimeMs: fightMs,
+    candidatesConsidered: pool.candidates.length,
+    pagesFetched: pool.pagesFetched,
+  };
 
   return {
     encounter: encounterName,
@@ -119,5 +131,6 @@ export async function analyzeReportBoss(
       bracket: myDpsRank ? Math.round(myDpsRank.bracketData * 10) / 10 : null,
     },
     topPlayers,
+    comparability,
   };
 }

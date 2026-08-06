@@ -31,6 +31,15 @@ const mockBossResult: BossResult = {
     bracket: 0,
   },
   topPlayers: [],
+  comparability: {
+    level: 'close',
+    referenceIlvl: 636,
+    myIlvl: 635,
+    referenceKillTimeMs: 178000,
+    myKillTimeMs: 180000,
+    candidatesConsidered: 500,
+    pagesFetched: 5,
+  },
 };
 
 const baseInput = {

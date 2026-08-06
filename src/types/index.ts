@@ -1,3 +1,4 @@
+import type { ComparabilityLevel } from '@/lib/wcl/comparability';
 export interface WowCharacter {
   id: number;
   name: string;
@@ -76,6 +77,19 @@ export interface FightTarget {
   damagePct: number;
 }
 
+export type { ComparabilityLevel } from '@/lib/wcl/comparability';
+
+export interface Comparability {
+  level: ComparabilityLevel;
+  /** Median of the chosen references; null when there are none. */
+  referenceIlvl: number | null;
+  myIlvl: number;
+  referenceKillTimeMs: number | null;
+  myKillTimeMs: number;
+  candidatesConsidered: number;
+  pagesFetched: number;
+}
+
 export interface BossResult {
   encounter: string;
   encounterId: number;
@@ -95,6 +109,7 @@ export interface BossResult {
     bracket: number | null;
   };
   topPlayers: TopPlayer[];
+  comparability: Comparability;
 }
 
 export interface ReportFight {

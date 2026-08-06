@@ -83,6 +83,15 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
         },
       },
     ],
+    comparability: {
+      level: 'close',
+      referenceIlvl: 636,
+      myIlvl: 635,
+      referenceKillTimeMs: 178000,
+      myKillTimeMs: 180000,
+      candidatesConsidered: 500,
+      pagesFetched: 5,
+    },
   };
 }
 
