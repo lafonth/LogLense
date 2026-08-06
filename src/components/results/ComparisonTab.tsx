@@ -2,6 +2,7 @@ import type { BossState } from '@/hooks/useAnalysis';
 import type { Encounter, TalentNode } from '@/types';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ComparabilityBanner } from './ComparabilityBanner';
 import { DpsBanner } from './DpsBanner';
 import { RotationCards } from './RotationCards';
 import { StatsTable } from './StatsTable';
@@ -53,6 +54,9 @@ export function ComparisonTab({ encounter, bossState, specName, talentNodes }: C
         bossDps={result.character.bossDps}
         bossDpsPct={result.character.bossDpsPct}
       />
+      <div className="mt-6">
+        <ComparabilityBanner comparability={result.comparability} />
+      </div>
       <div className="mt-6">
         <h3 className="text-muted mb-2 font-mono text-xs tracking-[0.08em] uppercase">
           Stats vs top players
