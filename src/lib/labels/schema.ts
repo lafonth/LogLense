@@ -1,9 +1,19 @@
 import type { ComparabilityLevel } from '@/lib/wcl/comparability';
+import type { DisqualificationReason } from '@/lib/wcl/eligibility';
+import { DISQUALIFICATION_REASONS } from '@/lib/wcl/eligibility';
 
 export const LABEL_REASONS = ['externals', 'set-bonus', 'kill-time', 'ilvl', 'other'] as const;
 export type LabelReason = (typeof LABEL_REASONS)[number];
 
 const LEVELS: ComparabilityLevel[] = ['close', 'approximate', 'poor', 'none'];
+
+/**
+ * Plafond du nombre de motifs de disqualification recopiés.
+ *
+ * Il y en a deux ; le plafond borne ce qu'un client hostile peut faire écrire dans une clé
+ * qu'on ne peut pas nettoyer après coup, pas ce qu'un client honnête envoie.
+ */
+const MAX_DISQUALIFIED = DISQUALIFICATION_REASONS.length;
 
 /** Ce que le client envoie. Il ne choisit ni qui il est ni quand cela s'est produit. */
 export interface LabelSubmission {
@@ -11,7 +21,20 @@ export interface LabelSubmission {
   encounterId: number;
   difficulty: number;
   specId: number;
-  subject: { code: string; fightID: number; actorId: number; ilvl: number; killTimeMs: number };
+  /**
+   * `tierPieces` est `null` quand le log ne porte pas d'équipement — inconnu, et non zéro.
+   * Les deux côtés le portent : un jugement « set bonus » ne se relit pas sans le palier du
+   * sujet en face de celui de la référence.
+   */
+  subject: {
+    code: string;
+    fightID: number;
+    actorId: number;
+    ilvl: number;
+    killTimeMs: number;
+    tierPieces: number | null;
+    externalUptime: number;
+  };
   reference: {
     code: string;
     fightID: number;
@@ -19,6 +42,16 @@ export interface LabelSubmission {
     ilvl: number | null;
     killTimeMs: number;
     dps: number;
+    tierPieces: number | null;
+    externalUptime: number;
+    /**
+     * Ce que la sélection avait retenu contre cette référence, vide si elle avait qualifié.
+     *
+     * C'est la moitié la plus précieuse de l'étiquette : elle confronte le jugement
+     * automatique au jugement humain. Un désaccord entre les deux — retenue par le code,
+     * rejetée par le lecteur, ou l'inverse — est précisément ce qu'un modèle doit apprendre.
+     */
+    disqualifiedBy: DisqualificationReason[];
   };
   /**
    * Écarts signés, référence − sujet.
@@ -37,9 +70,13 @@ export interface LabelSubmission {
  *
  * `v` n'est pas décoratif : le corpus survivra à plusieurs versions du code, et sans lui
  * on ne saura plus dans un an ce que signifiaient les enregistrements d'aujourd'hui.
+ *
+ * `2` depuis l'ajout des critères éliminatoires — palier de set et uptime d'externals des
+ * deux côtés, et le verdict de la sélection. Les enregistrements `1` ne les portent pas ;
+ * c'est une absence de mesure, pas une valeur nulle, et seul `v` permet de le savoir.
  */
 export interface ComparabilityLabel extends LabelSubmission {
-  v: 1;
+  v: 2;
   at: string;
   /** SHA-256 salé de l'identifiant de session. Jamais l'e-mail. */
   by: string;
@@ -70,6 +107,13 @@ function str(v: unknown): v is string {
   return typeof v === 'string' && v.length > 0 && v.length <= MAX_FIELD_LENGTH;
 }
 
+/** Motifs de disqualification : bornés en nombre, sans doublon, tous connus. */
+function reasons(v: unknown): v is DisqualificationReason[] {
+  if (!Array.isArray(v) || v.length > MAX_DISQUALIFIED) return false;
+  if (new Set(v).size !== v.length) return false;
+  return v.every((r) => (DISQUALIFICATION_REASONS as readonly unknown[]).includes(r));
+}
+
 /**
  * Valide un corps entrant champ par champ et renvoie une soumission propre, ou `null`.
  *
@@ -88,11 +132,14 @@ export function parseSubmission(input: unknown): LabelSubmission | null {
   if (!isRecord(subject)) return null;
   if (!str(subject.code) || !num(subject.fightID) || !num(subject.actorId)) return null;
   if (!num(subject.ilvl) || !num(subject.killTimeMs)) return null;
+  if (!nullableNum(subject.tierPieces) || !num(subject.externalUptime)) return null;
 
   if (!isRecord(reference)) return null;
   if (!str(reference.code) || !num(reference.fightID) || !str(reference.name)) return null;
   if (!nullableNum(reference.ilvl) || !num(reference.killTimeMs) || !num(reference.dps))
     return null;
+  if (!nullableNum(reference.tierPieces) || !num(reference.externalUptime)) return null;
+  if (!reasons(reference.disqualifiedBy)) return null;
 
   if (!isRecord(scores)) return null;
   if (!nullableNum(scores.distance) || !nullableNum(scores.ilvlGap)) return null;
@@ -113,6 +160,8 @@ export function parseSubmission(input: unknown): LabelSubmission | null {
       actorId: subject.actorId,
       ilvl: subject.ilvl,
       killTimeMs: subject.killTimeMs,
+      tierPieces: subject.tierPieces,
+      externalUptime: subject.externalUptime,
     },
     reference: {
       code: reference.code,
@@ -121,6 +170,9 @@ export function parseSubmission(input: unknown): LabelSubmission | null {
       ilvl: reference.ilvl,
       killTimeMs: reference.killTimeMs,
       dps: reference.dps,
+      tierPieces: reference.tierPieces,
+      externalUptime: reference.externalUptime,
+      disqualifiedBy: [...reference.disqualifiedBy],
     },
     scores: {
       distance: scores.distance,

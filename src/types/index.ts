@@ -1,4 +1,5 @@
 import type { ComparabilityLevel } from '@/lib/wcl/comparability';
+import type { DisqualificationReason, EligibilityProfile } from '@/lib/wcl/eligibility';
 export interface WowCharacter {
   id: number;
   name: string;
@@ -80,6 +81,16 @@ export interface ReferenceProvenance {
   killTimeMs: number;
   dps: number;
   distance: number;
+  /**
+   * Vide quand la référence a passé les critères éliminatoires. Non vide quand elle a été
+   * retenue quand même, faute de candidats qualifiés : c'est une substitution, et l'écran
+   * doit le dire plutôt que la présenter comme les autres.
+   */
+  disqualifiedBy: DisqualificationReason[];
+  /** Pièces du plus grand set de tier portées ; `null` quand le log ne le dit pas. */
+  tierPieces: number | null;
+  /** Uptime cumulée des externals offensifs reçus, en points de durée du combat. */
+  externalUptime: number;
 }
 
 export interface TopPlayer {
@@ -106,6 +117,13 @@ export interface Comparability {
   myKillTimeMs: number;
   candidatesConsidered: number;
   pagesFetched: number;
+  /** Candidats de la fenêtre écartés par un critère éliminatoire. */
+  disqualified: number;
+  /**
+   * Références retenues bien qu'écartées, pour compléter le panel. Toute valeur non nulle
+   * force `level` à `poor` : le panel est plein, mais il ne dit plus la même chose.
+   */
+  substituted: number;
 }
 
 export interface BossResult {
@@ -128,6 +146,12 @@ export interface BossResult {
     bracket: number | null;
     /** Le combat analysé, pour que l'écran puisse nommer ce qu'il étiquette. */
     source: { code: string; fightID: number; actorId: number };
+    /**
+     * Ce à quoi les références ont été confrontées. Une décision « pas comparable » sur le
+     * set bonus ne veut rien dire sans le palier des deux côtés : le corpus doit porter
+     * celui du sujet, pas seulement celui de la référence.
+     */
+    eligibility: EligibilityProfile;
   };
   topPlayers: TopPlayer[];
   comparability: Comparability;

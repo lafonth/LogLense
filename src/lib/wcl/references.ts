@@ -1,12 +1,16 @@
+import type { CombatantEvent } from './combatant';
 import type { ScoredCandidate } from './comparability';
+import type { DisqualificationReason, EligibilityProfile } from './eligibility';
+import type { WCLTable } from './parsers';
 import type { Comparability, TopPlayer } from '@/types';
 import { gql } from './client';
 import { findCombatantByName } from './combatant';
 import { comparabilityLevel, medianOf, selectClosest } from './comparability';
-import { CANDIDATE_PAGES, TOP_N } from './constants';
+import { CANDIDATE_PAGES, TOP_N, VERIFICATION_WINDOW } from './constants';
+import { disqualify, eligibilityOf } from './eligibility';
 import { fetchFightData } from './fight-data';
 import { fmtMs } from './parsers';
-import { Q_WORLD_RANKINGS } from './queries';
+import { Q_BUFFS, Q_WORLD_RANKINGS } from './queries';
 
 export interface WorldRanking {
   name: string;
@@ -69,39 +73,144 @@ export async function fetchCandidatePool(
   return { candidates, pagesFetched };
 }
 
-export interface ReferenceSelection {
-  references: ScoredCandidate<WorldRanking>[];
+export interface ResolvedReferences {
+  topPlayers: TopPlayer[];
   comparability: Comparability;
 }
 
+interface VerifiedCandidate {
+  scored: ScoredCandidate<WorldRanking>;
+  combatant: CombatantEvent;
+  profile: EligibilityProfile;
+  disqualifiedBy: DisqualificationReason[];
+}
+
 /**
- * Picks the references a character is compared against — the candidates closest to
- * them in item level and kill time, not the ones with the highest damage — and reports
- * how legitimate the resulting comparison is.
+ * Reads what the ranking cannot say about one candidate: the tier set they wore and the
+ * offensive externals they were handed.
+ *
+ * Two queries, both needed before the candidate can be judged — the buff table is keyed
+ * on the source id the combatant event carries. A candidate that cannot be identified,
+ * or whose report refuses either query, is dropped rather than substituted: matching on
+ * spec would put this candidate's name and damage beside another player's gear.
+ */
+async function verifyCandidate(
+  token: string,
+  scored: ScoredCandidate<WorldRanking>,
+  mine: EligibilityProfile
+): Promise<VerifiedCandidate | null> {
+  const { candidate } = scored;
+  const { code, fightID } = candidate.report;
+  if (!code || !fightID) return null;
+
+  try {
+    const combatant = await findCombatantByName(token, code, fightID, candidate.name);
+    if (!combatant) return null;
+
+    const data = await gql<{ reportData: { report: { buffs: WCLTable } } }>(token, Q_BUFFS, {
+      code,
+      fightIDs: [fightID],
+      sourceID: combatant.sourceID,
+    });
+
+    const profile = eligibilityOf(combatant, data.reportData.report.buffs, candidate.duration);
+    return { scored, combatant, profile, disqualifiedBy: disqualify(profile, mine) };
+  } catch {
+    return null;
+  }
+}
+
+async function buildTopPlayer(token: string, verified: VerifiedCandidate): Promise<TopPlayer> {
+  const { scored, combatant, profile, disqualifiedBy } = verified;
+  const { candidate, distance } = scored;
+  const { code, fightID } = candidate.report;
+
+  const dps = Math.round(candidate.amount);
+  const { stats, rotation, damageEntries } = await fetchFightData(token, {
+    code,
+    fightId: fightID,
+    combatant,
+    name: candidate.name,
+    fightMs: candidate.duration,
+    dps,
+  });
+
+  return {
+    stats: { ...stats, dps, killTime: fmtMs(candidate.duration) },
+    rotation,
+    damageTable: { entries: damageEntries },
+    provenance: {
+      code,
+      fightID,
+      name: candidate.name,
+      ilvl: candidate.bracketData ?? null,
+      killTimeMs: candidate.duration,
+      dps,
+      distance,
+      disqualifiedBy,
+      tierPieces: profile.tierPieces,
+      externalUptime: profile.externalUptime,
+    },
+  };
+}
+
+/**
+ * Picks the references a character is compared against, and fetches them.
+ *
+ * Two stages, because the eliminatory criteria are invisible in the ranking. The whole
+ * pool is scored on item level and kill time, then a window of the closest is verified —
+ * set bonus and externals — and only the survivors are worth fetching damage for. The
+ * window is the price of the criteria: candidates eliminated here cost two queries each
+ * and never reach the expensive fetch.
  *
  * `exclude` is the player's own log. It sits in the candidate pool whenever their parse
  * ranks inside the fetched pages, and it scores a perfect zero distance against itself,
  * so without this it would be selected as the closest reference and the banner would
  * call a self-comparison `close`.
+ *
+ * When fewer than TOP_N candidates survive, the panel is completed with the best
+ * eliminated ones rather than left short — but the comparison drops to `poor` and each
+ * substituted reference carries the reason it should not have been there. A full panel
+ * that stays silent about what it is made of is the failure this is built to avoid.
  */
-export function selectReferences(
+export async function resolveReferences(
+  token: string,
   pool: CandidatePool,
   args: {
     myIlvl: number;
     myKillTimeMs: number;
     exclude: { code: string; fightID: number };
+    mine: EligibilityProfile;
   }
-): ReferenceSelection {
-  const { myIlvl, myKillTimeMs, exclude } = args;
+): Promise<ResolvedReferences> {
+  const { myIlvl, myKillTimeMs, exclude, mine } = args;
 
   const filtered = pool.candidates.filter(
     (c) => !(c.report.code === exclude.code && c.report.fightID === exclude.fightID)
   );
 
-  const scored = selectClosest(filtered, myIlvl, myKillTimeMs, TOP_N);
+  const closest = selectClosest(filtered, myIlvl, myKillTimeMs, VERIFICATION_WINDOW);
 
+  // Promise.all preserves order, so both partitions stay sorted by distance and the
+  // substitutes are drawn from the least-far eliminated candidate first.
+  const verified = (await Promise.all(closest.map((s) => verifyCandidate(token, s, mine)))).filter(
+    (v): v is VerifiedCandidate => v !== null
+  );
+
+  const qualified = verified.filter((v) => v.disqualifiedBy.length === 0);
+  const eliminated = verified.filter((v) => v.disqualifiedBy.length > 0);
+
+  const chosen = qualified.slice(0, TOP_N);
+  const substitutes = eliminated.slice(0, TOP_N - chosen.length);
+  const references = [...chosen, ...substitutes];
+
+  const topPlayers = await Promise.all(references.map((v) => buildTopPlayer(token, v)));
+
+  const scored = references.map((v) => v.scored);
   const comparability: Comparability = {
-    level: comparabilityLevel(scored),
+    // A substituted panel is not comparable, whatever the distances say: the criterion
+    // that eliminated the substitute is eliminatory, and the distance never saw it.
+    level: substitutes.length > 0 ? 'poor' : comparabilityLevel(scored),
     referenceIlvl: medianOf(
       scored.map((s) => s.candidate.bracketData).filter((v): v is number => v !== undefined)
     ),
@@ -110,58 +219,9 @@ export function selectReferences(
     myKillTimeMs,
     candidatesConsidered: filtered.length,
     pagesFetched: pool.pagesFetched,
+    disqualified: eliminated.length,
+    substituted: substitutes.length,
   };
 
-  return { references: scored, comparability };
-}
-
-/**
- * Fetches each reference player's fight in turn. Sequential on purpose for now:
- * widening the candidate window and parallelising it is a separate change.
- */
-export async function fetchReferencePlayers(
-  token: string,
-  pool: ScoredCandidate<WorldRanking>[]
-): Promise<TopPlayer[]> {
-  const players: TopPlayer[] = [];
-
-  for (const { candidate, distance } of pool) {
-    const { code, fightID } = candidate.report;
-    if (!code || !fightID) continue;
-
-    // By name, not by spec: the ranking names one player, but a raid can field two of
-    // the same spec. Matching on spec returned whichever came first, so the panel could
-    // show this candidate's name and damage beside another player's gear, talents and
-    // rotation — including the item level the whole selection is built on. A candidate
-    // we cannot identify is dropped rather than substituted.
-    const combatant = await findCombatantByName(token, code, fightID, candidate.name);
-    if (!combatant) continue;
-
-    const dps = Math.round(candidate.amount);
-    const { stats, rotation, damageEntries } = await fetchFightData(token, {
-      code,
-      fightId: fightID,
-      combatant,
-      name: candidate.name,
-      fightMs: candidate.duration,
-      dps,
-    });
-
-    players.push({
-      stats: { ...stats, dps, killTime: fmtMs(candidate.duration) },
-      rotation,
-      damageTable: { entries: damageEntries },
-      provenance: {
-        code,
-        fightID,
-        name: candidate.name,
-        ilvl: candidate.bracketData ?? null,
-        killTimeMs: candidate.duration,
-        dps,
-        distance,
-      },
-    });
-  }
-
-  return players;
+  return { topPlayers, comparability };
 }

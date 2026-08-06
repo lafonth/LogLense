@@ -16,7 +16,15 @@ function body(overrides: Record<string, unknown> = {}) {
     encounterId: 3177,
     difficulty: 5,
     specId: 103,
-    subject: { code: 'abc', fightID: 17, actorId: 63, ilvl: 284.1, killTimeMs: 326876 },
+    subject: {
+      code: 'abc',
+      fightID: 17,
+      actorId: 63,
+      ilvl: 284.1,
+      killTimeMs: 326876,
+      tierPieces: 4,
+      externalUptime: 0,
+    },
     reference: {
       code: 'xyz',
       fightID: 3,
@@ -24,6 +32,9 @@ function body(overrides: Record<string, unknown> = {}) {
       ilvl: 285,
       killTimeMs: 317924,
       dps: 123456,
+      tierPieces: 2,
+      externalUptime: 12.5,
+      disqualifiedBy: [],
     },
     scores: { distance: 0.42, ilvlGap: 0.9, killTimeGapPct: -2.7, rank: 1 },
     pool: { candidatesConsidered: 981, pagesFetched: 10, level: 'close' },
@@ -83,7 +94,7 @@ describe('pOST /api/labels/comparability', () => {
     await POST(request(body()));
 
     const stored = JSON.parse(String(redisAppend.mock.calls[0][1]));
-    expect(stored.v).toBe(1);
+    expect(stored.v).toBe(2);
     expect(typeof stored.at).toBe('string');
     expect(stored.by).toMatch(/^[0-9a-f]{32}$/);
     expect(JSON.stringify(stored)).not.toContain('someone@example.com');
@@ -93,7 +104,7 @@ describe('pOST /api/labels/comparability', () => {
     await POST(request(body({ v: 9, at: '1999-01-01T00:00:00.000Z', by: 'someone-else' })));
 
     const stored = JSON.parse(String(redisAppend.mock.calls[0][1]));
-    expect(stored.v).toBe(1);
+    expect(stored.v).toBe(2);
     expect(stored.by).not.toBe('someone-else');
     expect(stored.at).not.toBe('1999-01-01T00:00:00.000Z');
   });

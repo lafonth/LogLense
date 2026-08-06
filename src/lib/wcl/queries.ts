@@ -119,6 +119,20 @@ export const Q_ROTATION = `
   }
 `;
 
+/**
+ * Buffs alone. The verification stage judges a candidate before deciding to keep it, so
+ * it must not pay for the casts and damage of the ones it is about to eliminate.
+ */
+export const Q_BUFFS = `
+  query Buffs($code: String!, $fightIDs: [Int]!, $sourceID: Int!) {
+    reportData {
+      report(code: $code) {
+        buffs: table(dataType: Buffs, fightIDs: $fightIDs, sourceID: $sourceID)
+      }
+    }
+  }
+`;
+
 export const Q_REPORT_RANKINGS_DPS = `
   query ReportRankingsDPS($code: String!, $fightIDs: [Int]!) {
     reportData {

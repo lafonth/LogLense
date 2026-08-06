@@ -34,6 +34,9 @@ function reference(name: string, perMin: Record<string, number>): TopPlayer {
       killTimeMs: 263000,
       dps: 300000,
       distance: 0.5,
+      disqualifiedBy: [],
+      tierPieces: 4,
+      externalUptime: 0,
     },
   };
 }

@@ -52,10 +52,25 @@ export function ComparabilityBanner({ comparability }: ComparabilityBannerProps)
         </p>
       )}
 
+      {comparability.substituted > 0 && (
+        <p className="text-danger mt-2 font-sans text-xs">
+          Not enough comparable logs. <span className="font-mono">{comparability.substituted}</span>{' '}
+          of the references below were kept despite a better set bonus or externals you did not have
+          — what they gained from it is not something you can play for.
+        </p>
+      )}
+
       <p className="text-dim text-2xs mt-2 font-sans">
         Closest of <span className="font-mono">{comparability.candidatesConsidered}</span>{' '}
         candidates over <span className="font-mono">{comparability.pagesFetched}</span> ranking
-        pages.
+        pages
+        {comparability.disqualified > 0 && (
+          <>
+            , <span className="font-mono">{comparability.disqualified}</span> eliminated on set
+            bonus or externals
+          </>
+        )}
+        .
       </p>
     </Card>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import type { LabelReason } from '@/lib/labels/schema';
+import type { DisqualificationReason } from '@/lib/wcl/eligibility';
 import type { BossResult, ReferenceProvenance } from '@/types';
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
@@ -13,6 +14,12 @@ const REASON_LABELS: Record<LabelReason, string> = {
   'kill-time': 'Kill time',
   ilvl: 'Item level',
   other: 'Other',
+};
+
+/** Ce qu'une référence substituée avait de plus que le joueur, dit en clair. */
+const DISQUALIFIED_LABELS: Record<DisqualificationReason, string> = {
+  'set-bonus': 'better set bonus',
+  external: 'externals you did not have',
 };
 
 type Status = 'idle' | 'choosing' | 'sending' | 'done' | 'error';
@@ -53,6 +60,8 @@ export function ReferenceLabels({ result }: ReferenceLabelsProps) {
         ...character.source,
         ilvl: comparability.myIlvl,
         killTimeMs: comparability.myKillTimeMs,
+        tierPieces: character.eligibility.tierPieces,
+        externalUptime: character.eligibility.externalUptime,
       },
       reference: {
         code: provenance.code,
@@ -61,6 +70,9 @@ export function ReferenceLabels({ result }: ReferenceLabelsProps) {
         ilvl: provenance.ilvl,
         killTimeMs: provenance.killTimeMs,
         dps: provenance.dps,
+        tierPieces: provenance.tierPieces,
+        externalUptime: provenance.externalUptime,
+        disqualifiedBy: provenance.disqualifiedBy,
       },
       scores: {
         // `Infinity` quand la sélection n'a pas pu scorer le candidat. Explicité en `null`
@@ -109,6 +121,19 @@ export function ReferenceLabels({ result }: ReferenceLabelsProps) {
             <li key={key}>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-xs">{player.provenance.name}</span>
+
+                {/*
+                  Rouge, et non bleu : une substitution n'est pas un écart dans une
+                  distribution, c'est une comparaison que la sélection a jugée illégitime et
+                  qu'elle a gardée faute de mieux. C'est exactement ce à quoi `text-danger`
+                  est réservé.
+                */}
+                {player.provenance.disqualifiedBy.length > 0 && (
+                  <span className="text-danger text-2xs">
+                    Kept without qualifying —{' '}
+                    {player.provenance.disqualifiedBy.map((r) => DISQUALIFIED_LABELS[r]).join(', ')}
+                  </span>
+                )}
 
                 {state === 'idle' && (
                   <Button

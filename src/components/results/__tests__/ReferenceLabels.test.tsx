@@ -14,6 +14,9 @@ function provenance(name: string, rank: number): ReferenceProvenance {
     killTimeMs: 317924,
     dps: 123456,
     distance: 0.42,
+    disqualifiedBy: [],
+    tierPieces: 4,
+    externalUptime: 0,
   };
 }
 
@@ -66,6 +69,7 @@ function result(): BossResult {
       bossDpsPct: null,
       bracket: null,
       source: { code: 'abc', fightID: 17, actorId: 63 },
+      eligibility: { tierPieces: 4, externalUptime: 0, externals: [] },
     },
     topPlayers: [topPlayer('Aidan', 1), topPlayer('Baldan', 2)],
     comparability: {
@@ -76,6 +80,8 @@ function result(): BossResult {
       myKillTimeMs: 326876,
       candidatesConsidered: 981,
       pagesFetched: 10,
+      disqualified: 0,
+      substituted: 0,
     },
   };
 }
@@ -93,6 +99,18 @@ describe('referenceLabels', () => {
 
     expect(screen.getByText('Aidan')).toBeInTheDocument();
     expect(screen.getByText('Baldan')).toBeInTheDocument();
+  });
+
+  it('says which references were kept without qualifying, and why', () => {
+    const r = result();
+    r.topPlayers[1].provenance.disqualifiedBy = ['set-bonus', 'external'];
+
+    render(<ReferenceLabels result={r} />);
+
+    // Une seule : la première a qualifié, et le marquage ne doit pas déborder sur elle.
+    const marks = screen.getAllByText(/Kept without qualifying/);
+    expect(marks).toHaveLength(1);
+    expect(marks[0]).toHaveTextContent('better set bonus, externals you did not have');
   });
 
   it('shows the reasons only after the reference is challenged', async () => {
@@ -128,6 +146,14 @@ describe('referenceLabels', () => {
       actorId: 63,
       ilvl: 284.1,
       killTimeMs: 326876,
+      // Le palier et l'uptime du sujet, sans quoi le verdict sur la référence ne se relit pas.
+      tierPieces: 4,
+      externalUptime: 0,
+    });
+    expect(sent.reference).toMatchObject({
+      tierPieces: 4,
+      externalUptime: 0,
+      disqualifiedBy: [],
     });
     // Signed, reference − subject: these references are better geared and faster.
     expect(sent.scores.ilvlGap).toBeCloseTo(0.9, 5);
@@ -181,6 +207,9 @@ describe('referenceLabels', () => {
       ...unscored.topPlayers[0].provenance,
       ilvl: null,
       distance: Number.POSITIVE_INFINITY,
+      disqualifiedBy: [],
+      tierPieces: 4,
+      externalUptime: 0,
     };
 
     const user = userEvent.setup();

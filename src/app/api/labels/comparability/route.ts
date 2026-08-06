@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   }
 
   const at = new Date().toISOString();
-  const label: ComparabilityLabel = { v: 1, at, by, ...submission };
+  const label: ComparabilityLabel = { v: 2, at, by, ...submission };
 
   try {
     // La longueur renvoyée par Redis reste ici : elle mesure la croissance du corpus, qui

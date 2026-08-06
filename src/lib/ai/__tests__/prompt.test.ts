@@ -49,6 +49,7 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
       bracket: 0,
       ...overrides,
       source: { code: 'abc', fightID: 17, actorId: 63 },
+      eligibility: { tierPieces: 4, externalUptime: 0, externals: [] },
     },
     topPlayers: [
       {
@@ -91,6 +92,9 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
           killTimeMs: 175000,
           dps: 290000,
           distance: 0.42,
+          disqualifiedBy: [],
+          tierPieces: 4,
+          externalUptime: 0,
         },
       },
     ],
@@ -102,6 +106,8 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
       myKillTimeMs: 180000,
       candidatesConsidered: 500,
       pagesFetched: 5,
+      disqualified: 0,
+      substituted: 0,
     },
   };
 }

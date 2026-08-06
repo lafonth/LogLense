@@ -43,6 +43,9 @@ function player(name: string, talents: Record<number, number>): TopPlayer {
       killTimeMs: 263000,
       dps: 300000,
       distance: 0.5,
+      disqualifiedBy: [],
+      tierPieces: 4,
+      externalUptime: 0,
     },
   };
 }

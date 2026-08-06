@@ -1,13 +1,10 @@
+import type { EligibilityProfile } from '../eligibility';
 import type { WorldRanking } from '../references';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CANDIDATE_PAGES, TOP_N } from '../constants';
-import { fetchCandidatePool, fetchReferencePlayers, selectReferences } from '../references';
+import { fetchCandidatePool, resolveReferences } from '../references';
 
 const NO_EXCLUDE = { code: '__none__', fightID: -1 };
-
-function ranking(name: string, duration: number, amount = 250000): WorldRanking {
-  return { name, amount, duration, report: { code: `code-${name}`, fightID: 1 } };
-}
 
 describe('fetchCandidatePool', () => {
   beforeEach(() => vi.restoreAllMocks());
@@ -88,119 +85,8 @@ describe('fetchCandidatePool', () => {
   });
 });
 
-describe('selectReferences', () => {
-  const MY_ILVL = 284;
-  const MY_MS = 300000;
-
-  function ranking(name: string, bracketData: number, duration: number): WorldRanking {
-    return { name, amount: 200000, duration, bracketData, report: { code: name, fightID: 1 } };
-  }
-
-  function select(candidates: WorldRanking[], exclude = NO_EXCLUDE) {
-    return selectReferences(
-      { candidates, pagesFetched: 1 },
-      { myIlvl: MY_ILVL, myKillTimeMs: MY_MS, exclude }
-    );
-  }
-
-  it('prefers the closest candidate over the highest-dps one', () => {
-    const all = [
-      { ...ranking('strong', 296, 200000), amount: 400000 },
-      ranking('close', 285, 305000),
-    ];
-
-    expect(select(all).references.map((r) => r.candidate.name)).toEqual(['close', 'strong']);
-  });
-
-  it('caps the pool at TOP_N, keeping the closest', () => {
-    // Each candidate sits one ilvl further from the player than the last, so the cap
-    // is exercised against a real ordering. With no bracketData every distance would
-    // be Infinity and this would pass even if the scoring were deleted entirely.
-    const inWindow = Array.from({ length: TOP_N + 4 }, (_, i) =>
-      ranking(`R${i}`, MY_ILVL + i, MY_MS)
-    );
-
-    const { references } = select(inWindow);
-    expect(references).toHaveLength(TOP_N);
-    expect(references.map((r) => r.candidate.name)).toEqual(
-      Array.from({ length: TOP_N }, (_, i) => `R${i}`)
-    );
-  });
-
-  it('returns nothing when there are no rankings at all', () => {
-    expect(select([]).references).toEqual([]);
-  });
-
-  it('still returns references when none is within tolerance', () => {
-    const all = [ranking('far', 320, 120000), ranking('further', 340, 100000)];
-
-    expect(select(all).references.map((r) => r.candidate.name)).toEqual(['far', 'further']);
-  });
-
-  it('excludes the player own log even though it scores a perfect zero distance', () => {
-    const mine = ranking('me', MY_ILVL, MY_MS);
-    const all = [
-      mine,
-      ranking('near', 285, 305000),
-      ranking('mid', 288, 310000),
-      ranking('far', 292, 320000),
-    ];
-
-    const { references, comparability } = select(all, { code: 'me', fightID: 1 });
-
-    expect(references.map((r) => r.candidate.name)).not.toContain('me');
-    expect(comparability.candidatesConsidered).toBe(3);
-  });
-
-  it('keeps a candidate that shares the report code but not the fightID', () => {
-    const mine: WorldRanking = {
-      name: 'me',
-      amount: 200000,
-      duration: MY_MS,
-      bracketData: MY_ILVL,
-      report: { code: 'shared-report', fightID: 1 },
-    };
-    const otherFight: WorldRanking = {
-      name: 'me-other-boss',
-      amount: 200000,
-      duration: MY_MS,
-      bracketData: MY_ILVL,
-      report: { code: 'shared-report', fightID: 2 },
-    };
-
-    const { references } = select([mine, otherFight], { code: 'shared-report', fightID: 1 });
-
-    expect(references.map((r) => r.candidate.name)).toEqual(['me-other-boss']);
-  });
-
-  it('derives comparability.level from the same scored set that produced the references', () => {
-    const all = [
-      ranking('far', 320, 120000),
-      ranking('further', 340, 100000),
-      ranking('even-further', 360, 90000),
-    ];
-
-    const { references, comparability } = select(all);
-
-    expect(references).toHaveLength(3);
-    expect(comparability.level).toBe('poor');
-  });
-});
-
-const COMBATANTS = [
-  // Two Ferals in the same raid. Aidan is the one the ranking names, and he is NOT
-  // first — matching on spec would return Baldan's gear under Aidan's name.
-  { sourceID: 5, specID: 103, agility: 9000, gear: [{ itemLevel: 600, id: 1, quality: 4 }] },
-  { sourceID: 4, specID: 103, agility: 14000, gear: [{ itemLevel: 640, id: 1, quality: 4 }] },
-];
-
-const ACTORS = [
-  { id: 4, name: 'Aidan', type: 'Player' },
-  { id: 5, name: 'Baldan', type: 'Player' },
-];
-
 const CASTS = { data: { entries: [{ guid: 1, name: 'Rip', total: 20 }] } };
-const BUFFS = { data: { auras: [] } };
+const NO_BUFFS = { data: { auras: [] } };
 const DAMAGE = {
   data: {
     entries: [
@@ -210,95 +96,291 @@ const DAMAGE = {
   },
 };
 
-function mockCandidateQueries(combatants = COMBATANTS, actors = ACTORS) {
+/** Power Infusion held for a fifth of the fight — well past EXTERNAL_TOLERANCE. */
+const PI_BUFFS = { data: { auras: [{ guid: 10060, name: 'Power Infusion', totalUptime: 60000 }] } };
+
+function gear(setID?: number) {
+  return Array.from({ length: 4 }, () => ({
+    itemLevel: 640,
+    id: 1,
+    quality: 4,
+    ...(setID === undefined ? {} : { setID }),
+  }));
+}
+
+interface FightFixture {
+  combatants: unknown[];
+  actors: unknown[];
+  buffs: unknown;
+}
+
+/** One player, named after the report code, wearing no tier and holding no external. */
+function plainFight(code: string, over: Partial<FightFixture> = {}): FightFixture {
+  return {
+    combatants: [{ sourceID: 4, specID: 103, agility: 14000, gear: gear() }],
+    actors: [{ id: 4, name: code, type: 'Player' }],
+    buffs: NO_BUFFS,
+    ...over,
+  };
+}
+
+/**
+ * Answers every WCL query a verification and a fetch make, per report code.
+ *
+ * The buff table is served from two branches on purpose: the verification stage asks for
+ * it alone, the rotation asks for it alongside the casts, and a mock that only knew the
+ * second would let a broken verification query pass unnoticed.
+ */
+function mockFights(fixture: (code: string) => FightFixture = (c) => plainFight(c)) {
   globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
     const body = String(init.body);
-    let payload: unknown;
+    const { variables } = JSON.parse(body) as { variables: { code: string } };
+    const fight = fixture(variables.code);
 
+    let payload: unknown;
     if (body.includes('CombatantInfo')) {
       payload = {
-        reportData: { report: { events: { data: combatants }, masterData: { actors } } },
+        reportData: {
+          report: { events: { data: fight.combatants }, masterData: { actors: fight.actors } },
+        },
       };
+    } else if (body.includes('query Buffs')) {
+      payload = { reportData: { report: { buffs: fight.buffs } } };
     } else if (body.includes('DamageDone')) {
       payload = { reportData: { report: { table: DAMAGE } } };
     } else {
-      payload = { reportData: { report: { casts: CASTS, buffs: BUFFS } } };
+      payload = { reportData: { report: { casts: CASTS, buffs: fight.buffs } } };
     }
 
     return { ok: true, json: async () => ({ data: payload }) } as Response;
   });
 }
 
-describe('fetchReferencePlayers', () => {
+describe('resolveReferences', () => {
+  const MY_ILVL = 284;
+  const MY_MS = 300000;
+
+  /** Four tier pieces and no external: the player everything else is measured against. */
+  const MINE: EligibilityProfile = { tierPieces: 4, externalUptime: 0, externals: [] };
+
   beforeEach(() => vi.restoreAllMocks());
 
-  it('builds a reference player from the ranking and the fight data', async () => {
-    mockCandidateQueries();
+  /** The report code is the candidate's name, so the default fixture can identify them. */
+  function ranking(name: string, bracketData: number, duration = MY_MS): WorldRanking {
+    return { name, amount: 200000, duration, bracketData, report: { code: name, fightID: 1 } };
+  }
 
-    const candidate = { ...ranking('Aidan', 263000, 310000), bracketData: 285 };
-    const [player] = await fetchReferencePlayers('token', [{ candidate, distance: 0.42 }]);
+  function resolve(
+    candidates: WorldRanking[],
+    over: { exclude?: { code: string; fightID: number }; mine?: EligibilityProfile } = {}
+  ) {
+    return resolveReferences(
+      'token',
+      { candidates, pagesFetched: 1 },
+      { myIlvl: MY_ILVL, myKillTimeMs: MY_MS, exclude: NO_EXCLUDE, mine: MINE, ...over }
+    );
+  }
 
-    expect(player.stats.name).toBe('Aidan');
-    expect(player.stats.dps).toBe(310000);
-    expect(player.stats.killTime).toBe('4:23');
-    // 640, Aidan's own gear — not 600, which is the other Feral's and what matching
-    // on spec would have returned. This is the item level the selection is built on.
-    expect(player.stats.avgIlvl).toBe(640);
-    expect(player.rotation.dps).toBe(310000);
-    expect(player.damageTable.entries).toEqual([
+  it('prefers the closest candidate over the highest-dps one', async () => {
+    mockFights();
+
+    const { topPlayers } = await resolve([
+      { ...ranking('strong', 296, 200000), amount: 400000 },
+      ranking('close', 285, 305000),
+    ]);
+
+    expect(topPlayers.map((p) => p.provenance.name)).toEqual(['close', 'strong']);
+  });
+
+  it('caps the panel at TOP_N, keeping the closest', async () => {
+    mockFights();
+
+    // Each candidate sits one ilvl further from the player than the last, so the cap is
+    // exercised against a real ordering rather than against insertion order.
+    const { topPlayers } = await resolve(
+      Array.from({ length: TOP_N + 4 }, (_, i) => ranking(`R${i}`, MY_ILVL + i))
+    );
+
+    expect(topPlayers.map((p) => p.provenance.name)).toEqual(
+      Array.from({ length: TOP_N }, (_, i) => `R${i}`)
+    );
+  });
+
+  it('returns nothing when there are no rankings at all', async () => {
+    mockFights();
+
+    const { topPlayers, comparability } = await resolve([]);
+
+    expect(topPlayers).toEqual([]);
+    expect(comparability.candidatesConsidered).toBe(0);
+  });
+
+  it('excludes the player own log even though it scores a perfect zero distance', async () => {
+    mockFights();
+
+    const { topPlayers, comparability } = await resolve(
+      [ranking('me', MY_ILVL), ranking('near', 285, 305000), ranking('mid', 288, 310000)],
+      { exclude: { code: 'me', fightID: 1 } }
+    );
+
+    expect(topPlayers.map((p) => p.provenance.name)).not.toContain('me');
+    expect(comparability.candidatesConsidered).toBe(2);
+  });
+
+  it('keeps a candidate that shares the report code but not the fightID', async () => {
+    mockFights(() => ({
+      combatants: [
+        { sourceID: 4, specID: 103, agility: 14000, gear: gear() },
+        { sourceID: 5, specID: 103, agility: 14000, gear: gear() },
+      ],
+      actors: [
+        { id: 4, name: 'me', type: 'Player' },
+        { id: 5, name: 'me-other-boss', type: 'Player' },
+      ],
+      buffs: NO_BUFFS,
+    }));
+
+    const shared = (name: string, fightID: number): WorldRanking => ({
+      name,
+      amount: 200000,
+      duration: MY_MS,
+      bracketData: MY_ILVL,
+      report: { code: 'shared-report', fightID },
+    });
+
+    const { topPlayers } = await resolve([shared('me', 1), shared('me-other-boss', 2)], {
+      exclude: { code: 'shared-report', fightID: 1 },
+    });
+
+    expect(topPlayers.map((p) => p.provenance.name)).toEqual(['me-other-boss']);
+  });
+
+  it('reads the named player gear, not the first combatant of the same spec', async () => {
+    // Two Ferals in the same raid. Aidan is the one the ranking names, and he is NOT
+    // first — matching on spec would return Baldan's gear under Aidan's name.
+    mockFights(() => ({
+      combatants: [
+        { sourceID: 5, specID: 103, agility: 9000, gear: [{ itemLevel: 600, id: 1, quality: 4 }] },
+        { sourceID: 4, specID: 103, agility: 14000, gear: [{ itemLevel: 640, id: 1, quality: 4 }] },
+      ],
+      actors: [
+        { id: 4, name: 'Aidan', type: 'Player' },
+        { id: 5, name: 'Baldan', type: 'Player' },
+      ],
+      buffs: NO_BUFFS,
+    }));
+
+    const { topPlayers } = await resolve([{ ...ranking('Aidan', 285, 263000), amount: 310000 }]);
+
+    expect(topPlayers[0].stats.avgIlvl).toBe(640);
+    expect(topPlayers[0].stats.dps).toBe(310000);
+    expect(topPlayers[0].stats.killTime).toBe('4:23');
+    expect(topPlayers[0].damageTable.entries).toEqual([
       { name: 'Ferocious Bite', total: 900 },
       { name: 'Rip', total: 100 },
     ]);
   });
 
   it('carries the provenance the corpus needs, ilvl from the ranking', async () => {
-    mockCandidateQueries();
+    mockFights((code) => plainFight(code, { buffs: NO_BUFFS }));
 
-    const candidate = { ...ranking('Aidan', 263000, 310000), bracketData: 285 };
-    const [player] = await fetchReferencePlayers('token', [{ candidate, distance: 0.42 }]);
+    const { topPlayers } = await resolve([{ ...ranking('Aidan', 285, 263000), amount: 310000 }]);
 
-    expect(player.provenance).toEqual({
-      code: 'code-Aidan',
+    expect(topPlayers[0].provenance).toMatchObject({
+      code: 'Aidan',
       fightID: 1,
       name: 'Aidan',
       // The ranking's bracketData, not stats.avgIlvl (640) — the selection scored on this.
       ilvl: 285,
       killTimeMs: 263000,
       dps: 310000,
-      distance: 0.42,
+      disqualifiedBy: [],
+      tierPieces: 0,
+      externalUptime: 0,
     });
   });
 
   it('records a null ilvl when the ranking entry has no bracketData', async () => {
-    mockCandidateQueries();
+    mockFights();
 
-    const [player] = await fetchReferencePlayers('token', [
-      { candidate: ranking('Aidan', 263000, 310000), distance: 3 },
+    const { topPlayers } = await resolve([
+      { name: 'Aidan', amount: 310000, duration: 263000, report: { code: 'Aidan', fightID: 1 } },
     ]);
 
-    expect(player.provenance.ilvl).toBeNull();
+    expect(topPlayers[0].provenance.ilvl).toBeNull();
   });
 
   it('drops a candidate it cannot identify rather than substituting another player', async () => {
-    mockCandidateQueries();
+    mockFights(() => plainFight('someone-else'));
 
-    const players = await fetchReferencePlayers('token', [
-      { candidate: ranking('Inconnu', 263000), distance: 1 },
-    ]);
+    const { topPlayers } = await resolve([ranking('Inconnu', 285)]);
 
-    expect(players).toEqual([]);
+    expect(topPlayers).toEqual([]);
   });
 
   it('skips candidates with an unusable report reference', async () => {
-    mockCandidateQueries();
+    mockFights();
 
-    const players = await fetchReferencePlayers('token', [
-      {
-        candidate: { name: 'Ghost', amount: 1, duration: 1000, report: { code: '', fightID: 0 } },
-        distance: 1,
-      },
+    const { topPlayers } = await resolve([
+      { name: 'Ghost', amount: 1, duration: 1000, report: { code: '', fightID: 0 } },
     ]);
 
-    expect(players).toEqual([]);
+    expect(topPlayers).toEqual([]);
+  });
+
+  it('eliminates a candidate wearing a better set bonus than the player', async () => {
+    mockFights((code) => plainFight(code, { combatants: [{ sourceID: 4, gear: gear(1983) }] }));
+
+    const { topPlayers, comparability } = await resolve([ranking('geared', 285)], {
+      mine: { tierPieces: 2, externalUptime: 0, externals: [] },
+    });
+
+    expect(comparability.disqualified).toBe(1);
+    // Completed rather than left empty — but the panel says what it is made of.
+    expect(comparability.substituted).toBe(1);
+    expect(comparability.level).toBe('poor');
+    expect(topPlayers[0].provenance.disqualifiedBy).toEqual(['set-bonus']);
+  });
+
+  it('keeps a candidate wearing less tier than the player', async () => {
+    mockFights((code) => plainFight(code, { combatants: [{ sourceID: 4, gear: gear() }] }));
+
+    const { topPlayers, comparability } = await resolve([ranking('naked', 285)]);
+
+    // A reference that beat the player with less is exactly the one worth reading.
+    expect(topPlayers[0].provenance.disqualifiedBy).toEqual([]);
+    expect(comparability.disqualified).toBe(0);
+    expect(comparability.substituted).toBe(0);
+  });
+
+  it('eliminates a candidate handed an external the player did not have', async () => {
+    mockFights((code) => plainFight(code, { buffs: PI_BUFFS }));
+
+    const { topPlayers, comparability } = await resolve([ranking('boosted', 285)]);
+
+    expect(comparability.disqualified).toBe(1);
+    expect(topPlayers[0].provenance.disqualifiedBy).toEqual(['external']);
+    expect(topPlayers[0].provenance.externalUptime).toBe(20);
+  });
+
+  it('prefers a farther qualified candidate over a closer eliminated one', async () => {
+    mockFights((code) =>
+      code === 'closer'
+        ? plainFight(code, { combatants: [{ sourceID: 4, gear: gear(1983) }] })
+        : plainFight(code)
+    );
+
+    const { topPlayers, comparability } = await resolve(
+      [ranking('closer', MY_ILVL), ranking('farther', MY_ILVL + 3)],
+      { mine: { tierPieces: 2, externalUptime: 0, externals: [] } }
+    );
+
+    // Distance ordered them the other way; the eliminatory criterion overrules it. The
+    // eliminated one still completes the panel — behind the qualified one, and marked.
+    expect(topPlayers.map((p) => p.provenance.name)).toEqual(['farther', 'closer']);
+    expect(topPlayers[0].provenance.disqualifiedBy).toEqual([]);
+    expect(topPlayers[1].provenance.disqualifiedBy).toEqual(['set-bonus']);
+    expect(comparability.disqualified).toBe(1);
+    expect(comparability.substituted).toBe(1);
   });
 });

@@ -13,6 +13,8 @@ function comparability(over: Partial<Comparability> = {}): Comparability {
     myKillTimeMs: 300000,
     candidatesConsidered: 942,
     pagesFetched: 10,
+    disqualified: 0,
+    substituted: 0,
     ...over,
   };
 }
@@ -91,5 +93,30 @@ describe('comparabilityBanner', () => {
     render(<ComparabilityBanner comparability={comparability()} />);
 
     expect(screen.getByText(/942/)).toBeInTheDocument();
+  });
+
+  it('counts what the eliminatory criteria removed', () => {
+    render(<ComparabilityBanner comparability={comparability({ disqualified: 7 })} />);
+
+    expect(screen.getByText(/eliminated on set bonus or externals/)).toBeInTheDocument();
+    expect(screen.getByText('7')).toBeInTheDocument();
+  });
+
+  // Le panneau complété reste un repli : il doit se dénoncer, pas se faire passer pour un choix.
+  it('says out loud when the panel was completed with references that did not qualify', () => {
+    render(
+      <ComparabilityBanner comparability={comparability({ level: 'poor', substituted: 2 })} />
+    );
+
+    expect(screen.getByText(/Not enough comparable logs/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/what they gained from it is not something you can play for/)
+    ).toBeInTheDocument();
+  });
+
+  it('stays silent about substitution when every reference qualified', () => {
+    render(<ComparabilityBanner comparability={comparability()} />);
+
+    expect(screen.queryByText(/Not enough comparable logs/)).not.toBeInTheDocument();
   });
 });

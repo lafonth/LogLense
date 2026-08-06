@@ -5,7 +5,7 @@ import { findCombatantByActorId } from './combatant';
 import { fetchFightData } from './fight-data';
 import { fmtMs } from './parsers';
 import { Q_REPORT_RANKINGS_BOSSDPS, Q_REPORT_RANKINGS_DPS } from './queries';
-import { fetchCandidatePool, fetchReferencePlayers, selectReferences } from './references';
+import { fetchCandidatePool, resolveReferences } from './references';
 
 interface RankingChar {
   name: string;
@@ -77,13 +77,16 @@ export async function analyzeReportBoss(
     className,
   });
 
-  const { stats, rotation, damageEntries, fightTargets, dps } = await fetchFightData(token, {
-    code,
-    fightId,
-    combatant: charEvent,
-    name: actorName,
-    fightMs,
-  });
+  const { stats, rotation, damageEntries, fightTargets, dps, eligibility } = await fetchFightData(
+    token,
+    {
+      code,
+      fightId,
+      combatant: charEvent,
+      name: actorName,
+      fightMs,
+    }
+  );
 
   const [pool, dpsRankingsRaw, bossRankingsRaw] = await Promise.all([
     poolPromise,
@@ -95,12 +98,12 @@ export async function analyzeReportBoss(
   const myDpsRank = findInRankings(dpsRankingsRaw.reportData.report.rankings, actorName);
   const myBossRank = findInRankings(bossRankingsRaw.reportData.report.rankings, actorName);
 
-  const { references, comparability } = selectReferences(pool, {
+  const { topPlayers, comparability } = await resolveReferences(token, pool, {
     myIlvl: stats.avgIlvl,
     myKillTimeMs: fightMs,
     exclude: { code, fightID: fightId },
+    mine: eligibility,
   });
-  const topPlayers = await fetchReferencePlayers(token, references);
 
   return {
     encounter: encounterName,
@@ -121,6 +124,7 @@ export async function analyzeReportBoss(
       bossDpsPct: myBossRank ? Math.round(myBossRank.rankPercent * 10) / 10 : null,
       bracket: myDpsRank ? Math.round(myDpsRank.bracketData * 10) / 10 : null,
       source: { code, fightID: fightId, actorId: charEvent.sourceID },
+      eligibility,
     },
     topPlayers,
     comparability,

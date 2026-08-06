@@ -7,7 +7,15 @@ function validBody() {
     encounterId: 3177,
     difficulty: 5,
     specId: 103,
-    subject: { code: 'abc', fightID: 17, actorId: 63, ilvl: 284.1, killTimeMs: 326876 },
+    subject: {
+      code: 'abc',
+      fightID: 17,
+      actorId: 63,
+      ilvl: 284.1,
+      killTimeMs: 326876,
+      tierPieces: 4,
+      externalUptime: 0,
+    },
     reference: {
       code: 'xyz',
       fightID: 3,
@@ -15,6 +23,9 @@ function validBody() {
       ilvl: 285,
       killTimeMs: 317924,
       dps: 123456,
+      tierPieces: 2,
+      externalUptime: 12.5,
+      disqualifiedBy: [],
     },
     scores: { distance: 0.42, ilvlGap: 0.9, killTimeGapPct: -2.7, rank: 1 },
     pool: { candidatesConsidered: 981, pagesFetched: 10, level: 'close' },
@@ -90,6 +101,64 @@ describe('parseSubmission', () => {
   it('rejects an empty report code', () => {
     const body = validBody();
     expect(parseSubmission({ ...body, subject: { ...body.subject, code: '' } })).toBeNull();
+  });
+
+  // Un palier inconnu se dit `null` et se recopie tel quel : le lire comme zéro
+  // fabriquerait une mesure qui n'a pas eu lieu, dans un corpus qu'on ne peut pas corriger.
+  it('accepts an unknown tier on either side', () => {
+    const body = validBody();
+    const parsed = parseSubmission({
+      ...body,
+      subject: { ...body.subject, tierPieces: null },
+      reference: { ...body.reference, tierPieces: null },
+    });
+    expect(parsed?.subject.tierPieces).toBeNull();
+    expect(parsed?.reference.tierPieces).toBeNull();
+  });
+
+  it('carries the verdict of the selection', () => {
+    const body = validBody();
+    const parsed = parseSubmission({
+      ...body,
+      reference: { ...body.reference, disqualifiedBy: ['set-bonus', 'external'] },
+    });
+    expect(parsed?.reference.disqualifiedBy).toEqual(['set-bonus', 'external']);
+  });
+
+  it('rejects a disqualification reason it does not know', () => {
+    const body = validBody();
+    expect(
+      parseSubmission({ ...body, reference: { ...body.reference, disqualifiedBy: ['vibes'] } })
+    ).toBeNull();
+  });
+
+  it('rejects a repeated or overlong disqualification list', () => {
+    const body = validBody();
+    // Both bound the same thing: what a hostile client can make the corpus grow by.
+    expect(
+      parseSubmission({
+        ...body,
+        reference: { ...body.reference, disqualifiedBy: ['external', 'external'] },
+      })
+    ).toBeNull();
+    expect(
+      parseSubmission({
+        ...body,
+        reference: {
+          ...body.reference,
+          disqualifiedBy: ['set-bonus', 'external', 'set-bonus'],
+        },
+      })
+    ).toBeNull();
+  });
+
+  it('rejects a disqualification list that is not a list', () => {
+    const body = validBody();
+    expect(
+      parseSubmission({ ...body, reference: { ...body.reference, disqualifiedBy: 'external' } })
+    ).toBeNull();
+    const { disqualifiedBy, ...withoutVerdict } = body.reference;
+    expect(parseSubmission({ ...body, reference: withoutVerdict })).toBeNull();
   });
 
   it('rejects a non-object', () => {

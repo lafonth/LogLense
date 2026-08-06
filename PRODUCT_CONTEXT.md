@@ -245,7 +245,7 @@ Rapport complet : [docs/superpowers/specs/2026-08-03-audit-pipeline-wcl.md](docs
 | ~~C2~~ | ~~**Fallback silencieux**~~ — **clos le 2026-08-06.** Voir « Constats clos » ci-dessous | — |
 | ~~C3~~ | ~~La requête world rankings ne pagine pas~~ — **clos le 2026-08-06.** Le filtrage reste par `specName` / `className` seuls, mais l'univers n'est plus plafonné à la première page | — |
 | C5 | La rotation est requêtée via `table(dataType: Casts)` → agrégats. L'ordre temporel est perdu à la source ; l'opening chain impose de passer sur `events(dataType: Casts)` | `src/lib/wcl/queries.ts:110-119`, `src/lib/wcl/parsers.ts:48-58` |
-| C6 | Boucle séquentielle sur les logs de référence. La boucle sur les **boss** est déjà parallélisée | `src/lib/wcl/pipeline.ts:233`, `src/lib/wcl/report-pipeline.ts:203` |
+| ~~C6~~ | ~~Boucle séquentielle sur les logs de référence~~ — **clos le 2026-08-06.** La fenêtre de vérification est parallèle, et la récupération des références retenues avec elle | — |
 | C8 | `legacy/` (12 scripts Python) et `prototypes/` (4 maquettes HTML) — le projet a déjà été réécrit une fois | racine |
 
 ### Constats corrigés
@@ -287,8 +287,40 @@ Vorasius mythique, ilvl 284,1 :
 l'équipement des références.** Les deux chemins d'analyse rendent désormais un bloc
 `comparability` identique pour le même combat.
 
-Ce que ce chantier n'a **pas** traité : les critères éliminatoires (externals reçus,
-palier de set bonus) restent absents.
+Ce que ce chantier n'a pas traité — les critères éliminatoires — a été repris le même
+jour : voir « Critères éliminatoires » ci-dessous.
+
+### Critères éliminatoires, clos le 2026-08-06 — et C6 avec eux
+
+Le vivier est toujours classé par distance, mais **les candidats les plus proches sont
+maintenant vérifiés avant d'être retenus**. `resolveReferences` score l'ensemble du
+vivier, vérifie **en parallèle** les `VERIFICATION_WINDOW = 12` premiers — un
+`CombatantInfo` pour le palier de set, une table de buffs pour les externals reçus — puis
+ne paie dégâts et rotation que pour les survivants. La boucle séquentielle sur les
+références (C6) disparaît par construction : il n'y a plus de boucle, il y a une fenêtre
+de vérification parallèle.
+
+`src/lib/wcl/eligibility.ts` porte les deux critères, en fonctions pures :
+
+- **Palier de set** — déduit du `setID` majoritaire de l'équipement, sans requête
+  supplémentaire. Un palier inconnu (équipement vide) vaut `null` et n'élimine jamais.
+- **Externals** — appariés **par guid**, jamais par nom : les noms sont localisés. PI
+  10060, Ebon Might 395152, Prescience 410089, Shifting Sands 413984.
+
+**La règle est asymétrique, et c'est le point** : on n'écarte une référence que si elle a
+été *plus aidée* que le joueur — palier de set supérieur, ou uptime d'external supérieure
+au-delà de `EXTERNAL_TOLERANCE`. Une référence moins bien dotée reste comparable : l'écart
+qu'elle montre est alors un plancher, pas un mirage.
+
+**Quand moins de `TOP_N` candidats qualifient**, le panneau est complété avec les
+meilleurs éliminés — mais le repli se dénonce : `comparability.level` tombe à `poor`,
+`substituted` compte les repêchés, la bannière l'énonce en rouge, et chaque référence
+concernée est marquée « Kept without qualifying » avec sa raison. C'est un repli, mais
+jamais un repli **silencieux** : la leçon de C2 tient.
+
+Le corpus d'étiquettes passe en `v: 2` — un verdict « set-bonus » est illisible sans le
+palier des deux côtés. Les enregistrements v1 n'ont pas ces champs à `null` : ils ne les
+ont pas mesurés.
 
 ### D2 clos le 2026-08-06 — et sa prémisse était fausse
 
@@ -316,7 +348,7 @@ irréversible de la liste.
 | ~~D2~~ | ~~**Aucune base de données** — la capture d'étiquettes n'a pas de substrat~~ — **clos le 2026-08-06.** Voir ci-dessous : la prémisse était fausse dès l'écriture |
 | ~~D3~~ | ~~**Le joueur de référence est apparié par spec, pas par nom**~~ — **clos le 2026-08-06.** `fetchReferencePlayers` apparie par nom ; un candidat non identifiable est écarté, jamais remplacé par un autre joueur. `findCombatantBySpecId` est supprimé |
 | D4 | **Le chemin nominal ne produit pas une distribution** — `slice(0, TOP_N)` retient les trois meilleurs parses, pas trois tirages représentatifs. Le code fait l'inverse du produit décrit en section 2 |
-| D5 | **Les externals sont déjà à portée** — `Q_ROTATION` récupère les buffs de chaque candidat et les ignore. Détecter une PI reçue ne coûte aucune requête supplémentaire |
+| ~~D5~~ | ~~**Les externals sont déjà à portée**~~ — **clos le 2026-08-06.** Les buffs sont désormais requêtés pour la fenêtre de vérification et appariés par guid ; une PI reçue au-delà de la tolérance élimine le candidat |
 | D6 | **Le spec-agnosticisme est atteint côté pipeline** — la spec est détectée depuis le `CombatantInfo`, `src/data/talents/` couvre de nombreuses specs. Reste ouvert côté prompt IA |
 
 **Gravité produit de C2** — pourquoi il a été traité en premier : c'était le défaut le
@@ -357,12 +389,14 @@ et `references.ts` portent désormais le traitement commun.
    niveau atteint et les écarts signés, sur les deux chemins.
 3. ~~**Corriger D3**~~ — **fait le 2026-08-06.** Le joueur de référence est apparié par
    nom, et un candidat non identifiable est écarté plutôt que remplacé.
-4. **Set bonus et externals dans la sélection** — l'ilvl est fait (2026-08-06). Les
-   buffs sont déjà à portée (D5) ; le set bonus demande le `CombatantInfo` par candidat,
-   donc d'inverser le pipeline : récupérer avant de choisir, non après. *(v1)*
+4. ~~**Set bonus et externals dans la sélection**~~ — **fait le 2026-08-06.** Le pipeline
+   est inversé : `resolveReferences` score tout le vivier, **vérifie en parallèle** les
+   `VERIFICATION_WINDOW = 12` candidats les plus proches (`CombatantInfo` + buffs), puis
+   ne récupère dégâts et rotation que des survivants — ce qui clôt au passage C6. Voir
+   ci-dessous.
 5. ~~**Paralléliser et élargir la fenêtre de candidats**~~ (C3) — **fait le 2026-08-06**,
-   dix pages en parallèle. Reste ouvert : la boucle séquentielle sur les logs de
-   référence eux-mêmes (C6).
+   dix pages en parallèle. La boucle séquentielle sur les logs de référence eux-mêmes
+   (C6) est tombée avec la tâche 4.
 6. **Agréger les références au lieu de les juxtaposer** (D4) — l'utilisateur cherche une
    distribution, pas 3 exemples. Change `BossResult.topPlayers` et ses consommateurs
    (`ComparisonTab`, `src/lib/ai/prompt.ts`). *(v1)*

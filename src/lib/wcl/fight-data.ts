@@ -1,7 +1,9 @@
 import type { CombatantEvent } from './combatant';
+import type { EligibilityProfile } from './eligibility';
 import type { WCLTable } from './parsers';
 import type { CharacterStats, DamageEntry, FightTarget, RotationSummary } from '@/types';
 import { gql } from './client';
+import { eligibilityOf } from './eligibility';
 import { parseCasts, parseStats, parseUptime, summarizeRotation } from './parsers';
 import { Q_DAMAGE, Q_ROTATION } from './queries';
 
@@ -32,6 +34,11 @@ export interface FightData {
   damageEntries: DamageEntry[];
   fightTargets: FightTarget[];
   dps: number;
+  /**
+   * What the player brought that a reference will be judged against. Derived from the
+   * combatant and the buff table already fetched here — it costs no extra query.
+   */
+  eligibility: EligibilityProfile;
 }
 
 export interface FightDataArgs {
@@ -97,5 +104,7 @@ export async function fetchFightData(token: string, args: FightDataArgs): Promis
     .filter((t) => t.damagePct >= MIN_TARGET_PCT)
     .sort((a, b) => b.damagePct - a.damagePct);
 
-  return { stats, rotation, damageEntries, fightTargets, dps };
+  const eligibility = eligibilityOf(combatant, rotData.reportData.report.buffs, fightMs);
+
+  return { stats, rotation, damageEntries, fightTargets, dps, eligibility };
 }

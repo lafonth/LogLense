@@ -8,7 +8,8 @@ import { Q_COMBATANT, Q_COMBATANT_WITH_ACTORS } from './queries';
 export interface CombatantEvent {
   sourceID: number;
   specID: number;
-  gear?: { itemLevel: number; id: number; quality: number }[];
+  /** `setID` groups the pieces of one tier set; absent on everything that is not tier. */
+  gear?: { itemLevel: number; id: number; quality: number; setID?: number }[];
   agility?: number;
   strength?: number;
   intellect?: number;
