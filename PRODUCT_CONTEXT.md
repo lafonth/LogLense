@@ -457,11 +457,17 @@ et `references.ts` portent désormais le traitement commun.
    lecture du corpus (`scripts/export-corpus.ts`), et **8b**, la fente d'exploration.
    **8c à 8e — features, entraînement, remplacement de l'heuristique — restent bloquées
    sur le volume**, voir « Tâche 8 : 10b ne suffisait pas » ci-dessous. *(v2)*
-9. **Suivi dans le temps** — le nouvel axe de fidélisation. Voir ci-dessous. *(v1)*
-10. **Capture manquante** — `subject.dps` et l'instantané de comparabilité (**10a et 10d,
-    faits le 2026-08-07**, `v: 3`), les références affichées-non-contestées (**10b, fait
-    le 2026-08-07**), et un retour sur le rapport (**10c, ouvert**). Voir « Cadrage de la
-    capture manquante ». *(v1, avant 9)*
+9. ~~**Suivi dans le temps**~~ — **fait le 2026-08-07.** `encounterRankings` portait déjà
+    tous les kills classés ; les deux chemins n'en gardaient qu'un. `src/lib/wcl/trajectory.ts`
+    les sort, `src/lib/comparison/trend.ts`
+    décompose l'écart entre deux kills en part matériel, part kill time et reste — le reste
+    seul parle du joueur —, l'axe tracé est le **percentile verrouillé** et non le DPS, et
+    la section `### Trajectory` du prompt encadre ce que le modèle a le droit d'en lire.
+    Voir « Le suivi dans le temps remplace le rapport isolé » ci-dessous. *(v1)*
+10. ~~**Capture manquante**~~ — **close le 2026-08-07.** `subject.dps` et l'instantané de
+    comparabilité (**10a et 10d**, `v: 3`), les références affichées-non-contestées
+    (**10b**), et un retour sur le rapport (**10c**). Voir « Cadrage de la capture
+    manquante ». *(v1, avant 9)*
 
 ### Le ML sort de la v1 — décision du 2026-08-07
 
@@ -553,6 +559,26 @@ est l'instantané de comparabilité**, qui périme avec la saison. C'est un quat
 capture, non nommé dans le cadrage initial, et de la même nature irréversible que les
 trois autres — traité comme candidat en fin de section 10.
 
+**Livré le 2026-08-07, une fois la capture close.** Trois arbitrages tiennent la feature :
+
+- **La courbe trace le percentile verrouillé, pas le DPS.** Le DPS monte tout seul sur un
+  palier ; une courbe de DPS présentée comme une courbe de niveau est un graphique
+  d'équipement. Le percentile est déjà normalisé contre la population du moment.
+- **La décomposition est annoncée comme une estimation.** `analyseTrend` sépare part
+  matériel, part kill time et reste ; les deux coefficients sont des hypothèses déclarées,
+  pas des mesures — et le verdict ne s'appuie pas dessus. Le **plateau** — « ça ne monte
+  plus, et l'équipement le cachait » — est le seul message que le joueur ne voit pas sans
+  outil.
+- **Deux silences délibérés.** Rien sous deux kills : un rapport isolé reste valide, et le
+  modèle est prié de se taire plutôt que d'annoncer une absence. Et il est dit que Warcraft
+  Logs ne classe pas un wipe, sans quoi la courbe mentirait par omission — d'où
+  l'interdiction faite au modèle de conclure sur la régularité.
+
+`PROMPT_VERSION` passe à **2** : ajouter une instruction change ce que le modèle produit,
+et sans ce cran le corpus de 10c mélangerait sous un même label des jugements portés sur
+deux rapports différents. `trajectory` entre du même coup dans `PROMPT_AXES` — le lecteur
+peut donc signaler cette section comme inutile, comme les six autres.
+
 ### Cadrage de la capture manquante
 
 Le corpus actuel (`v: 2`, `src/lib/labels/schema.ts`) capture **un verdict humain négatif
@@ -605,7 +631,7 @@ non une mesure. Quatre points de conception à trancher :
   jugements propres, mesures réhydratées à l'entraînement — déjà identifiée puis non
   retenue au titre des CGU, redevient le schéma par défaut pour cette raison-ci.
 
-#### 10c — Un retour sur le rapport lui-même
+#### 10c — Un retour sur le rapport lui-même — fait le 2026-08-07
 
 Rien ne mesure aujourd'hui si le rapport sert. Objection immédiate, et il faut y répondre
 avant d'écrire la feature : le rapport LLM est classé **gadget**, pourquoi instrumenter un
@@ -625,7 +651,23 @@ talents), rattaché à l'identifiant de rendu de 10b. **Pas de champ de texte li
 corpus append-only qu'on ne peut pas nettoyer, et le §5c des CGU s'applique dès qu'un
 tiers y est nommé.
 
-#### 10d — Candidat : l'instantané de comparabilité
+**Livré en deux enregistrements, pas un** (`src/lib/labels/report.ts`), parce qu'ils ne
+naissent ni au même moment ni du même côté :
+
+- L'**empreinte du conseil** (`AdviceRecord`), écrite côté serveur avant que le flux
+  parte, et **attendue** — une promesse laissée en `void` meurt avec la fonction
+  serverless. Elle porte les axes réellement couverts, le `promptVersion`, le fournisseur
+  et le modèle ; jamais la prose. Sans elle, un « inutile » ne se rattache à rien.
+- Le **retour du lecteur** (`ReportFeedbackRecord`), qui arrive du navigateur, plus tard,
+  et peut ne jamais arriver.
+
+`renderId` les joint à l'exposition de 10b. Le verdict est binaire — une échelle à cinq
+crans n'est pas lisible — et `uselessAxes` reste autorisé sur un `useful` : « utile, mais
+les talents n'ont rien apporté » est le jugement le plus fréquent et le plus précis.
+`axisBodies()` est devenue la source unique du prompt **et** de l'empreinte, pour qu'aucune
+seconde fonction ne re-dérive les sections émises.
+
+#### 10d — Candidat : l'instantané de comparabilité — retenu, fait le 2026-08-07
 
 Non demandé, issu de la décision sur le suivi (voir le tableau ci-dessus). Le vivier et le
 verdict de comparabilité d'un jour donné ne se reconstituent pas une fois la saison
@@ -634,6 +676,9 @@ avancée. 10b y répond en grande partie *si* l'enregistrement d'exposition port
 `candidatesConsidered`, `pagesFetched`, `disqualified`, `substituted`, `level`.
 **Recommandation : le prévoir dans le schéma de 10b**, plutôt que d'en faire une tâche.
 Le coût est de quelques champs ; l'omettre est irréversible.
+
+Recommandation suivie : `ExposureRecord.comparability` (`src/lib/labels/exposure.ts`) porte
+le bloc entier, et non les seules références retenues.
 
 ### Points ouverts à trancher
 
