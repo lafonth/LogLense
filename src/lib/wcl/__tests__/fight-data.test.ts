@@ -90,7 +90,7 @@ describe('fetchFightData', () => {
 
     expect(result.stats.name).toBe('Jumbaa');
     expect(result.stats.avgIlvl).toBe(635);
-    expect(result.rotation.casts.Rip).toEqual({ casts: 12, perMin: 12 });
+    expect(result.rotation.casts.Rip).toEqual({ guid: 1, casts: 12, perMin: 12 });
     expect(result.rotation.buffs['Tiger’s Fury']).toBe(50);
     expect(result.rotation.fightDurationMs).toBe(60000);
   });
@@ -120,8 +120,8 @@ describe('fetchFightData', () => {
     const { damageEntries } = await fetchFightData('token', ARGS);
 
     expect(damageEntries).toEqual([
-      { name: 'Ferocious Bite', total: 700 },
-      { name: 'Rip', total: 300 },
+      { guid: 2, name: 'Ferocious Bite', total: 700 },
+      { guid: 1, name: 'Rip', total: 300 },
     ]);
   });
 
@@ -203,6 +203,6 @@ describe('fetchFightData', () => {
     const result = await fetchFightData('token', ARGS);
 
     expect(result.rotation.opening).toEqual([]);
-    expect(result.rotation.casts.Rip).toEqual({ casts: 12, perMin: 12 });
+    expect(result.rotation.casts.Rip).toEqual({ guid: 1, casts: 12, perMin: 12 });
   });
 });

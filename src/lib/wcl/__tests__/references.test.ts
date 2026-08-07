@@ -293,8 +293,8 @@ describe('resolveReferences', () => {
     expect(topPlayers[0].stats.dps).toBe(310000);
     expect(topPlayers[0].stats.killTime).toBe('4:23');
     expect(topPlayers[0].damageTable.entries).toEqual([
-      { name: 'Ferocious Bite', total: 900 },
-      { name: 'Rip', total: 100 },
+      { guid: 2, name: 'Ferocious Bite', total: 900 },
+      { guid: 1, name: 'Rip', total: 100 },
     ]);
   });
 

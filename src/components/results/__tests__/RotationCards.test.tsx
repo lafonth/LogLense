@@ -3,6 +3,9 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { RotationCards } from '../RotationCards';
 
+/** Les fixtures portent le vrai id : c'est par lui que casts et dégâts se joignent. */
+const GUIDS: Record<string, number> = { 'Ferocious Bite': 22568, Rip: 1079 };
+
 function reference(name: string, perMin: Record<string, number>): TopPlayer {
   return {
     stats: {
@@ -21,7 +24,10 @@ function reference(name: string, perMin: Record<string, number>): TopPlayer {
       name,
       fightDurationMs: 263000,
       casts: Object.fromEntries(
-        Object.entries(perMin).map(([k, v]) => [k, { casts: Math.round(v * 4), perMin: v }])
+        Object.entries(perMin).map(([k, v]) => [
+          k,
+          { guid: GUIDS[k] ?? 0, casts: Math.round(v * 4), perMin: v },
+        ])
       ),
       buffs: {},
       opening: [],
@@ -47,7 +53,7 @@ function reference(name: string, perMin: Record<string, number>): TopPlayer {
 const MINE: RotationSummary = {
   name: 'Jumbaa',
   fightDurationMs: 263000,
-  casts: { 'Ferocious Bite': { casts: 18, perMin: 4.1 } },
+  casts: { 'Ferocious Bite': { guid: 22568, casts: 18, perMin: 4.1 } },
   buffs: {},
   opening: [],
 };
@@ -59,7 +65,7 @@ const REFERENCES = [
 
 describe('rotationCards', () => {
   it('shows the ability, the player value and the reference range', () => {
-    render(<RotationCards character={MINE} topPlayers={REFERENCES} />);
+    render(<RotationCards character={MINE} topPlayers={REFERENCES} characterDamage={[]} />);
 
     expect(screen.getByText('Ferocious Bite')).toBeInTheDocument();
     expect(screen.getByText('4.10')).toBeInTheDocument();
@@ -67,13 +73,13 @@ describe('rotationCards', () => {
   });
 
   it('renders the deviation with a sign', () => {
-    render(<RotationCards character={MINE} topPlayers={REFERENCES} />);
+    render(<RotationCards character={MINE} topPlayers={REFERENCES} characterDamage={[]} />);
 
     expect(screen.getByText('−40.6 %')).toBeInTheDocument();
   });
 
   it('shows player values alone when there is nothing to compare against', () => {
-    render(<RotationCards character={MINE} topPlayers={[]} />);
+    render(<RotationCards character={MINE} topPlayers={[]} characterDamage={[]} />);
 
     expect(screen.getByText('4.10')).toBeInTheDocument();
     expect(screen.getByText(/No comparable logs/)).toBeInTheDocument();
@@ -85,8 +91,8 @@ describe('rotationCards', () => {
       name: 'Jumbaa',
       fightDurationMs: 263000,
       casts: {
-        'Ferocious Bite': { casts: 18, perMin: 4.1 },
-        Rip: { casts: 4, perMin: 0.9 },
+        'Ferocious Bite': { guid: 22568, casts: 18, perMin: 4.1 },
+        Rip: { guid: 1079, casts: 4, perMin: 0.9 },
       },
       buffs: {},
       opening: [],
@@ -96,7 +102,7 @@ describe('rotationCards', () => {
       reference('Brea', { 'Ferocious Bite': 7.2 }),
     ];
 
-    render(<RotationCards character={mine} topPlayers={references} />);
+    render(<RotationCards character={mine} topPlayers={references} characterDamage={[]} />);
 
     const ripCard = screen.getByText('Rip').closest('li');
     expect(ripCard).not.toBeNull();
@@ -107,6 +113,27 @@ describe('rotationCards', () => {
     // range wouldn't have contained a '%' either and would have slipped past that assertion).
     expect(ripCard).not.toHaveTextContent('references');
     expect(ripCard?.querySelector('[data-testid="rotation-bar"]')).toBeNull();
+  });
+
+  // L'ordre change quand une table de dégâts est fournie : le dire, sinon la liste est
+  // réordonnée sans raison visible.
+  it('announces the cost ordering and shows the share that drives it', () => {
+    render(
+      <RotationCards
+        character={MINE}
+        topPlayers={REFERENCES}
+        characterDamage={[{ guid: 22568, name: 'Ferocious Bite', total: 1000 }]}
+      />
+    );
+
+    expect(screen.getByText('Rotation · by cost')).toBeInTheDocument();
+    expect(screen.getByText('100.0 %')).toBeInTheDocument();
+  });
+
+  it('announces the deviation ordering when no damage table is available', () => {
+    render(<RotationCards character={MINE} topPlayers={REFERENCES} characterDamage={[]} />);
+
+    expect(screen.getByText('Rotation · by deviation')).toBeInTheDocument();
   });
 
   it('renders a second card for buffs with non-zero uptime', () => {
@@ -122,14 +149,20 @@ describe('rotationCards', () => {
       rotation: { ...player.rotation, buffs: { "Tiger's Fury": 58.1 } },
     }));
 
-    render(<RotationCards character={mineWithUptime} topPlayers={referencesWithUptime} />);
+    render(
+      <RotationCards
+        character={mineWithUptime}
+        topPlayers={referencesWithUptime}
+        characterDamage={[]}
+      />
+    );
 
     expect(screen.getByText('Uptime')).toBeInTheDocument();
     expect(screen.getByText("Tiger's Fury")).toBeInTheDocument();
   });
 
   it('shows no uptime card when the player has no buffs with non-zero uptime', () => {
-    render(<RotationCards character={MINE} topPlayers={REFERENCES} />);
+    render(<RotationCards character={MINE} topPlayers={REFERENCES} characterDamage={[]} />);
 
     expect(screen.queryByText('Uptime')).not.toBeInTheDocument();
   });

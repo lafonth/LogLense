@@ -92,9 +92,9 @@ describe('parseUptime', () => {
 describe('summarizeRotation', () => {
   it('passes through casts and buffs as-is', () => {
     const casts = {
-      "Tiger's Fury": { casts: 10, perMin: 5 },
-      Shred: { casts: 40, perMin: 20 },
-      Rip: { casts: 8, perMin: 4 },
+      "Tiger's Fury": { guid: 5217, casts: 10, perMin: 5 },
+      Shred: { guid: 5221, casts: 40, perMin: 20 },
+      Rip: { guid: 1079, casts: 8, perMin: 4 },
     };
     const buffs = { "Tiger's Fury": 28 };
 

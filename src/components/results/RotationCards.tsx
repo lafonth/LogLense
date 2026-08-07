@@ -1,11 +1,13 @@
 import type { AbilityComparison } from '@/lib/comparison/rotation-stats';
-import type { RotationSummary, TopPlayer } from '@/types';
+import type { DamageEntry, RotationSummary, TopPlayer } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { compareCasts, compareUptimes } from '@/lib/comparison/rotation-stats';
 
 interface RotationCardsProps {
   character: RotationSummary;
   topPlayers: TopPlayer[];
+  /** Ce qui pondère le tri des casts : sans elle, l'ordre retombe sur la déviation seule. */
+  characterDamage: DamageEntry[];
 }
 
 function formatDeviation(pct: number): string {
@@ -52,6 +54,12 @@ function AbilityCard({ row, unit }: { row: AbilityComparison; unit: string }) {
       <div className="text-2xs text-dim mt-2 flex justify-between">
         <span>
           you <span className="text-text font-mono">{row.mine.toFixed(2)}</span> {unit}
+          {row.damageShare !== null && row.damageShare > 0 && (
+            <>
+              {' · '}
+              <span className="font-mono">{(row.damageShare * 100).toFixed(1)} %</span> of damage
+            </>
+          )}
         </span>
         {hasRange && (
           <span>
@@ -66,13 +74,24 @@ function AbilityCard({ row, unit }: { row: AbilityComparison; unit: string }) {
   );
 }
 
-export function RotationCards({ character, topPlayers }: RotationCardsProps) {
-  const casts = compareCasts(character, topPlayers);
+export function RotationCards({ character, topPlayers, characterDamage }: RotationCardsProps) {
+  const casts = compareCasts(character, topPlayers, characterDamage);
   const uptimes = compareUptimes(character, topPlayers).filter((row) => row.mine > 0);
+  // Le libellé doit dire ce que l'ordre suit réellement : sans table de dégâts, la
+  // pondération n'a pas eu lieu et annoncer un coût serait un mensonge.
+  const weighted = casts.some((row) => (row.damageShare ?? 0) > 0);
 
   return (
     <div className="flex flex-col gap-4">
-      <Card header={topPlayers.length > 0 ? 'Rotation · by deviation' : 'Rotation'}>
+      <Card
+        header={
+          topPlayers.length === 0
+            ? 'Rotation'
+            : weighted
+              ? 'Rotation · by cost'
+              : 'Rotation · by deviation'
+        }
+      >
         {topPlayers.length === 0 && (
           <p className="text-2xs text-muted mb-3 font-sans">
             No comparable logs — showing your rotation only.

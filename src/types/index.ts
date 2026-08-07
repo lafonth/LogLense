@@ -50,6 +50,11 @@ export interface CharacterStats {
 }
 
 export interface CastEntry {
+  /**
+   * L'id de sort WCL, conservé pour rattacher un cast à sa ligne de dégâts. Le nom seul ne
+   * suffit pas : deux tables différentes, deux libellés possibles pour le même sort.
+   */
+  guid: number;
   casts: number;
   perMin: number;
 }
@@ -80,6 +85,8 @@ export interface RotationSummary {
 }
 
 export interface DamageEntry {
+  /** Le pendant de {@link CastEntry.guid} : c'est par lui que les deux tables se joignent. */
+  guid: number;
   name: string;
   total: number;
 }

@@ -41,6 +41,7 @@ export function parseCasts(table: WCLTable, fightMs: number): Record<string, Cas
   const result: Record<string, CastEntry> = {};
   for (const entry of table.data?.entries ?? []) {
     result[entry.name] = {
+      guid: entry.guid,
       casts: entry.total,
       perMin: Math.round((entry.total / durMin) * 100) / 100,
     };

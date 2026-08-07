@@ -99,7 +99,7 @@ export async function fetchFightData(token: string, args: FightDataArgs): Promis
   const rotation = summarizeRotation(name, casts, buffs, fightMs, opening, dps);
 
   const damageEntries: DamageEntry[] = allDmgEntries
-    .map((e) => ({ name: e.name, total: e.total }))
+    .map((e) => ({ guid: e.guid, name: e.name, total: e.total }))
     .sort((a, b) => b.total - a.total);
 
   const targetTotals = new Map<string, { type: string; total: number }>();

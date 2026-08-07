@@ -73,7 +73,11 @@ export function ComparisonTab({ encounter, bossState, specName, talentNodes }: C
         <OpeningChain mine={result.character.rotation.opening} references={result.topPlayers} />
       </div>
       <div className="mt-6">
-        <RotationCards character={result.character.rotation} topPlayers={result.topPlayers} />
+        <RotationCards
+          character={result.character.rotation}
+          topPlayers={result.topPlayers}
+          characterDamage={result.character.damageTable.entries}
+        />
       </div>
       <div className="mt-6">
         <TalentDiff
