@@ -41,7 +41,22 @@ const DAMAGE_ENTRIES = [
 
 const CASTS = { data: { entries: [{ guid: 1, name: 'Rip', total: 12 }] } };
 const BUFFS = {
-  data: { auras: [{ guid: 5, name: 'Tiger’s Fury', totalUptime: 30000, totalUses: 5 }] },
+  data: {
+    auras: [
+      { guid: 5, name: 'Tiger’s Fury', totalUptime: 30000, totalUses: 5 },
+      { guid: 9, name: 'Bloodtalons', totalUptime: 48000, totalUses: 8 },
+    ],
+  },
+};
+/** Ce que le joueur applique sur les ennemis — l'essentiel des dégâts d'une spec à DoT. */
+const DEBUFFS = {
+  data: {
+    auras: [
+      { guid: 1, name: 'Rip', totalUptime: 54000, totalUses: 12 },
+      // Même nom des deux côtés : c'est la même aura, et c'est le buff qui doit l'emporter.
+      { guid: 9, name: 'Bloodtalons', totalUptime: 6000, totalUses: 2 },
+    ],
+  },
 };
 
 const CAST_EVENTS = [
@@ -57,7 +72,7 @@ function mockQueries(damageEntries = DAMAGE_ENTRIES) {
       ? { reportData: { report: { table: { data: { entries: damageEntries } } } } }
       : body.includes('CastEvents')
         ? { reportData: { report: { events: { data: CAST_EVENTS } } } }
-        : { reportData: { report: { casts: CASTS, buffs: BUFFS } } };
+        : { reportData: { report: { casts: CASTS, buffs: BUFFS, debuffs: DEBUFFS } } };
 
     return { ok: true, json: async () => ({ data: payload }) } as Response;
   });
@@ -78,6 +93,25 @@ describe('fetchFightData', () => {
     expect(result.rotation.casts.Rip).toEqual({ casts: 12, perMin: 12 });
     expect(result.rotation.buffs['Tiger’s Fury']).toBe(50);
     expect(result.rotation.fightDurationMs).toBe(60000);
+  });
+
+  it('merges the debuffs the player applies into the uptimes', async () => {
+    mockQueries();
+
+    const { rotation } = await fetchFightData('token', ARGS);
+
+    // Sans les debuffs, un Rip à 90 % de l'uptime n'existait tout simplement pas.
+    expect(rotation.buffs.Rip).toBe(90);
+    expect(rotation.buffs['Tiger’s Fury']).toBe(50);
+  });
+
+  it('lets the buff win a name collision between the two tables', async () => {
+    mockQueries();
+
+    const { rotation } = await fetchFightData('token', ARGS);
+
+    // 48000 ms côté buff contre 6000 côté debuff : c'est la valeur du buff qui sort.
+    expect(rotation.buffs.Bloodtalons).toBe(80);
   });
 
   it('sorts damage entries by total, descending', async () => {
@@ -134,7 +168,7 @@ describe('fetchFightData', () => {
     globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
       const payload = String(init.body).includes('DamageDone')
         ? { reportData: { report: { table: {} } } }
-        : { reportData: { report: { casts: CASTS, buffs: BUFFS } } };
+        : { reportData: { report: { casts: CASTS, buffs: BUFFS, debuffs: DEBUFFS } } };
       return { ok: true, json: async () => ({ data: payload }) } as Response;
     });
 
@@ -162,7 +196,7 @@ describe('fetchFightData', () => {
       if (body.includes('CastEvents')) throw new Error('rate limited');
       const payload = body.includes('DamageDone')
         ? { reportData: { report: { table: { data: { entries: DAMAGE_ENTRIES } } } } }
-        : { reportData: { report: { casts: CASTS, buffs: BUFFS } } };
+        : { reportData: { report: { casts: CASTS, buffs: BUFFS, debuffs: DEBUFFS } } };
       return { ok: true, json: async () => ({ data: payload }) } as Response;
     });
 

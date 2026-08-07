@@ -151,7 +151,9 @@ function mockFights(fixture: (code: string) => FightFixture = (c) => plainFight(
     } else if (body.includes('DamageDone')) {
       payload = { reportData: { report: { table: DAMAGE } } };
     } else {
-      payload = { reportData: { report: { casts: CASTS, buffs: fight.buffs } } };
+      // La référence passe par le même `fetchFightData` : elle demande donc aussi ses
+      // debuffs. Aucun de ces cas ne porte sur l'uptime — une table vide suffit.
+      payload = { reportData: { report: { casts: CASTS, buffs: fight.buffs, debuffs: NO_BUFFS } } };
     }
 
     return { ok: true, json: async () => ({ data: payload }) } as Response;

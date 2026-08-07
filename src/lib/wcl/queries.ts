@@ -131,12 +131,28 @@ export const Q_DAMAGE = `
   }
 `;
 
+/**
+ * `debuffs` n'est pas une faute de frappe : sur une table d'auras d'hostilité `Enemies`, WCL
+ * inverse les axes. `sourceID` y désigne l'acteur qui *porte* l'aura — donc un ennemi, et
+ * filtrer dessus avec l'id du joueur rend zéro aura, silencieusement. C'est `targetID` qui
+ * sélectionne celui qui l'applique. Vérifié sur huit raiders d'un même combat : le résultat
+ * est à chaque fois identique à un `filterExpression: "source.name='…'"`.
+ *
+ * Sans cet alias, toute spec dont les dégâts passent par des DoT voyait son uptime amputé de
+ * l'essentiel — la table `Buffs` ne rend que ce que le joueur porte lui-même.
+ */
 export const Q_ROTATION = `
   query Rotation($code: String!, $fightIDs: [Int]!, $sourceID: Int!) {
     reportData {
       report(code: $code) {
         casts: table(dataType: Casts, fightIDs: $fightIDs, sourceID: $sourceID)
         buffs: table(dataType: Buffs, fightIDs: $fightIDs, sourceID: $sourceID)
+        debuffs: table(
+          dataType: Debuffs
+          fightIDs: $fightIDs
+          hostilityType: Enemies
+          targetID: $sourceID
+        )
       }
     }
   }

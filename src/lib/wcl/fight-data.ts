@@ -26,7 +26,7 @@ interface DamageResponse {
 }
 
 interface RotationResponse {
-  reportData: { report: { casts: WCLTable; buffs: WCLTable } };
+  reportData: { report: { casts: WCLTable; buffs: WCLTable; debuffs: WCLTable } };
 }
 
 interface CastEventsResponse {
@@ -84,7 +84,13 @@ export async function fetchFightData(token: string, args: FightDataArgs): Promis
   const stats = parseStats(combatant, name)!;
   const castTable = rotData.reportData.report.casts;
   const casts = parseCasts(castTable, fightMs);
-  const buffs = parseUptime(rotData.reportData.report.buffs, fightMs);
+  // Les debuffs d'abord : sur une collision de nom, une même aura vue des deux côtés reste
+  // la même aura, et l'entrée buff est celle qui existait avant — l'ordre choisi ne déplace
+  // donc aucun affichage en place.
+  const buffs = {
+    ...parseUptime(rotData.reportData.report.debuffs, fightMs),
+    ...parseUptime(rotData.reportData.report.buffs, fightMs),
+  };
   const opening = parseOpening(
     castEvents?.reportData?.report?.events?.data ?? [],
     castTable,
