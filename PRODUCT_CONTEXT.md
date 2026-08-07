@@ -246,7 +246,7 @@ Rapport complet : [docs/superpowers/specs/2026-08-03-audit-pipeline-wcl.md](docs
 | ~~C3~~ | ~~La requête world rankings ne pagine pas~~ — **clos le 2026-08-06.** Le filtrage reste par `specName` / `className` seuls, mais l'univers n'est plus plafonné à la première page | — |
 | ~~C5~~ | ~~L'ordre temporel est perdu à la source~~ — **clos le 2026-08-06.** `events(dataType: Casts)` s'ajoute au tableau agrégé, qui reste la source des fréquences. Voir « Constats clos » ci-dessous | — |
 | ~~C6~~ | ~~Boucle séquentielle sur les logs de référence~~ — **clos le 2026-08-06.** La fenêtre de vérification est parallèle, et la récupération des références retenues avec elle | — |
-| C8 | `legacy/` (12 scripts Python) et `prototypes/` (4 maquettes HTML) — le projet a déjà été réécrit une fois | racine |
+| ~~C8~~ | ~~`legacy/` (12 scripts Python) et `prototypes/` (4 maquettes HTML)~~ — **clos le 2026-08-07.** Les deux dossiers sont supprimés, et avec eux les exclusions devenues sans objet dans `tsconfig.json`, `eslint.config.mjs`, `.prettierignore` et `.gitignore`. L'historique git reste la trace du portage ; les plans de phase 2 et 5 dans `docs/superpowers/plans/` continuent de les citer, ce sont des archives, pas des références actives | — |
 
 ### Constats corrigés
 
@@ -411,10 +411,14 @@ mécaniquement corrélés (moins de phases, plus d'uptime CD). Se comparer à un
 touchaient toutes le même bloc de code, présent deux fois ; `combatant.ts`, `fight-data.ts`
 et `references.ts` portent désormais le traitement commun.
 
-1. ~~**Capture des étiquettes**~~ — **fait le 2026-08-06.** Schéma versionné (`v: 1`),
-   identité `by` hachée avec `LABEL_SALT` — l'endpoint refuse d'écrire sans sel plutôt
-   que d'écrire en clair —, `POST /api/labels/comparability` en append-only, et le
-   contrôle « pas comparable » avec raison dans `ComparisonTab`.
+1. ~~**Capture des étiquettes**~~ — **fait le 2026-08-06.** Schéma versionné (`v: 2`
+   depuis l'ajout des critères éliminatoires — palier de set et uptime d'externals des
+   deux côtés, plus le verdict de sélection ; les enregistrements `v: 1` ne les portent
+   pas, et c'est une absence de mesure, pas une valeur nulle), identité `by` hachée avec
+   `LABEL_SALT` — l'endpoint refuse d'écrire sans sel plutôt que d'écrire en clair —,
+   `POST /api/labels/comparability` en append-only sous quota horaire par identité hachée
+   (`LABEL_LIMIT = 60`, réponse `429` avec `Retry-After`), et le contrôle « pas
+   comparable » avec raison dans `ComparisonTab`.
 
    Deux choses à ne pas croire acquises. **Rien n'exploite ces étiquettes** : elles
    s'accumulent, aucune route ne les relit, aucun modèle ne s'en sert, et l'affichage

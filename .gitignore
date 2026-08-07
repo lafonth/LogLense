@@ -16,8 +16,6 @@ scripts/TraitNodeXTraitNodeEntry.csv
 !.claude/settings.json
 !.claude/agents/
 !.claude/hooks/
-legacy/config.json
-legacy/character_analysis.json
 
 # prompt download output
 ai-prompt.txt

@@ -18,6 +18,6 @@ export default antfu(
     rules: { 'node/prefer-global/process': 'off' },
   },
   {
-    ignores: ['**/.next/**', '**/node_modules/**', 'legacy/**', 'prototypes/**'],
+    ignores: ['**/.next/**', '**/node_modules/**'],
   },
 );
