@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LABEL_LIMIT } from '@/lib/labels/rate-limit';
 import { POST } from '../route';
 
-const { getServerSession, redisAppend, redisIncr, redisExpire } = vi.hoisted(() => ({
+const { getServerSession, redisAppend, redisIncrBy, redisExpire } = vi.hoisted(() => ({
   getServerSession: vi.fn(),
   redisAppend: vi.fn(),
-  redisIncr: vi.fn(),
+  redisIncrBy: vi.fn(),
   redisExpire: vi.fn(),
 }));
 
 vi.mock('next-auth/next', () => ({ getServerSession }));
-vi.mock('@/lib/redis', () => ({ redisAppend, redisIncr, redisExpire }));
+vi.mock('@/lib/redis', () => ({ redisAppend, redisIncrBy, redisExpire }));
 vi.mock('@/lib/auth', () => ({ authOptions: {} }));
 
 function body(overrides: Record<string, unknown> = {}) {
@@ -40,7 +40,7 @@ describe('pOST /api/labels/report', () => {
     process.env.LABEL_SALT = 'pepper';
     getServerSession.mockResolvedValue({ user: { email: 'someone@example.com' } });
     redisAppend.mockResolvedValue(1);
-    redisIncr.mockResolvedValue(1);
+    redisIncrBy.mockResolvedValue(1);
     redisExpire.mockResolvedValue(undefined);
   });
 
@@ -137,7 +137,7 @@ describe('pOST /api/labels/report', () => {
   });
 
   it('turns a caller away past the hourly quota, and says when to come back', async () => {
-    redisIncr.mockResolvedValue(LABEL_LIMIT + 1);
+    redisIncrBy.mockResolvedValue(LABEL_LIMIT + 1);
 
     const res = await POST(request(body()));
 
@@ -149,7 +149,7 @@ describe('pOST /api/labels/report', () => {
   it('counts the quota against the hashed identity, never the raw one', async () => {
     await POST(request(body()));
 
-    const key = String(redisIncr.mock.calls[0][0]);
+    const key = String(redisIncrBy.mock.calls[0][0]);
     expect(key).not.toContain('someone@example.com');
     expect(key).toMatch(/^ratelimit:labels:[0-9a-f]{32}:\d+$/);
   });

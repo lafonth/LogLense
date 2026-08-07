@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import type { ReportMeta } from '@/types';
 import { NextResponse } from 'next/server';
+import { guardWclSpend, METADATA_UNITS } from '@/lib/api/wcl-guard';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { gql } from '@/lib/wcl/client';
 import { Q_REPORT_META } from '@/lib/wcl/queries';
@@ -38,6 +39,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ cod
   if (!code || !/^[a-z0-9]{16}$/i.test(code)) {
     return NextResponse.json({ error: 'Invalid report code' }, { status: 400 });
   }
+
+  const refusal = await guardWclSpend(METADATA_UNITS);
+  if (refusal) return refusal;
 
   const clientId = process.env.WCL_CLIENT_ID!;
   const clientSecret = process.env.WCL_CLIENT_SECRET!;

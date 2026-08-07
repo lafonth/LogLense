@@ -10,6 +10,7 @@ import { CANDIDATE_PAGES, EXPLORATION_RATE, TOP_N, VERIFICATION_WINDOW } from '.
 import { disqualify, eligibilityOf } from './eligibility';
 import { fetchFightData } from './fight-data';
 import { fmtMs, parseStats } from './parsers';
+import { poolCacheKey, readCachedPool, writeCachedPool } from './pool-cache';
 import { Q_BUFFS, Q_WORLD_RANKINGS } from './queries';
 
 export interface WorldRanking {
@@ -36,11 +37,20 @@ interface RankingsResponse {
  * players comparable to an under-geared character sit several pages deep — a
  * single page contains only the best-equipped. A page that fails is skipped
  * rather than failing the analysis, and pagesFetched reports what was obtained.
+ *
+ * Ces dix pages sont le gros de la facture Warcraft Logs d'une analyse, et elles ne
+ * dépendent pas du joueur analysé : d'où le cache, à durée de vie explicite, partagé par
+ * tous les joueurs d'une même spec sur un même boss. Voir `pool-cache.ts` pour le TTL et ce
+ * qu'il garantit vis-à-vis des CGU.
  */
 export async function fetchCandidatePool(
   token: string,
   args: { encounterId: number; difficulty: number; specName: string; className: string }
 ): Promise<CandidatePool> {
+  const cacheKey = poolCacheKey(args);
+  const cached = await readCachedPool(cacheKey);
+  if (cached) return cached;
+
   const pages = await Promise.all(
     Array.from({ length: CANDIDATE_PAGES }, (_, i) =>
       gql<RankingsResponse>(token, Q_WORLD_RANKINGS, {
@@ -70,7 +80,13 @@ export async function fetchCandidatePool(
     }
   }
 
-  return { candidates, pagesFetched };
+  const pool = { candidates, pagesFetched };
+
+  // Attendue, pas mise en `void` : sur un runtime serverless une promesse non attendue part
+  // avec la fonction, et le cache ne se remplirait jamais. L'appel n'échoue pas.
+  await writeCachedPool(cacheKey, pool);
+
+  return pool;
 }
 
 export interface ResolvedReferences {

@@ -2,6 +2,15 @@ import type { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET } from '../route';
 
+// Le garde de quota WCL a ses propres tests ; ici on le neutralise par défaut et on vérifie
+// seulement qu'un refus de sa part sort avant la moindre dépense.
+const { guardWclSpend } = vi.hoisted(() => ({ guardWclSpend: vi.fn(async () => null) }));
+
+vi.mock('@/lib/api/wcl-guard', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api/wcl-guard')>()),
+  guardWclSpend,
+}));
+
 function makeRequest(region?: string) {
   const url = region
     ? `http://localhost/api/search/realm?region=${region}`
@@ -106,5 +115,20 @@ describe('search/realm route', () => {
 
     expect(res.status).toBe(200);
     expect(json).toEqual([]);
+  });
+});
+
+// Sans ce test, retirer le garde d'une route ne casserait rien : c'est lui qui atteste que
+// le refus sort avant le premier appel à Warcraft Logs.
+describe('search/realm route under the WCL guard', () => {
+  it('returns the guard refusal without spending anything', async () => {
+    guardWclSpend.mockResolvedValueOnce(new Response(null, { status: 429 }) as unknown as null);
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const res = await GET(makeRequest('EU'));
+
+    expect(res.status).toBe(429);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

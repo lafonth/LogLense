@@ -1,4 +1,4 @@
-import { redisExpire, redisIncr } from '@/lib/redis';
+import { redisExpire, redisIncrBy } from '@/lib/redis';
 
 /** Verdicts par heure et par compte. Un joueur qui juge honnêtement n'approche pas ce seuil. */
 export const LABEL_LIMIT = 60;
@@ -16,10 +16,22 @@ export const EXPOSURE_LIMIT = 120;
  */
 export const AI_LIMIT = 20;
 
-/** Préfixes de compteur. Trois quotas distincts : saturer l'un ne doit pas fermer les autres. */
+/**
+ * Appels Warcraft Logs par heure et par compte — des unités, pas des requêtes HTTP.
+ *
+ * Une analyse de boss en vaut une cinquantaine, une lecture de métadonnées une seule : le
+ * plafond porte sur ce qui est dépensé chez WCL, pas sur ce qui entre chez nous. Deux mille
+ * unités, c'est une quarantaine de boss par heure — largement au-delà d'un raid entier relu
+ * sur plusieurs specs, très en deçà de ce qu'un script tirerait. La sanction d'en face est
+ * discrétionnaire et porte sur la clé : le plafond doit mordre avant elle.
+ */
+export const WCL_UNIT_LIMIT = 2000;
+
+/** Préfixes de compteur. Quatre quotas distincts : saturer l'un ne doit pas fermer les autres. */
 export const LABEL_PREFIX = 'ratelimit:labels';
 export const EXPOSURE_PREFIX = 'ratelimit:exposure';
 export const AI_PREFIX = 'ratelimit:ai';
+export const WCL_PREFIX = 'ratelimit:wcl';
 
 /** Largeur de la fenêtre. Fixe, pas glissante : un compteur, pas un historique à relire. */
 export const WINDOW_MS = 3_600_000;
@@ -59,12 +71,18 @@ export interface RateVerdict {
  * pour toujours. Si l'`EXPIRE` échoue quand même, on laisse passer : la remise à zéro de la
  * fenêtre n'est plus garantie, et bloquer sur un compteur qui ne redescendra peut-être
  * jamais coûte plus cher que la requête qu'on laisse filer.
+ *
+ * `cost` est le nombre d'unités que la requête consomme. Il est ajouté avant la comparaison,
+ * donc une requête qui déborde le plafond l'a déjà payé : le compteur intègre son coût même
+ * refusée. C'est voulu — décompter après coup demanderait un second aller-retour, et la
+ * fenêtre se remet à zéro d'elle-même.
  */
 export async function consumeQuota(
   prefix: string,
   limit: number,
   by: string,
-  atMs: number
+  atMs: number,
+  cost = 1
 ): Promise<RateVerdict> {
   const key = quotaKey(prefix, by, atMs);
   const windowSeconds = Math.ceil(WINDOW_MS / 1000);
@@ -72,7 +90,7 @@ export async function consumeQuota(
 
   let count: number;
   try {
-    count = await redisIncr(key);
+    count = await redisIncrBy(key, cost);
   } catch {
     return { allowed: true, retryAfterSeconds: 0 };
   }
@@ -115,7 +133,8 @@ export async function consumeStrictQuota(
   prefix: string,
   limit: number,
   by: string,
-  atMs: number
+  atMs: number,
+  cost = 1
 ): Promise<StrictVerdict> {
   const key = quotaKey(prefix, by, atMs);
   const windowSeconds = Math.ceil(WINDOW_MS / 1000);
@@ -123,7 +142,7 @@ export async function consumeStrictQuota(
 
   let count: number;
   try {
-    count = await redisIncr(key);
+    count = await redisIncrBy(key, cost);
   } catch {
     return { allowed: false, retryAfterSeconds, unavailable: true };
   }
@@ -141,4 +160,15 @@ export async function consumeStrictQuota(
 
 export function consumeAiQuota(by: string, atMs: number): Promise<StrictVerdict> {
   return consumeStrictQuota(AI_PREFIX, AI_LIMIT, by, atMs);
+}
+
+/**
+ * Consomme `units` du budget Warcraft Logs horaire d'un compte.
+ *
+ * Strict comme le quota IA, et pour la même raison : ce qui n'est pas compté n'est pas
+ * plafonné. La différence est que la dépense n'est pas ici de l'argent mais du crédit chez
+ * un tiers dont la sanction — la révocation de la clé — arrête le produit entier.
+ */
+export function consumeWclQuota(by: string, atMs: number, units: number): Promise<StrictVerdict> {
+  return consumeStrictQuota(WCL_PREFIX, WCL_UNIT_LIMIT, by, atMs, units);
 }

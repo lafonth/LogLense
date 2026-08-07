@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { redisAppend, redisGet, redisSet } from '@/lib/redis';
+import { redisAppend, redisGet, redisIncrBy, redisSet, redisSetEx } from '@/lib/redis';
 
 const BASE = 'https://test.upstash.io';
 const TOKEN = 'test-token';
@@ -84,5 +84,48 @@ describe('redisAppend', () => {
     );
 
     await expect(redisAppend('k', 'v')).rejects.toThrow(/list length/);
+  });
+});
+
+describe('redisSetEx', () => {
+  // La durée de vie voyage dans la commande, pas dans un EXPIRE séparé : une écriture qui
+  // réussit et un EXPIRE qui échoue laisseraient la copie permanente que les CGU refusent.
+  it('writes the value and its expiry in one command', async () => {
+    mockUpstash('OK');
+    await redisSetEx('wcl:pool:v1:1:5:druid:feral', '{"candidates":[]}', 21600);
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      BASE,
+      expect.objectContaining({
+        body: JSON.stringify([
+          'SET',
+          'wcl:pool:v1:1:5:druid:feral',
+          '{"candidates":[]}',
+          'EX',
+          '21600',
+        ]),
+      })
+    );
+  });
+});
+
+describe('redisIncrBy', () => {
+  it('adds the cost and returns the new counter', async () => {
+    mockUpstash(50);
+
+    await expect(redisIncrBy('ratelimit:wcl:abc:1', 50)).resolves.toBe(50);
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      BASE,
+      expect.objectContaining({
+        body: JSON.stringify(['INCRBY', 'ratelimit:wcl:abc:1', '50']),
+      })
+    );
+  });
+
+  // Le quota strict échoue fermé sur une exception : encore faut-il qu'une réponse muette
+  // en lève une, au lieu de passer pour un compteur à zéro.
+  it('throws when Redis does not return a counter', async () => {
+    mockUpstash(null);
+
+    await expect(redisIncrBy('k', 1)).rejects.toThrow(/counter value/);
   });
 });

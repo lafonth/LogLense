@@ -4,18 +4,21 @@ import {
   AI_PREFIX,
   consumeAiQuota,
   consumeLabelQuota,
+  consumeWclQuota,
   LABEL_LIMIT,
   quotaKey,
   rateLimitKey,
+  WCL_PREFIX,
+  WCL_UNIT_LIMIT,
   WINDOW_MS,
 } from '../rate-limit';
 
-const { redisIncr, redisExpire } = vi.hoisted(() => ({
-  redisIncr: vi.fn(),
+const { redisIncrBy, redisExpire } = vi.hoisted(() => ({
+  redisIncrBy: vi.fn(),
   redisExpire: vi.fn(),
 }));
 
-vi.mock('@/lib/redis', () => ({ redisIncr, redisExpire }));
+vi.mock('@/lib/redis', () => ({ redisIncrBy, redisExpire }));
 
 const BY = 'a'.repeat(32);
 
@@ -40,7 +43,7 @@ describe('consumeLabelQuota', () => {
   });
 
   it('lets the last request of the quota through', async () => {
-    redisIncr.mockResolvedValue(LABEL_LIMIT);
+    redisIncrBy.mockResolvedValue(LABEL_LIMIT);
 
     await expect(consumeLabelQuota(BY, 0)).resolves.toEqual({
       allowed: true,
@@ -49,7 +52,7 @@ describe('consumeLabelQuota', () => {
   });
 
   it('refuses the one past it and points at the next window', async () => {
-    redisIncr.mockResolvedValue(LABEL_LIMIT + 1);
+    redisIncrBy.mockResolvedValue(LABEL_LIMIT + 1);
 
     const verdict = await consumeLabelQuota(BY, WINDOW_MS / 2);
 
@@ -60,7 +63,7 @@ describe('consumeLabelQuota', () => {
   // La durée de vie est posée à chaque appel : un EXPIRE manqué au premier verdict
   // laisserait une clé éternelle, donc un compte verrouillé pour toujours.
   it('renews the expiry on every call, not only when the counter is created', async () => {
-    redisIncr.mockResolvedValue(7);
+    redisIncrBy.mockResolvedValue(7);
 
     await consumeLabelQuota(BY, 0);
 
@@ -70,7 +73,7 @@ describe('consumeLabelQuota', () => {
   // Échoue ouvert : c'est redisAppend qui refusera l'écriture, et un verdict perdu ne se
   // rattrape pas.
   it('lets the request through when the counter cannot be read', async () => {
-    redisIncr.mockRejectedValue(new Error('upstash down'));
+    redisIncrBy.mockRejectedValue(new Error('upstash down'));
 
     await expect(consumeLabelQuota(BY, 0)).resolves.toEqual({
       allowed: true,
@@ -79,7 +82,7 @@ describe('consumeLabelQuota', () => {
   });
 
   it('lets the request through when the window can no longer be guaranteed to reset', async () => {
-    redisIncr.mockResolvedValue(LABEL_LIMIT + 1);
+    redisIncrBy.mockResolvedValue(LABEL_LIMIT + 1);
     redisExpire.mockRejectedValue(new Error('upstash down'));
 
     await expect(consumeLabelQuota(BY, 0)).resolves.toEqual({
@@ -96,15 +99,15 @@ describe('consumeAiQuota', () => {
   });
 
   it('counts on its own key, so saturating the labels does not close the AI', async () => {
-    redisIncr.mockResolvedValue(1);
+    redisIncrBy.mockResolvedValue(1);
 
     await consumeAiQuota(BY, 0);
 
-    expect(redisIncr).toHaveBeenCalledWith(quotaKey(AI_PREFIX, BY, 0));
+    expect(redisIncrBy).toHaveBeenCalledWith(quotaKey(AI_PREFIX, BY, 0), 1);
   });
 
   it('lets the last report of the quota through', async () => {
-    redisIncr.mockResolvedValue(AI_LIMIT);
+    redisIncrBy.mockResolvedValue(AI_LIMIT);
 
     await expect(consumeAiQuota(BY, 0)).resolves.toEqual({
       allowed: true,
@@ -114,7 +117,7 @@ describe('consumeAiQuota', () => {
   });
 
   it('refuses the one past it and points at the next window', async () => {
-    redisIncr.mockResolvedValue(AI_LIMIT + 1);
+    redisIncrBy.mockResolvedValue(AI_LIMIT + 1);
 
     const verdict = await consumeAiQuota(BY, WINDOW_MS / 2);
 
@@ -127,7 +130,7 @@ describe('consumeAiQuota', () => {
 
   // L'inverse exact de `consumeQuota` : là une donnée perdue, ici une dépense sans plafond.
   it('refuses when the counter cannot be read, and says why', async () => {
-    redisIncr.mockRejectedValue(new Error('upstash down'));
+    redisIncrBy.mockRejectedValue(new Error('upstash down'));
 
     const verdict = await consumeAiQuota(BY, 0);
 
@@ -136,10 +139,46 @@ describe('consumeAiQuota', () => {
   });
 
   it('refuses when the window can no longer be guaranteed to reset', async () => {
-    redisIncr.mockResolvedValue(1);
+    redisIncrBy.mockResolvedValue(1);
     redisExpire.mockRejectedValue(new Error('upstash down'));
 
     const verdict = await consumeAiQuota(BY, 0);
+
+    expect(verdict.allowed).toBe(false);
+    expect(verdict.unavailable).toBe(true);
+  });
+});
+
+describe('consumeWclQuota', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    redisExpire.mockResolvedValue(undefined);
+    redisIncrBy.mockResolvedValue(1);
+  });
+
+  // Le point du quota pondéré : une requête HTTP peut valoir cinquante appels chez WCL.
+  // Compter les requêtes plafonnerait ce qu'on reçoit, pas ce qu'on dépense.
+  it('charges the units the caller declares, on its own counter', async () => {
+    await consumeWclQuota(BY, 0, 50);
+
+    expect(redisIncrBy).toHaveBeenCalledWith(quotaKey(WCL_PREFIX, BY, 0), 50);
+  });
+
+  it('refuses a request whose cost overshoots the ceiling, even from under it', async () => {
+    redisIncrBy.mockResolvedValue(WCL_UNIT_LIMIT + 50);
+
+    const verdict = await consumeWclQuota(BY, 0, 50);
+
+    expect(verdict.allowed).toBe(false);
+    expect(verdict.unavailable).toBe(false);
+  });
+
+  // Strict comme le quota IA : une dépense non comptée est une dépense sans plafond, et la
+  // sanction d'en face porte sur la clé du produit entier.
+  it('refuses when the counter cannot be read', async () => {
+    redisIncrBy.mockRejectedValue(new Error('upstash down'));
+
+    const verdict = await consumeWclQuota(BY, 0, 50);
 
     expect(verdict.allowed).toBe(false);
     expect(verdict.unavailable).toBe(true);

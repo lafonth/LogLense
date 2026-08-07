@@ -20,16 +20,34 @@ export async function redisSet(key: string, value: string): Promise<void> {
 }
 
 /**
- * Incrémente un compteur et rend sa nouvelle valeur.
+ * Pose une valeur avec sa durée de vie, en une commande.
+ *
+ * Séparé de `redisSet` plutôt qu'ajouté en argument optionnel : ce qu'on écrit avec un TTL
+ * est du cache, ce qu'on écrit sans est de la donnée. Deux fonctions obligent l'appelant à
+ * nommer la durée à chaque site — un cache de réponses Warcraft Logs n'est légitime que
+ * parce qu'il expire, et un `SET` sans expiration en ferait la base de données permanente
+ * que les CGU refusent.
+ */
+export async function redisSetEx(key: string, value: string, ttlSeconds: number): Promise<void> {
+  await exec(['SET', key, value, 'EX', String(ttlSeconds)]);
+}
+
+/**
+ * Ajoute `amount` à un compteur et rend sa nouvelle valeur.
  *
  * Atomique côté Redis : c'est ce qui permet de compter juste alors que les route handlers
  * s'exécutent sur des instances indépendantes, où un compteur en mémoire ne compterait
  * qu'une fraction du trafic.
+ *
+ * Le pas est un paramètre parce que toutes les requêtes ne coûtent pas la même chose :
+ * l'analyse d'un boss vaut une cinquantaine d'appels Warcraft Logs, la lecture d'une liste
+ * de zones en vaut un. Compter les requêtes plafonnerait le nombre d'appels HTTP reçus,
+ * pas la dépense qu'ils déclenchent.
  */
-export async function redisIncr(key: string): Promise<number> {
-  const value = await exec<number | null>(['INCR', key]);
+export async function redisIncrBy(key: string, amount: number): Promise<number> {
+  const value = await exec<number | null>(['INCRBY', key, String(amount)]);
   if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new TypeError(`INCR ${key} did not return a counter value`);
+    throw new TypeError(`INCRBY ${key} did not return a counter value`);
   }
   return value;
 }

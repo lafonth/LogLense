@@ -1,5 +1,6 @@
 import type { Zone } from '@/types';
 import { NextResponse } from 'next/server';
+import { guardWclSpend, METADATA_UNITS } from '@/lib/api/wcl-guard';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { gql } from '@/lib/wcl/client';
 import { Q_ZONES } from '@/lib/wcl/queries';
@@ -26,6 +27,9 @@ export async function GET() {
   if (!clientId || !clientSecret) {
     return NextResponse.json({ error: 'WCL credentials not configured' }, { status: 500 });
   }
+
+  const refusal = await guardWclSpend(METADATA_UNITS);
+  if (refusal) return refusal;
 
   try {
     const token = await getWCLToken(clientId, clientSecret);

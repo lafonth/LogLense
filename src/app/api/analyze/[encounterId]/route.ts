@@ -1,5 +1,6 @@
 import type { AnalysisInput } from '@/types';
 import { NextResponse } from 'next/server';
+import { BOSS_ANALYSIS_UNITS, guardWclSpend } from '@/lib/api/wcl-guard';
 import { recordExposure } from '@/lib/labels/record-exposure';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { analyzeBoss } from '@/lib/wcl/pipeline';
@@ -36,6 +37,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
   if (!body.specId || typeof body.specId !== 'number') {
     return NextResponse.json({ error: 'specId is required' }, { status: 400 });
   }
+
+  // Après validation, avant la première requête WCL : c'est la seule position où le quota
+  // borne quelque chose. Un boss vaut une cinquantaine d'appels chez un tiers dont la
+  // sanction porte sur la clé du produit entier.
+  const refusal = await guardWclSpend(BOSS_ANALYSIS_UNITS);
+  if (refusal) return refusal;
 
   try {
     const token = await getWCLToken(clientId, clientSecret);

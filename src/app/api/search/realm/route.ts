@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { guardWclSpend, METADATA_UNITS } from '@/lib/api/wcl-guard';
 
 export const runtime = 'nodejs';
 
@@ -54,6 +55,14 @@ const realmCache: Record<
 const REALM_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
 
 export async function GET(req: NextRequest) {
+  // Cette route interroge Blizzard, pas Warcraft Logs, mais elle le fait avec une clé du
+  // produit et son abus se sanctionne pareil. Elle partage donc le compteur plutôt que d'en
+  // ouvrir un cinquième : c'est un budget d'appels tiers, pas un budget par fournisseur.
+  // La garde passe avant le cache mémoire — une unité sur deux mille ne vaut pas une
+  // exception qui laisserait la route ouverte aux anonymes dès qu'elle est chaude.
+  const refusal = await guardWclSpend(METADATA_UNITS);
+  if (refusal) return refusal;
+
   const region = (new URL(req.url).searchParams.get('region') ?? 'EU').toUpperCase();
   const host = REGION_HOSTS[region] ?? REGION_HOSTS.EU;
   const namespace = `dynamic-${region.toLowerCase()}`;

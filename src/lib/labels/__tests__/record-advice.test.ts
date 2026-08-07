@@ -4,16 +4,16 @@ import { PROMPT_VERSION } from '@/lib/ai/prompt';
 import { EXPOSURE_LIMIT } from '../rate-limit';
 import { recordAdvice } from '../record-advice';
 
-const { getServerSession, redisAppend, redisIncr, redisExpire } = vi.hoisted(() => ({
+const { getServerSession, redisAppend, redisIncrBy, redisExpire } = vi.hoisted(() => ({
   getServerSession: vi.fn(),
   redisAppend: vi.fn(),
-  redisIncr: vi.fn(),
+  redisIncrBy: vi.fn(),
   redisExpire: vi.fn(),
 }));
 
 vi.mock('next-auth/next', () => ({ getServerSession }));
 vi.mock('@/lib/auth', () => ({ authOptions: {} }));
-vi.mock('@/lib/redis', () => ({ redisAppend, redisIncr, redisExpire }));
+vi.mock('@/lib/redis', () => ({ redisAppend, redisIncrBy, redisExpire }));
 
 function boss(): BossResult {
   return {
@@ -84,7 +84,7 @@ describe('recordAdvice', () => {
     process.env.LABEL_SALT = 'pepper';
     getServerSession.mockResolvedValue(SESSION);
     redisAppend.mockResolvedValue(1);
-    redisIncr.mockResolvedValue(1);
+    redisIncrBy.mockResolvedValue(1);
     redisExpire.mockResolvedValue(undefined);
   });
 
@@ -142,12 +142,12 @@ describe('recordAdvice', () => {
 
   // Le quota est celui des expositions : un rapport IA est un rendu de plus.
   it('stops writing once the account has exhausted its exposure quota', async () => {
-    redisIncr.mockResolvedValue(EXPOSURE_LIMIT + 1);
+    redisIncrBy.mockResolvedValue(EXPOSURE_LIMIT + 1);
 
     await recordAdvice(boss(), ARGS);
 
     expect(redisAppend).not.toHaveBeenCalled();
-    expect(String(redisIncr.mock.calls[0][0])).toMatch(/^ratelimit:exposure:[0-9a-f]{32}:\d+$/);
+    expect(String(redisIncrBy.mock.calls[0][0])).toMatch(/^ratelimit:exposure:[0-9a-f]{32}:\d+$/);
   });
 
   // La capture ne doit jamais empêcher le rapport de partir.

@@ -2,12 +2,26 @@ import type { EligibilityProfile } from '../eligibility';
 import type { WorldRanking } from '../references';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CANDIDATE_PAGES, TOP_N, VERIFICATION_WINDOW } from '../constants';
+import { POOL_TTL_SECONDS, poolCacheKey } from '../pool-cache';
 import { fetchCandidatePool, resolveReferences } from '../references';
+
+const { redisGet, redisSetEx } = vi.hoisted(() => ({
+  redisGet: vi.fn(),
+  redisSetEx: vi.fn(),
+}));
+
+vi.mock('@/lib/redis', () => ({ redisGet, redisSetEx }));
 
 const NO_EXCLUDE = { code: '__none__', fightID: -1 };
 
+const POOL_ARGS = { encounterId: 1, difficulty: 5, specName: 'Feral', className: 'Druid' };
+
 describe('fetchCandidatePool', () => {
-  beforeEach(() => vi.restoreAllMocks());
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    redisGet.mockResolvedValue(null);
+    redisSetEx.mockResolvedValue(undefined);
+  });
 
   function page(n: number, entries: number) {
     return {
@@ -82,6 +96,74 @@ describe('fetchCandidatePool', () => {
 
     expect(pool.pagesFetched).toBe(CANDIDATE_PAGES - 1);
     expect(pool.candidates).toHaveLength(CANDIDATE_PAGES - 1);
+  });
+
+  // La raison d'être du cache : dix pages, c'est le gros de la facture WCL d'une analyse.
+  it('serves a cached pool without touching Warcraft Logs', async () => {
+    const cached = {
+      candidates: [{ name: 'p', report: { code: 'x', fightID: 1 } }],
+      pagesFetched: 4,
+    };
+    redisGet.mockResolvedValue(JSON.stringify(cached));
+    globalThis.fetch = vi.fn();
+
+    const pool = await fetchCandidatePool('token', POOL_ARGS);
+
+    expect(pool).toEqual(cached);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(redisGet).toHaveBeenCalledWith(poolCacheKey(POOL_ARGS));
+  });
+
+  // Le TTL est la garantie vis-à-vis du §5d : une copie sans expiration serait la base de
+  // données permanente que les CGU refusent. Il est donc vérifié, pas seulement documenté.
+  it('writes a complete pool with an explicit expiry', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: page(0, 2) }),
+    } as Response);
+
+    await fetchCandidatePool('token', POOL_ARGS);
+
+    expect(redisSetEx).toHaveBeenCalledWith(
+      poolCacheKey(POOL_ARGS),
+      expect.any(String),
+      POOL_TTL_SECONDS
+    );
+  });
+
+  // Une page perdue est un incident réseau ; l'écrire la figerait six heures pour toute la spec.
+  it('does not cache a pool that is missing a page', async () => {
+    let call = 0;
+    globalThis.fetch = vi.fn().mockImplementation(async () => {
+      call += 1;
+      if (call === 3) return { ok: false, status: 500 } as Response;
+      return { ok: true, json: async () => ({ data: page(call, 1) }) } as Response;
+    });
+
+    await fetchCandidatePool('token', POOL_ARGS);
+
+    expect(redisSetEx).not.toHaveBeenCalled();
+  });
+
+  // Échoue ouvert, à l'inverse du quota : un cache muet coûte des requêtes, il ne doit pas
+  // coûter l'analyse.
+  it('falls back to a live fetch when Redis is down', async () => {
+    redisGet.mockRejectedValue(new Error('upstash down'));
+    redisSetEx.mockRejectedValue(new Error('upstash down'));
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: page(0, 2) }),
+    } as Response);
+
+    const pool = await fetchCandidatePool('token', POOL_ARGS);
+
+    expect(pool.pagesFetched).toBe(CANDIDATE_PAGES);
+    expect(pool.candidates).toHaveLength(2);
+  });
+
+  it('gives two specs of the same boss different cache keys', () => {
+    expect(poolCacheKey(POOL_ARGS)).not.toBe(poolCacheKey({ ...POOL_ARGS, specName: 'Balance' }));
+    expect(poolCacheKey(POOL_ARGS)).not.toBe(poolCacheKey({ ...POOL_ARGS, difficulty: 4 }));
   });
 });
 

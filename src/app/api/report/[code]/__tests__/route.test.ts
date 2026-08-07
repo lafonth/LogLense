@@ -3,6 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { gql } from '@/lib/wcl/client';
 import { GET } from '../route';
 
+// Le garde de quota WCL a ses propres tests ; ici on le neutralise par défaut et on vérifie
+// seulement qu'un refus de sa part sort avant la moindre dépense.
+const { guardWclSpend } = vi.hoisted(() => ({ guardWclSpend: vi.fn(async () => null) }));
+
+vi.mock('@/lib/api/wcl-guard', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api/wcl-guard')>()),
+  guardWclSpend,
+}));
+
 vi.mock('@/lib/wcl/auth', () => ({
   getWCLToken: vi.fn().mockResolvedValue('mock-token'),
 }));
@@ -127,5 +136,18 @@ describe('report/[code] route', () => {
     const json = await res.json();
 
     expect(json.fights[0].kill).toBe(false);
+  });
+});
+
+// Sans ce test, retirer le garde d'une route ne casserait rien : c'est lui qui atteste que
+// le refus sort avant le premier appel à Warcraft Logs.
+describe('report/[code] route under the WCL guard', () => {
+  it('returns the guard refusal without spending anything', async () => {
+    guardWclSpend.mockResolvedValueOnce(new Response(null, { status: 429 }) as unknown as null);
+
+    const res = await GET(makeRequest('abc123def456ghij'), makeParams('abc123def456ghij'));
+
+    expect(res.status).toBe(429);
+    expect(gqlMock).not.toHaveBeenCalled();
   });
 });

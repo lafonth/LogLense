@@ -4,15 +4,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AI_LIMIT } from '@/lib/labels/rate-limit';
 import { GET, POST } from '../route';
 
-const { getServerSession, redisAppend, redisIncr, redisExpire } = vi.hoisted(() => ({
+const { getServerSession, redisAppend, redisIncrBy, redisExpire } = vi.hoisted(() => ({
   getServerSession: vi.fn(),
   redisAppend: vi.fn(),
-  redisIncr: vi.fn(),
+  redisIncrBy: vi.fn(),
   redisExpire: vi.fn(),
 }));
 
 vi.mock('next-auth/next', () => ({ getServerSession }));
-vi.mock('@/lib/redis', () => ({ redisAppend, redisIncr, redisExpire }));
+vi.mock('@/lib/redis', () => ({ redisAppend, redisIncrBy, redisExpire }));
 
 function makeTextStream(text: string) {
   return new ReadableStream<AIStreamChunk>({
@@ -88,7 +88,7 @@ describe('ai-report route', () => {
     vi.unstubAllEnvs();
     vi.stubEnv('LABEL_SALT', 'pepper');
     getServerSession.mockResolvedValue(null);
-    redisIncr.mockResolvedValue(1);
+    redisIncrBy.mockResolvedValue(1);
     redisExpire.mockResolvedValue(undefined);
     redisAppend.mockResolvedValue(undefined);
   });
@@ -171,7 +171,7 @@ describe('ai-report route', () => {
 
     expect(res.status).toBe(200);
     expect(getServerSession).not.toHaveBeenCalled();
-    expect(redisIncr).not.toHaveBeenCalled();
+    expect(redisIncrBy).not.toHaveBeenCalled();
   });
 
   it('refuses the server key to an anonymous caller', async () => {
@@ -179,7 +179,7 @@ describe('ai-report route', () => {
     const res = await POST(makeRequest(mockResult));
 
     expect(res.status).toBe(401);
-    expect(redisIncr).not.toHaveBeenCalled();
+    expect(redisIncrBy).not.toHaveBeenCalled();
   });
 
   it('lets a signed-in caller spend the server key, and counts it', async () => {
@@ -189,14 +189,14 @@ describe('ai-report route', () => {
     const res = await POST(makeRequest(mockResult));
 
     expect(res.status).toBe(200);
-    expect(redisIncr).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(redisIncr).mock.calls[0][0]).toContain('ratelimit:ai');
+    expect(redisIncrBy).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(redisIncrBy).mock.calls[0][0]).toContain('ratelimit:ai');
   });
 
   it('refuses past the hourly ceiling and says when to come back', async () => {
     vi.stubEnv('ANTHROPIC_API_KEY', 'env-anthropic-key');
     getServerSession.mockResolvedValue({ user: { email: 'someone@example.com' } });
-    redisIncr.mockResolvedValue(AI_LIMIT + 1);
+    redisIncrBy.mockResolvedValue(AI_LIMIT + 1);
 
     const res = await POST(makeRequest(mockResult));
 
@@ -209,7 +209,7 @@ describe('ai-report route', () => {
   it('refuses the server key when the counter cannot be read', async () => {
     vi.stubEnv('ANTHROPIC_API_KEY', 'env-anthropic-key');
     getServerSession.mockResolvedValue({ user: { email: 'someone@example.com' } });
-    redisIncr.mockRejectedValue(new Error('upstash down'));
+    redisIncrBy.mockRejectedValue(new Error('upstash down'));
 
     const res = await POST(makeRequest(mockResult));
 

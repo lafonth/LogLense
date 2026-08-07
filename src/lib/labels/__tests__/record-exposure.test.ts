@@ -3,16 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EXPOSURE_LIMIT } from '../rate-limit';
 import { recordExposure } from '../record-exposure';
 
-const { getServerSession, redisAppend, redisIncr, redisExpire } = vi.hoisted(() => ({
+const { getServerSession, redisAppend, redisIncrBy, redisExpire } = vi.hoisted(() => ({
   getServerSession: vi.fn(),
   redisAppend: vi.fn(),
-  redisIncr: vi.fn(),
+  redisIncrBy: vi.fn(),
   redisExpire: vi.fn(),
 }));
 
 vi.mock('next-auth/next', () => ({ getServerSession }));
 vi.mock('@/lib/auth', () => ({ authOptions: {} }));
-vi.mock('@/lib/redis', () => ({ redisAppend, redisIncr, redisExpire }));
+vi.mock('@/lib/redis', () => ({ redisAppend, redisIncrBy, redisExpire }));
 
 function boss(renderId: string): BossResult {
   return {
@@ -83,7 +83,7 @@ describe('recordExposure', () => {
     process.env.LABEL_SALT = 'pepper';
     getServerSession.mockResolvedValue(SESSION);
     redisAppend.mockResolvedValue(1);
-    redisIncr.mockResolvedValue(1);
+    redisIncrBy.mockResolvedValue(1);
     redisExpire.mockResolvedValue(undefined);
   });
 
@@ -135,7 +135,7 @@ describe('recordExposure', () => {
   });
 
   it('stops writing once the account has exhausted its hourly quota', async () => {
-    redisIncr.mockResolvedValue(EXPOSURE_LIMIT + 1);
+    redisIncrBy.mockResolvedValue(EXPOSURE_LIMIT + 1);
 
     await recordExposure([boss('r1')], { dpsSource: 'ranking' });
 

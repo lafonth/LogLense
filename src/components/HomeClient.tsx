@@ -31,7 +31,14 @@ export function HomeClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status: sessionStatus } = useSession();
-  const { zones, loading: zonesLoading, error: zonesError } = useZones();
+  // Le hook est appelé avant les sorties anticipées plus bas — règle des hooks — donc c'est
+  // ici que se décide de ne pas taper une route qui exige une session : la page d'accueil
+  // déconnectée rend `MarketingLanding` et n'a aucune liste de raids à afficher.
+  const {
+    zones,
+    loading: zonesLoading,
+    error: zonesError,
+  } = useZones(sessionStatus === 'authenticated');
   const { bossStates, currentDifficulty, isAnyLoading, input, start, switchBossSpec, reset } =
     useAnalysis();
   const {
