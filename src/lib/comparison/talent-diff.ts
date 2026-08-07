@@ -147,6 +147,11 @@ export function diffTalents(
     );
   }
 
+  // Les deux colonnes se trient dans des sens opposés, et ce n'est pas une symétrie ratée :
+  // chacune met en tête ce qui, chez elle, porte l'information. À gauche, un talent que
+  // personne d'autre ne prend (`0 / n`) est l'écart à examiner ; à droite, c'est le talent que
+  // tout le monde prend et que je n'ai pas.
+  mineOnly.sort((a, b) => a.referenceCount - b.referenceCount);
   theirsOnly.sort((a, b) => b.referenceCount - a.referenceCount);
 
   return { mineOnly, theirsOnly, sharedCount, referenceTotal };

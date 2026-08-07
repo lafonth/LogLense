@@ -100,6 +100,24 @@ describe('diffTalents', () => {
     expect(counts).toEqual([...counts].sort((a, b) => b - a));
   });
 
+  it('sorts mineOnly ascending, so what nobody else took comes first', () => {
+    // Two divergences with different backing: 601 nobody else took, 603 two of three did.
+    // The lonely one is the one worth looking at — it must lead.
+    const nodes = [node(10, [601], 'Solitary'), node(11, [603, 604], 'Contested')];
+    const references = [
+      player('Aidan', { 603: 1 }),
+      player('Brea', { 603: 1 }),
+      player('Cass', { 604: 1 }),
+    ];
+
+    const sorted = diffTalents(nodes, { 601: 1, 603: 1 }, references);
+
+    expect(sorted.mineOnly.map((e) => [e.label, e.referenceCount])).toEqual([
+      ['Solitary', 0],
+      ['Contested', 2],
+    ]);
+  });
+
   it('treats every taken node as mine-only when there are no references', () => {
     const solo = diffTalents(NODES, { 101: 1, 103: 1 }, []);
 
@@ -153,6 +171,32 @@ describe('diffTalents choice-node divergence', () => {
         referenceTotal: 3,
       },
     ]);
+  });
+
+  it('labels a choice node with the option actually taken, not the first one', () => {
+    // The join is by index: `talentIds[i]` must name the same option as `names[i]`. Taking the
+    // *second* id is what distinguishes a correct index join from one that always reads
+    // `names[0]` — and it is the case the generator's `_Index` ordering exists to guarantee.
+    const nodes = [choiceNode(1, [501, 502], ['Savage Fury', 'Predatory Swiftness'])];
+    const references = [player('Aidan', { 501: 1 }), player('Brea', { 501: 1 })];
+
+    const result = diffTalents(nodes, { 502: 1 }, references);
+
+    expect(result.mineOnly.map((e) => e.label)).toEqual(['Predatory Swiftness']);
+    expect(result.theirsOnly.map((e) => e.label)).toEqual(['Savage Fury']);
+  });
+
+  it('falls back to #id when the generator produced a choice node without names', () => {
+    // The exact shape 25 generated files carried before the `isChoice` fix: two ids, no name
+    // anywhere. `#id` is a legitimate last resort — it must stay, and it must stay per-id, so
+    // two unnamed options never collapse onto one label.
+    const nodes = [choiceNode(1, [501, 502], ['', ''])];
+    const references = [player('Aidan', { 502: 1 }), player('Brea', { 502: 1 })];
+
+    const result = diffTalents(nodes, { 501: 1 }, references);
+
+    expect(result.mineOnly.map((e) => e.label)).toEqual(['#501']);
+    expect(result.theirsOnly.map((e) => e.label)).toEqual(['#502']);
   });
 
   it('counts a choice node as shared only when the taken id actually matches', () => {

@@ -2,6 +2,7 @@
 // Reads BLIZZARD_CLIENT_ID_DEV / BLIZZARD_CLIENT_SECRET_DEV from .env.local
 // Writes to: src/data/talents/spec-{specId}.json
 
+import { execSync } from 'child_process';
 import { writeFileSync, mkdirSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -66,22 +67,37 @@ async function bnet<T>(token: string, path: string): Promise<T> {
   return bnetUrl<T>(token, url, path);
 }
 
+/**
+ * TraitNodeID → ses TraitNodeEntryID, dans l'ordre de `_Index`.
+ *
+ * L'ordre n'est pas cosmétique : `talentIds[i]` doit désigner la même option que
+ * `choice_of_tooltips[i]`, sans quoi un nœud de choix se retrouve étiqueté avec le nom de
+ * l'autre option. `_Index` est la seule colonne qui porte cet ordre — l'ordre des lignes du
+ * fichier ne le garantit pas.
+ */
 function parseCsv(text: string): Map<number, number[]> {
-  const map = new Map<number, number[]>();
+  const ordered = new Map<number, Array<{ entryId: number; index: number }>>();
   const lines = text.split('\n').filter((l) => l.trim());
-  if (lines.length < 2) return map;
+  if (lines.length < 2) return new Map();
   const headers = lines[0].split(',').map((h) => h.trim().replace(/"/g, ''));
   const nodeCol = headers.findIndex((h) => h === 'TraitNodeID');
   const entryCol = headers.findIndex((h) => h === 'TraitNodeEntryID');
+  const indexCol = headers.findIndex((h) => h === '_Index' || h === 'Index');
   if (nodeCol === -1 || entryCol === -1) throw new Error('Missing CSV columns');
   for (const line of lines.slice(1)) {
     const cols = line.split(',');
     const nodeId = Number(cols[nodeCol]);
     const entryId = Number(cols[entryCol]);
     if (!nodeId || !entryId) continue;
-    const existing = map.get(nodeId);
-    if (existing) { if (!existing.includes(entryId)) existing.push(entryId); }
-    else map.set(nodeId, [entryId]);
+    const index = indexCol === -1 ? 0 : Number(cols[indexCol]);
+    const existing = ordered.get(nodeId);
+    if (existing) { if (!existing.some((e) => e.entryId === entryId)) existing.push({ entryId, index }); }
+    else ordered.set(nodeId, [{ entryId, index }]);
+  }
+
+  const map = new Map<number, number[]>();
+  for (const [nodeId, entries] of ordered) {
+    map.set(nodeId, entries.sort((a, b) => a.index - b.index).map((e) => e.entryId));
   }
   return map;
 }
@@ -162,8 +178,11 @@ async function main() {
       }
     }
     return nodes.map((node): TalentNode => {
-      const isChoice = node.node_type.type === 'SELECTION';
+      // Détecté sur la forme des données, pas sur `node_type.type` : Blizzard n'a jamais rendu
+      // la valeur qu'on y cherchait, et le nœud de choix repartait donc sans nom. Ce qu'on
+      // exploite ici, ce sont les `choice_of_tooltips` — c'est donc leur présence qui décide.
       const firstRank = (node.ranks ?? [])[0];
+      const isChoice = Boolean(firstRank?.choice_of_tooltips?.length);
       const names: string[] = [];
       let spellId = 0, name = '';
       if (isChoice) {
@@ -192,10 +211,33 @@ async function main() {
   const noMatch = allNodes.filter((n) => n.talentIds.length === 0).length;
   if (noMatch > 0) console.warn(`  Warning: ${noMatch} nodes have no TraitNodeEntryID mapping`);
 
+  // Un nœud sans nom s'affiche `#<id>` dans le panneau Build et arrive tel quel dans le
+  // prompt IA. Le script est resté muet là-dessus pendant vingt-cinq générations : c'est ce
+  // silence qui a coûté le bug, pas la ligne qui le produisait.
+  const unnamed = allNodes.filter((n) => !n.name || n.names.some((x) => !x));
+  if (unnamed.length > 0) {
+    console.warn(`  Warning: ${unnamed.length} nodes have no name — they will render as #id`);
+    for (const n of unnamed.slice(0, 5)) console.warn(`    node ${n.id} (${n.treeType} ${n.row}/${n.col}, ${n.nodeType})`);
+  }
+
+  const choiceCount = allNodes.filter((n) => n.nodeType === 'choice').length;
+  console.log(`  Choice nodes: ${choiceCount}`);
+
   const outDir = resolve(process.cwd(), 'src/data/talents');
   mkdirSync(outDir, { recursive: true });
   const outPath = resolve(outDir, `spec-${SPEC_ID}.json`);
   writeFileSync(outPath, JSON.stringify(allNodes, null, 2));
+
+  // `JSON.stringify` et Prettier ne sont pas d'accord sur les tableaux courts : sans ce
+  // passage, toute régénération fait échouer `pnpm format:check`, donc le hook pre-commit.
+  try {
+    // `execSync` et non `execFileSync` : sous Windows `npx` est un script, il exige un shell,
+    // et `execFileSync` + `shell: true` déclenche un avertissement de dépréciation Node.
+    execSync(`npx prettier --write "${outPath}"`, { stdio: 'ignore' });
+  } catch {
+    console.warn('  Warning: prettier failed — run `pnpm format:write` before committing');
+  }
+
   console.log(`Wrote ${allNodes.length} nodes → ${outPath}`);
   console.log(`  Class: ${classNodes.length}, Spec: ${specNodes.length}`);
 }
