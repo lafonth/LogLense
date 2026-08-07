@@ -19,6 +19,7 @@ function provenance(name: string, i: number, over: Partial<ReferenceProvenance> 
     disqualifiedBy: [],
     tierPieces: 4,
     externalUptime: 0,
+    explored: false,
     ...over,
   } satisfies ReferenceProvenance;
 }
@@ -43,7 +44,7 @@ function topPlayer(name: string, i: number, over: Partial<ReferenceProvenance> =
   };
 }
 
-function sampleEntry(name: string, i: number, qualified = true): ReferenceSample {
+function sampleEntry(name: string, i: number, qualified = true, explored = false): ReferenceSample {
   return {
     name,
     code: `code-${i}`,
@@ -62,6 +63,7 @@ function sampleEntry(name: string, i: number, qualified = true): ReferenceSample
     dps: 123456,
     killTimeMs: 317924,
     qualified,
+    explored,
   };
 }
 
@@ -157,6 +159,26 @@ describe('buildExposure', () => {
     expect(buildExposure(r, ARGS).references[0].distance).toBeNull();
   });
 
+  // Elle vient de l'échantillon, pas du panel : une entrée tirée que la sélection a écartée
+  // de l'affichage doit rester marquée, sinon le corpus la relit comme un choix de la règle.
+  it('marks the explored entry wherever it sits, panel or not', () => {
+    const r = result({
+      sample: [
+        sampleEntry(REFERENCE_NAMES[0], 1),
+        sampleEntry(REFERENCE_NAMES[1], 2, true, true),
+        sampleEntry(REFERENCE_NAMES[2], 3),
+        sampleEntry(REFERENCE_NAMES[3], 4, false, true),
+      ],
+    });
+
+    expect(buildExposure(r, ARGS).references.map((e) => e.explored)).toEqual([
+      false,
+      true,
+      false,
+      true,
+    ]);
+  });
+
   it('carries the disqualification verdicts of the panel', () => {
     const r = result();
     r.topPlayers[1].provenance.disqualifiedBy = ['set-bonus', 'external'];
@@ -186,6 +208,7 @@ describe('buildExposure', () => {
         'contestable',
         'disqualifiedBy',
         'distance',
+        'explored',
         'fightID',
         'qualified',
         'rank',

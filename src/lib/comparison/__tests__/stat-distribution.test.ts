@@ -26,6 +26,7 @@ function entry(name: string, avgIlvl: number, qualified = true): ReferenceSample
     dps: 300000,
     killTimeMs: 200000,
     qualified,
+    explored: false,
   };
 }
 

@@ -47,6 +47,7 @@ function player(name: string, talents: Record<number, number>): TopPlayer {
       disqualifiedBy: [],
       tierPieces: 4,
       externalUptime: 0,
+      explored: false,
     },
   };
 }

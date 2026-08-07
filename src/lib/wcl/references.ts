@@ -6,7 +6,7 @@ import type { Comparability, ReferenceSample, TopPlayer } from '@/types';
 import { gql } from './client';
 import { findCombatantByName } from './combatant';
 import { comparabilityLevel, medianOf, selectClosest } from './comparability';
-import { CANDIDATE_PAGES, TOP_N, VERIFICATION_WINDOW } from './constants';
+import { CANDIDATE_PAGES, EXPLORATION_RATE, TOP_N, VERIFICATION_WINDOW } from './constants';
 import { disqualify, eligibilityOf } from './eligibility';
 import { fetchFightData } from './fight-data';
 import { fmtMs, parseStats } from './parsers';
@@ -84,6 +84,29 @@ interface VerifiedCandidate {
   combatant: CombatantEvent;
   profile: EligibilityProfile;
   disqualifiedBy: DisqualificationReason[];
+  /** Tiré hors fenêtre plutôt que sélectionné. Porté jusqu'au corpus, jamais perdu en route. */
+  explored: boolean;
+}
+
+/**
+ * Tire un candidat hors de la fenêtre de vérification, ou rien.
+ *
+ * Le corpus n'apprend rien d'un sélecteur qui ne montre que ce qu'il approuve déjà : sans
+ * candidat lointain jamais montré, il n'existe aucune observation contredisant la règle de
+ * distance, et un modèle entraîné dessus la recopie au lieu de la corriger.
+ *
+ * Le tirage se limite aux candidats scorables. Un `Infinity` dit « je n'ai pas pu juger »,
+ * pas « c'est loin » : l'explorer testerait l'absence de `bracketData`, pas l'hypothèse.
+ */
+function pickExploration(
+  beyond: ScoredCandidate<WorldRanking>[],
+  random: () => number
+): ScoredCandidate<WorldRanking> | null {
+  if (random() >= EXPLORATION_RATE) return null;
+  const scorable = beyond.filter((s) => Number.isFinite(s.distance));
+  if (scorable.length === 0) return null;
+  // Borné : `random()` rendant exactement 1 sortirait du tableau.
+  return scorable[Math.min(scorable.length - 1, Math.floor(random() * scorable.length))];
 }
 
 /**
@@ -98,7 +121,8 @@ interface VerifiedCandidate {
 async function verifyCandidate(
   token: string,
   scored: ScoredCandidate<WorldRanking>,
-  mine: EligibilityProfile
+  mine: EligibilityProfile,
+  explored: boolean
 ): Promise<VerifiedCandidate | null> {
   const { candidate } = scored;
   const { code, fightID } = candidate.report;
@@ -115,7 +139,7 @@ async function verifyCandidate(
     });
 
     const profile = eligibilityOf(combatant, data.reportData.report.buffs, candidate.duration);
-    return { scored, combatant, profile, disqualifiedBy: disqualify(profile, mine) };
+    return { scored, combatant, profile, disqualifiedBy: disqualify(profile, mine), explored };
   } catch {
     return null;
   }
@@ -144,13 +168,14 @@ function sampleOf(verified: VerifiedCandidate[]): ReferenceSample[] {
         dps: Math.round(candidate.amount),
         killTimeMs: candidate.duration,
         qualified: v.disqualifiedBy.length === 0,
+        explored: v.explored,
       },
     ];
   });
 }
 
 async function buildTopPlayer(token: string, verified: VerifiedCandidate): Promise<TopPlayer> {
-  const { scored, combatant, profile, disqualifiedBy } = verified;
+  const { scored, combatant, profile, disqualifiedBy, explored } = verified;
   const { candidate, distance } = scored;
   const { code, fightID } = candidate.report;
 
@@ -180,6 +205,7 @@ async function buildTopPlayer(token: string, verified: VerifiedCandidate): Promi
       disqualifiedBy,
       tierPieces: profile.tierPieces,
       externalUptime: profile.externalUptime,
+      explored,
     },
   };
 }
@@ -206,6 +232,18 @@ async function buildTopPlayer(token: string, verified: VerifiedCandidate): Promi
  * Le panel est le sous-produit cher : `sample` porte toute la fenêtre, parce que la
  * question posée à l'écran est « où je me situe dans la distribution », pas « voici trois
  * joueurs ». Il n'y a pas de requête de plus à payer pour l'élargir.
+ *
+ * Un rendu sur dix cède son dernier rang à un candidat tiré hors fenêtre. C'est la seule
+ * façon d'obtenir une observation sur ce que la sélection écarte : sans elle, le corpus ne
+ * contient que ce que la règle de distance approuvait déjà, et ne peut donc pas servir à la
+ * remettre en cause.
+ *
+ * La référence explorée entre dans le calcul du niveau de comparabilité comme les autres.
+ * Elle n'en change presque jamais le verdict — la médiane de trois distances absorbe une
+ * valeur extrême, c'est ce pour quoi elle a été choisie. La bannière sous-estime donc
+ * légèrement le coût de la fente ; l'alternative, forcer `poor` comme pour un substitut, le
+ * surestimerait bien davantage : un candidat lointain reste une comparaison légitime, là où
+ * un substitut est une comparaison que les critères éliminatoires ont refusée.
  */
 export async function resolveReferences(
   token: string,
@@ -215,28 +253,45 @@ export async function resolveReferences(
     myKillTimeMs: number;
     exclude: { code: string; fightID: number };
     mine: EligibilityProfile;
+    /** Injecté pour que le tirage d'exploration soit testable. `Math.random` en production. */
+    random?: () => number;
   }
 ): Promise<ResolvedReferences> {
-  const { myIlvl, myKillTimeMs, exclude, mine } = args;
+  const { myIlvl, myKillTimeMs, exclude, mine, random = Math.random } = args;
 
   const filtered = pool.candidates.filter(
     (c) => !(c.report.code === exclude.code && c.report.fightID === exclude.fightID)
   );
 
-  const closest = selectClosest(filtered, myIlvl, myKillTimeMs, VERIFICATION_WINDOW);
+  // Tout le vivier est scoré une fois : la fenêtre en tête, et le reste, d'où l'exploration
+  // tire. Deux appels à `selectClosest` re-scoreraient les mêmes candidats pour rien.
+  const ranked = selectClosest(filtered, myIlvl, myKillTimeMs, filtered.length);
+  const closest = ranked.slice(0, VERIFICATION_WINDOW);
+  const exploration = pickExploration(ranked.slice(VERIFICATION_WINDOW), random);
 
   // Promise.all preserves order, so both partitions stay sorted by distance and the
   // substitutes are drawn from the least-far eliminated candidate first.
-  const verified = (await Promise.all(closest.map((s) => verifyCandidate(token, s, mine)))).filter(
-    (v): v is VerifiedCandidate => v !== null
-  );
+  const verified = (
+    await Promise.all([
+      ...closest.map((s) => verifyCandidate(token, s, mine, false)),
+      ...(exploration ? [verifyCandidate(token, exploration, mine, true)] : []),
+    ])
+  ).filter((v): v is VerifiedCandidate => v !== null);
 
-  const qualified = verified.filter((v) => v.disqualifiedBy.length === 0);
-  const eliminated = verified.filter((v) => v.disqualifiedBy.length > 0);
+  const window = verified.filter((v) => !v.explored);
+  // Une exploration disqualifiée n'entre pas au panel : la fente sert à montrer un candidat
+  // que la distance écarte, pas à contourner les critères éliminatoires.
+  const explored = verified.find((v) => v.explored && v.disqualifiedBy.length === 0) ?? null;
 
-  const chosen = qualified.slice(0, TOP_N);
-  const substitutes = eliminated.slice(0, TOP_N - chosen.length);
-  const references = [...chosen, ...substitutes];
+  const qualified = window.filter((v) => v.disqualifiedBy.length === 0);
+  const eliminated = window.filter((v) => v.disqualifiedBy.length > 0);
+
+  // L'exploration prend le dernier rang, et le prend à la sélection : le panel garde sa
+  // taille, il n'est pas élargi pour absorber le coût sans le montrer.
+  const slots = explored ? TOP_N - 1 : TOP_N;
+  const chosen = qualified.slice(0, slots);
+  const substitutes = eliminated.slice(0, slots - chosen.length);
+  const references = [...chosen, ...substitutes, ...(explored ? [explored] : [])];
 
   const topPlayers = await Promise.all(references.map((v) => buildTopPlayer(token, v)));
 

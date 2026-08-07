@@ -113,6 +113,13 @@ export interface ReferenceProvenance {
   tierPieces: number | null;
   /** Uptime cumulée des externals offensifs reçus, en points de durée du combat. */
   externalUptime: number;
+  /**
+   * Vraie quand la référence vient de la fente d'exploration, hors de ce que la sélection
+   * aurait retenu. À l'entraînement, elle sépare « montrée parce que la règle l'a choisie »
+   * de « montrée pour voir » : confondre les deux ferait passer le biais du sélecteur pour
+   * du signal.
+   */
+  explored: boolean;
 }
 
 export interface TopPlayer {
@@ -141,6 +148,8 @@ export interface ReferenceSample {
   killTimeMs: number;
   /** Faux quand un critère éliminatoire l'a écarté : la distribution doit pouvoir l'exclure. */
   qualified: boolean;
+  /** Même marque que sur {@link ReferenceProvenance} : tirée hors fenêtre, pas sélectionnée. */
+  explored: boolean;
 }
 
 export interface FightTarget {

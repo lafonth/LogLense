@@ -21,6 +21,20 @@ export const CANDIDATE_PAGES = 10;
 export const VERIFICATION_WINDOW = 12;
 
 /**
+ * Probabilité qu'un rendu tire une référence hors de la fenêtre de vérification.
+ *
+ * Sans elle, le corpus ne contient que des candidats que l'heuristique de distance avait
+ * déjà approuvés : la classe positive est produite par le sélecteur même qu'un modèle
+ * devrait remplacer, et aucun contre-factuel n'existe sur ce qu'elle a écarté. Un modèle
+ * entraîné là-dessus ne peut au mieux que réapprendre la règle.
+ *
+ * 10 % : assez pour que le corpus contienne des candidats lointains, assez rare pour qu'un
+ * panel sur dix seulement paie un rang moins proche. Le prix est visible et assumé — la
+ * bannière de comparabilité voit la référence explorée comme les autres et le dit.
+ */
+export const EXPLORATION_RATE = 0.1;
+
+/**
  * Casts kept as the opening chain.
  *
  * Long enough to cover a burst window and the ramp into it, short enough that what follows —

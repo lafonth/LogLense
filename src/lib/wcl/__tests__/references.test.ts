@@ -1,7 +1,7 @@
 import type { EligibilityProfile } from '../eligibility';
 import type { WorldRanking } from '../references';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CANDIDATE_PAGES, TOP_N } from '../constants';
+import { CANDIDATE_PAGES, TOP_N, VERIFICATION_WINDOW } from '../constants';
 import { fetchCandidatePool, resolveReferences } from '../references';
 
 const NO_EXCLUDE = { code: '__none__', fightID: -1 };
@@ -174,12 +174,25 @@ describe('resolveReferences', () => {
 
   function resolve(
     candidates: WorldRanking[],
-    over: { exclude?: { code: string; fightID: number }; mine?: EligibilityProfile } = {}
+    over: {
+      exclude?: { code: string; fightID: number };
+      mine?: EligibilityProfile;
+      random?: () => number;
+    } = {}
   ) {
     return resolveReferences(
       'token',
       { candidates, pagesFetched: 1 },
-      { myIlvl: MY_ILVL, myKillTimeMs: MY_MS, exclude: NO_EXCLUDE, mine: MINE, ...over }
+      {
+        myIlvl: MY_ILVL,
+        myKillTimeMs: MY_MS,
+        exclude: NO_EXCLUDE,
+        mine: MINE,
+        // La fente d'exploration est neutralisée par défaut : un panel tiré au sort rendrait
+        // les autres cas non déterministes, et ce n'est pas eux qu'elle doit exercer.
+        random: () => 1,
+        ...over,
+      }
     );
   }
 
@@ -302,6 +315,9 @@ describe('resolveReferences', () => {
       disqualifiedBy: [],
       tierPieces: 0,
       externalUptime: 0,
+      // Sélectionnée par la règle de distance, pas tirée : c'est ce que le corpus doit
+      // pouvoir distinguer, et la valeur par défaut ne doit donc pas être implicite.
+      explored: false,
     });
   });
 
@@ -409,5 +425,89 @@ describe('resolveReferences', () => {
     // Chaque entrée porte son pointeur : le corpus doit pouvoir la retrouver sans son nom.
     expect(sample.map((s) => s.actorId)).toEqual([4, 4, 4, 4]);
     expect(sample[0].stats.avgIlvl).toBe(640);
+  });
+
+  describe('exploration slot', () => {
+    /** Un tirage scripté : le premier nombre ouvre la fente, le second choisit le candidat. */
+    function draws(...values: number[]): () => number {
+      let i = 0;
+      return () => values[Math.min(i++, values.length - 1)];
+    }
+
+    /** Plus d'un vivier de vérification, chacun un ilvl plus loin que le précédent. */
+    const POOL = Array.from({ length: VERIFICATION_WINDOW + 2 }, (_, i) =>
+      ranking(`R${i}`, MY_ILVL + i)
+    );
+
+    it('gives the last panel slot to a candidate drawn from outside the window', async () => {
+      mockFights();
+
+      // 0.05 < EXPLORATION_RATE ouvre la fente ; 0 prend le premier hors fenêtre, R12.
+      const { topPlayers } = await resolve(POOL, { random: draws(0.05, 0) });
+
+      // R2 perd sa place : le panel garde sa taille, il n'est pas élargi pour cacher le coût.
+      expect(topPlayers.map((p) => p.provenance.name)).toEqual(['R0', 'R1', 'R12']);
+      expect(topPlayers.map((p) => p.provenance.explored)).toEqual([false, false, true]);
+    });
+
+    it('leaves the panel to the selection when the draw does not fire', async () => {
+      mockFights();
+
+      const { topPlayers } = await resolve(POOL, { random: draws(0.5) });
+
+      expect(topPlayers.map((p) => p.provenance.name)).toEqual(['R0', 'R1', 'R2']);
+      expect(topPlayers.every((p) => !p.provenance.explored)).toBe(true);
+    });
+
+    it('marks the explored candidate in the sample, where training reads it', async () => {
+      mockFights();
+
+      const { sample } = await resolve(POOL, { random: draws(0.05, 0) });
+
+      // Toute la fenêtre plus le tiré : c'est la seule entrée dont la présence ne s'explique
+      // pas par la distance, et la confondre avec les autres apprendrait le biais du sélecteur.
+      expect(sample).toHaveLength(VERIFICATION_WINDOW + 1);
+      expect(sample.filter((s) => s.explored).map((s) => s.name)).toEqual(['R12']);
+    });
+
+    it('does not seat an explored candidate that an eliminatory criterion refuses', async () => {
+      mockFights((code) =>
+        code === 'R12'
+          ? plainFight(code, {
+              combatants: [{ sourceID: 4, specID: 103, agility: 14000, gear: gear(1983) }],
+            })
+          : plainFight(code)
+      );
+
+      const { topPlayers, sample } = await resolve(POOL, {
+        mine: { tierPieces: 2, externalUptime: 0, externals: [] },
+        random: draws(0.05, 0),
+      });
+
+      // La fente sert à montrer un candidat que la distance écarte, pas à contourner les
+      // critères éliminatoires : le rang revient à la sélection, entier.
+      expect(topPlayers.map((p) => p.provenance.name)).toEqual(['R0', 'R1', 'R2']);
+      // Vérifié et jugé quand même : le refus est de l'information, il part au corpus.
+      expect(sample.filter((s) => s.explored)).toMatchObject([{ name: 'R12', qualified: false }]);
+    });
+
+    it('never draws a candidate the selection could not score', async () => {
+      mockFights();
+
+      // Hors fenêtre, tous sans bracketData : `Infinity` dit « pas jugeable », pas « loin ».
+      // Explorer là-dessus testerait l'absence de mesure, pas l'hypothèse de la fente.
+      const unscorable = Array.from({ length: 2 }, (_, i) => ({
+        name: `U${i}`,
+        amount: 200000,
+        duration: MY_MS,
+        report: { code: `U${i}`, fightID: 1 },
+      }));
+
+      const { topPlayers } = await resolve([...POOL.slice(0, VERIFICATION_WINDOW), ...unscorable], {
+        random: draws(0.05, 0),
+      });
+
+      expect(topPlayers.map((p) => p.provenance.name)).toEqual(['R0', 'R1', 'R2']);
+    });
   });
 });

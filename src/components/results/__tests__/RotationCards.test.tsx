@@ -39,6 +39,7 @@ function reference(name: string, perMin: Record<string, number>): TopPlayer {
       disqualifiedBy: [],
       tierPieces: 4,
       externalUptime: 0,
+      explored: false,
     },
   };
 }

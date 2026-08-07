@@ -42,6 +42,7 @@ function reference(
       disqualifiedBy: [],
       tierPieces: 4,
       externalUptime: 0,
+      explored: false,
     },
   };
 }

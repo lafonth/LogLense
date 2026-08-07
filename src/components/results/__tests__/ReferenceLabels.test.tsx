@@ -20,6 +20,7 @@ function provenance(name: string, rank: number): ReferenceProvenance {
     disqualifiedBy: [],
     tierPieces: 4,
     externalUptime: 0,
+    explored: false,
   };
 }
 

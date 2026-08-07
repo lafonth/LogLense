@@ -34,6 +34,14 @@ export interface ExposedReference {
   disqualifiedBy: DisqualificationReason[];
   /** Distance de sélection ; `null` quand elle n'a pas pu être calculée. */
   distance: number | null;
+  /**
+   * Vraie pour la référence tirée hors de la fenêtre de vérification.
+   *
+   * C'est la seule entrée dont la présence ne s'explique pas par la règle de distance, donc
+   * la seule qui dise quelque chose sur ce que cette règle écarte. Un entraînement qui la
+   * confondrait avec les autres n'apprendrait que le biais du sélecteur.
+   */
+  explored: boolean;
 }
 
 export interface ExposureRecord {
@@ -97,6 +105,7 @@ export function buildExposure(result: BossResult, args: ExposureArgs): ExposureR
       qualified: entry.qualified,
       disqualifiedBy: shown ? [...shown.provenance.disqualifiedBy] : [],
       distance: finiteOrNull(shown?.provenance.distance),
+      explored: entry.explored,
     };
   });
 

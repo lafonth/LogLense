@@ -451,11 +451,17 @@ et `references.ts` portent désormais le traitement commun.
    séquence, `src/lib/comparison/opening-diff.ts` la confronte à la majorité des
    références, et `OpeningChain` comme la section `### Opening` du prompt n'énoncent
    que la **première** divergence. Voir « Constats clos » ci-dessous.
-8. ~~**ML**~~ — **sorti de la v1 le 2026-08-07.** Voir « Le ML sort de la v1 » ci-dessous.
-   Reste en v2, sans date, conditionné au volume d'étiquettes. *(v2)*
+8. **ML** — **sorti de la v1 le 2026-08-07**, voir « Le ML sort de la v1 » ci-dessous.
+   Reste en v2, sans date, conditionné au volume d'étiquettes. Deux sous-tâches sont
+   faites parce qu'elles relèvent de la capture, pas du calcul : **8a**, le chemin de
+   lecture du corpus (`scripts/export-corpus.ts`), et **8b**, la fente d'exploration.
+   **8c à 8e — features, entraînement, remplacement de l'heuristique — restent bloquées
+   sur le volume**, voir « Tâche 8 : 10b ne suffisait pas » ci-dessous. *(v2)*
 9. **Suivi dans le temps** — le nouvel axe de fidélisation. Voir ci-dessous. *(v1)*
-10. **Capture manquante** — `subject.dps`, les références affichées-non-contestées, et un
-    retour sur le rapport. Voir « Cadrage de la capture manquante ». *(v1, avant 9)*
+10. **Capture manquante** — `subject.dps` et l'instantané de comparabilité (**10a et 10d,
+    faits le 2026-08-07**, `v: 3`), les références affichées-non-contestées (**10b, fait
+    le 2026-08-07**), et un retour sur le rapport (**10c, ouvert**). Voir « Cadrage de la
+    capture manquante ». *(v1, avant 9)*
 
 ### Le ML sort de la v1 — décision du 2026-08-07
 
@@ -477,6 +483,50 @@ seule. Le corollaire opérationnel joue exactement son rôle ici : le calcul rep
 rattrape, la donnée non capturée est perdue. **Conséquence directe : la tâche 10 passe
 devant la tâche 9.** Repousser le ML sans compléter la capture ne serait pas un
 séquencement, ce serait un abandon qui ne dit pas son nom.
+
+### Tâche 8 : 10b ne suffisait pas — constat du 2026-08-07
+
+10b a bouché le trou **structurel** — le corpus contient enfin des positifs. Il laissait
+intact un trou **d'information**, et il faut le nommer parce qu'il ne se voit pas dans le
+compte de lignes : les expositions n'enregistrent que les `VERIFICATION_WINDOW = 12`
+candidats que l'heuristique de distance avait déjà retenus. **La classe positive est donc
+produite par le sélecteur même qu'un modèle devrait remplacer.** Aucune observation
+n'existe sur ce que la règle écarte ; un modèle entraîné là-dessus ne peut, au mieux, que
+réapprendre la règle, et son score de validation le dirait excellent.
+
+Le correctif est l'**exploration**, et c'est une modification de capture — donc urgente au
+titre du corollaire opérationnel, au même titre que 10b. `EXPLORATION_RATE = 0.1` : un
+rendu sur dix cède le dernier rang de son panel à un candidat tiré hors fenêtre, marqué
+`explored: true` de `ReferenceProvenance` jusqu'à `ExposedReference`, donc jamais confondu
+à l'entraînement avec un choix de la règle. Écrit dans `references.ts` seul, conformément
+au corollaire de la carte du code.
+
+Trois arbitrages, tous du côté de l'honnêteté de la mesure :
+
+- Le panel garde sa taille : la fente **prend** un rang, elle ne l'ajoute pas. Élargir le
+  panel cacherait le coût au lieu de le payer.
+- Une exploration disqualifiée n'est pas assise. La fente sert à montrer un candidat que
+  la *distance* écarte, pas à contourner les critères éliminatoires.
+- La bannière de comparabilité voit la référence explorée comme les autres, mais
+  `comparabilityLevel` étant une **médiane** de trois distances, elle en absorbe une
+  extrême : la bannière sous-estime donc légèrement le coût de la fente. Forcer `poor`,
+  comme pour un substitut, le surestimerait bien davantage — un candidat lointain reste une
+  comparaison légitime, un substitut est une comparaison refusée.
+
+**Ce qui reste bloqué sur le volume, explicitement** — aucune de ces trois-là n'est un
+travail de capture, aucune ne se perd à attendre :
+
+| | Tâche | Condition d'entrée |
+|---|---|---|
+| 8c | Features et jeu d'entraînement à partir de l'export | Assez de lignes `negative` **et** `weak-positive` pour qu'un découpage train/test ait un sens, et assez de lignes `explored` pour que la classe positive ne soit pas circulaire |
+| 8d | Entraînement et évaluation contre l'heuristique | 8c fait, **et** une base hors du Redis append-only (voir « Migration du corpus ») |
+| 8e | Remplacement de l'heuristique de sélection en production | 8d gagne contre la distance sur un test hors échantillon, pas sur le train |
+
+Le seuil chiffré reste inconnu et le rester tant que la capture n'a pas tourné : le poser
+maintenant serait un chiffre inventé. Ce qui est acquis, c'est que le compteur ne peut
+plus mentir — `scripts/export-corpus.ts` sort les trois états sans jamais en deviner un,
+et compte à part les verdicts `v: 1`/`v: 2` qui n'ont pas de `renderId` et ne se joignent
+à rien.
 
 ### Le suivi dans le temps remplace le rapport isolé — décision du 2026-08-07
 
@@ -591,9 +641,10 @@ Le coût est de quelques champs ; l'omettre est irréversible.
   ci-dessous. La réponse est défavorable ; la décision est de continuer et de demander
   l'approbation en fin de projet.
 - **Volume d'étiquettes** nécessaire pour qu'un classifieur batte une heuristique
-  simple. Toujours inconnu, et la question est mal posée tant que 10b n'est pas fait :
-  un corpus sans classe positive n'a pas de volume utile, quel que soit son nombre de
-  lignes. À reposer après la capture d'exposition.
+  simple. Toujours inconnu. 10b puis 8b ont rendu la question *posable* — il y a une
+  classe positive, et elle n'est plus entièrement produite par le sélecteur — mais pas
+  répondable : il faut laisser la capture tourner et relire l'export. C'est la condition
+  d'entrée de 8c.
 - **Migration du corpus** hors du Redis append-only. 10b change l'ordre de grandeur du
   volume ; c'est probablement lui qui déclenche la migration, pas le ML.
 - **Chiffre exact du consentement à payer** dans la guilde (combien sur 25).

@@ -31,6 +31,7 @@ function sampleEntry(
     dps,
     killTimeMs: 175000,
     qualified,
+    explored: false,
   };
 }
 
@@ -131,6 +132,7 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
           disqualifiedBy: [],
           tierPieces: 4,
           externalUptime: 0,
+          explored: false,
         },
       },
     ],
