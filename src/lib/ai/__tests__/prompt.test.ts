@@ -1,3 +1,4 @@
+import type { TrajectoryPoint } from '@/lib/wcl/trajectory';
 import type { AnalysisResult, BossResult, ReferenceSample } from '@/types';
 import { describe, expect, it } from 'vitest';
 import { buildAnalysisPrompt, coveredAxes, PROMPT_AXES, SYSTEM_PROMPT } from '../prompt';
@@ -82,9 +83,9 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
       todayPct: 92.1,
       bossDpsPct: null,
       bracket: 0,
+      trajectory: [],
       ...overrides,
       source: { code: 'abc', fightID: 17, actorId: 63 },
-      trajectory: [],
       eligibility: { tierPieces: 4, externalUptime: 0, externals: [] },
     },
     topPlayers: [
@@ -376,6 +377,110 @@ describe('system prompt', () => {
     expect(SYSTEM_PROMPT).toContain('WarcraftLogs');
     expect(SYSTEM_PROMPT).toContain('Fight targets');
     expect(SYSTEM_PROMPT).toContain('Spell Usage');
+  });
+});
+
+/** Une trajectoire de kills sur la même spec, du plus ancien au plus récent. */
+function trajectory(
+  points: Array<{ pct: number; dps?: number; bracket?: number; spec?: string }>
+): TrajectoryPoint[] {
+  return points.map((p, i) => ({
+    at: new Date(Date.UTC(2026, 3, i + 1, 20)).toISOString(),
+    dps: p.dps ?? 250000,
+    rankPercent: p.pct,
+    todayPercent: p.pct - 3,
+    bracket: p.bracket ?? 635,
+    killTimeMs: 180000,
+    code: `t${i}`,
+    fightID: 1,
+    spec: p.spec ?? 'Feral',
+    analysed: i === points.length - 1,
+  }));
+}
+
+function resultWith(boss: BossResult): AnalysisResult {
+  return {
+    input: {
+      characterName: 'Jumbaa',
+      serverSlug: 'ysondre',
+      region: 'EU',
+      difficulty: 5,
+      encounters: [{ id: 3306, name: 'Chimaerus' }],
+      specId: 103,
+    },
+    bosses: [boss],
+    generatedAt: '2026-05-09T00:00:00.000Z',
+  };
+}
+
+describe('trajectory section', () => {
+  // Le message central pour la cible : le DPS monte, le percentile ne bouge plus.
+  it('names the plateau and hangs the verdict on the percentile', () => {
+    const boss = makeBoss({
+      trajectory: trajectory([
+        { pct: 61, dps: 240000, bracket: 630 },
+        { pct: 59, dps: 245000, bracket: 632 },
+        { pct: 62, dps: 248000, bracket: 634 },
+        { pct: 60, dps: 252000, bracket: 636 },
+      ]),
+    });
+
+    const prompt = buildAnalysisPrompt(resultWith(boss));
+
+    expect(prompt).toContain('### Trajectory');
+    expect(prompt).toContain('a plateau');
+    expect(prompt).toContain('percentile per kill');
+  });
+
+  // Les deux coefficients sont des hypothèses : un modèle qui citerait leur sortie comme une
+  // mesure fabriquerait une précision qui n'existe pas.
+  it('presents the decomposition as an estimate, and marks the remainder as the player', () => {
+    const boss = makeBoss({
+      trajectory: trajectory([
+        { pct: 60, dps: 250000, bracket: 630 },
+        { pct: 61, dps: 262500, bracket: 634 },
+      ]),
+    });
+
+    const prompt = buildAnalysisPrompt(resultWith(boss));
+
+    // 4 ilvl × 1 % × 250 000 = 10 000 de matériel ; il reste 2 500 pour le joueur.
+    expect(prompt).toContain('+10,000 attributable to item level');
+    expect(prompt).toContain('+2,500 unexplained by context');
+    expect(prompt).toContain('not measurements');
+  });
+
+  it('says the list holds kills only', () => {
+    const boss = makeBoss({ trajectory: trajectory([{ pct: 60 }, { pct: 62 }]) });
+
+    expect(buildAnalysisPrompt(resultWith(boss))).toContain('does not rank a wipe');
+  });
+
+  it('excludes another spec and says how many kills that costs', () => {
+    const boss = makeBoss({
+      trajectory: trajectory([
+        { pct: 10, spec: 'Balance' },
+        { pct: 20, spec: 'Balance' },
+        { pct: 60 },
+        { pct: 62 },
+      ]),
+    });
+
+    expect(buildAnalysisPrompt(resultWith(boss))).toContain('2 earlier kill(s) on another spec');
+  });
+
+  // Un rapport isolé reste un rapport valide : ni section, ni axe couvert.
+  it('opens no section when the source yielded a single kill', () => {
+    const boss = makeBoss({ trajectory: trajectory([{ pct: 60 }]) });
+
+    expect(buildAnalysisPrompt(resultWith(boss))).not.toContain('### Trajectory');
+    expect(coveredAxes(boss)).not.toContain('trajectory');
+  });
+
+  it('counts the axis as covered once the curve exists', () => {
+    const boss = makeBoss({ trajectory: trajectory([{ pct: 60 }, { pct: 62 }]) });
+
+    expect(coveredAxes(boss)).toContain('trajectory');
   });
 });
 

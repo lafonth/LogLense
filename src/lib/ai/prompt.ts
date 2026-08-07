@@ -1,3 +1,5 @@
+import type { TrendVerdict } from '@/lib/comparison/trend';
+import type { TrajectoryPoint } from '@/lib/wcl/trajectory';
 import type {
   AnalysisResult,
   BossResult,
@@ -11,6 +13,7 @@ import type {
 } from '@/types';
 import { diffOpening } from '@/lib/comparison/opening-diff';
 import { describeValues, STAT_AXES, usableSample } from '@/lib/comparison/stat-distribution';
+import { analyseTrend } from '@/lib/comparison/trend';
 import { getSpecInfo } from '@/lib/specs';
 import { fmtMs } from '@/lib/wcl/parsers';
 
@@ -51,13 +54,22 @@ The Opening table is the only ordered data you have: rank, what you cast, and wh
 Judge it only on the FIRST rank where you leave the majority — every later rank is shifted by that one divergence, so listing them all invents mistakes. \
 Say nothing about the opening when the section is absent, when it states no reference opening is available, or when you follow the majority throughout.
 
+STEP 7 — TRAJECTORY
+The Trajectory section, when present, lists this player's previous kills on this boss. Read the verdict on the PERCENTILE column, never on the DPS column: \
+the DPS of a whole raid rises across a tier as item level rises and kills get shorter, so a rising DPS curve on its own says nothing about the player. \
+The section also splits the DPS swing into an item-level part, a kill-time part and a remainder. That split comes from fixed coefficients, not from measurement: \
+use it as an order of magnitude — "most of the gain came from gear" — and never quote its numbers as if they were measured. \
+Only the remainder speaks about the player. A plateau is the finding worth stating plainly: the player is holding position while their gear improves. \
+The list contains ranked kills only, so say nothing about consistency, wipes or failed nights from it. Say nothing at all when the section is absent.
+
 Output format per boss:
-1. Primary issue — the single largest gap, with exact numbers from the table.
-2. Secondary issues — other meaningful spell usage or damage split differences.
-3. Opening — the first divergence rank and the two abilities involved, only if there is one.
-4. Stats — where the player sits in the field, with the percentile and the gap to the median.
-5. Talents — only if impactful, with the adoption count.
-6. One thing to fix next raid.
+1. Trajectory — the verdict on the percentile and what it means, only if the section is present.
+2. Primary issue — the single largest gap, with exact numbers from the table.
+3. Secondary issues — other meaningful spell usage or damage split differences.
+4. Opening — the first divergence rank and the two abilities involved, only if there is one.
+5. Stats — where the player sits in the field, with the percentile and the gap to the median.
+6. Talents — only if impactful, with the adoption count.
+7. One thing to fix next raid.
 
 Be concise. Every number you cite must come directly from the data tables.`;
 
@@ -92,6 +104,73 @@ function comparabilitySection(comparability: BossResult['comparability']): strin
     lines.push(
       'The comparison basis is weak — attribute the DPS gap to the difference in context ' +
         '(kill time, item level) rather than to the player, and say so explicitly.'
+    );
+  }
+
+  return lines.join('\n');
+}
+
+function signed(n: number): string {
+  return `${n > 0 ? '+' : ''}${fmt(n)}`;
+}
+
+const VERDICT_SENTENCE: Record<TrendVerdict, string> = {
+  improving: 'The locked-in percentile is rising.',
+  plateau: 'The locked-in percentile is flat — a plateau.',
+  declining: 'The locked-in percentile is falling.',
+  insufficient:
+    'Too few kills in this spec to read a trend — describe the points, do not judge them.',
+};
+
+/**
+ * L'historique du joueur sur cette rencontre — ce qui manque au rapport isolé.
+ *
+ * Le percentile de chaque ligne est celui **verrouillé au moment du kill**, pas un percentile
+ * recalculé aujourd'hui : c'est le chiffre que le joueur a vu, et le seul déjà normalisé
+ * contre la population du moment. Le DPS reste dans le tableau parce que la décomposition en
+ * dépend, jamais comme axe de jugement — il monte tout seul à mesure que le palier avance.
+ *
+ * La décomposition est annoncée comme une estimation dans le prompt lui-même : ses deux
+ * coefficients sont des hypothèses, et un modèle qui citerait leurs sorties comme des mesures
+ * fabriquerait une précision qui n'existe pas.
+ */
+function trajectorySection(trajectory: TrajectoryPoint[]): string {
+  const trend = analyseTrend(trajectory);
+  if (trend.points.length < 2) return '';
+
+  const rows = trend.points.map((p) => [
+    new Date(p.at).toISOString().slice(0, 10),
+    String(p.rankPercent),
+    fmt(p.dps),
+    p.bracket === null ? '—' : String(p.bracket),
+    fmtMs(p.killTimeMs),
+    p.analysed ? 'analysed above' : '',
+  ]);
+
+  const playedAs = trend.spec === null ? '.' : `, played as ${trend.spec}.`;
+  const lines = [
+    mdTable(['Kill date', 'Percentile', 'DPS', 'ilvl', 'Kill time', ''], rows),
+    '',
+    `${VERDICT_SENTENCE[trend.verdict]} Slope ${signed(trend.percentileSlope)} percentile per kill over these ${trend.points.length} kills, spread ${trend.percentileSpread} percentile${playedAs}`,
+  ];
+
+  const dpsSwing = trend.steps.reduce((a, s) => a + s.dpsDelta, 0);
+  const ilvlPart = trend.steps.reduce((a, s) => a + s.ilvlPart, 0);
+  const killTimePart = trend.steps.reduce((a, s) => a + s.killTimePart, 0);
+  lines.push(
+    `Across those kills the DPS moved ${signed(dpsSwing)}: roughly ${signed(ilvlPart)} attributable to item level, ` +
+      `${signed(killTimePart)} to kill time, leaving ${signed(trend.remainderTotal)} unexplained by context. ` +
+      'Those attributions are estimates from fixed coefficients, not measurements — treat them as an order of ' +
+      'magnitude and do not quote them as figures. Only the unexplained remainder speaks about the player.'
+  );
+
+  lines.push(
+    'Ranked kills only — Warcraft Logs does not rank a wipe, so this list says nothing about consistency.'
+  );
+
+  if (trend.droppedForSpecChange > 0) {
+    lines.push(
+      `${trend.droppedForSpecChange} earlier kill(s) on another spec are excluded: they do not measure the same player.`
     );
   }
 
@@ -408,7 +487,7 @@ function talentDiff(
  * Sans elle, le corpus de retours mélangerait des jugements portés sur deux conseils
  * différents sous une seule étiquette : « inutile » ne dirait plus de quel rapport on parle.
  */
-export const PROMPT_VERSION = 1;
+export const PROMPT_VERSION = 2;
 
 /**
  * Les axes que le rapport peut couvrir — le vocabulaire commun de l'empreinte du conseil
@@ -419,6 +498,7 @@ export const PROMPT_VERSION = 1;
  * distinctes rendraient cette confrontation impossible.
  */
 export const PROMPT_AXES = [
+  'trajectory',
   'stats',
   'spell-usage',
   'opening',
@@ -429,6 +509,7 @@ export const PROMPT_AXES = [
 export type PromptAxis = (typeof PROMPT_AXES)[number];
 
 const AXIS_HEADINGS: Record<PromptAxis, string> = {
+  trajectory: '### Trajectory',
   stats: '### Gear & Stats',
   'spell-usage': '### Spell Usage',
   opening: '### Opening',
@@ -453,6 +534,7 @@ function axisBodies(
   };
 
   return {
+    trajectory: trajectorySection(boss.character.trajectory),
     stats: statsTable(charStats, boss.comparability.myKillTimeMs, boss.sample),
     'spell-usage': spellUsageTable(boss.character.rotation, topPlayers),
     opening: openingSection(boss.character.rotation, topPlayers),
@@ -519,13 +601,23 @@ export function buildAnalysisPrompt(
           `Spell usage, buff uptimes and damage breakdown are compared against the ${topPlayers.length} closest of them only — ` +
           'do not present those as the behaviour of a whole population.',
         '',
+      ];
+
+      // Avant les tableaux du soir : ils décrivent un combat, la trajectoire dit s'il
+      // s'inscrit dans une progression ou dans un palier. Un rapport isolé — source illisible
+      // ou premier kill — n'ouvre pas la section du tout.
+      if (bodies.trajectory) {
+        sections.push(AXIS_HEADINGS.trajectory, bodies.trajectory, '');
+      }
+
+      sections.push(
         AXIS_HEADINGS.stats,
         bodies.stats,
         '',
         AXIS_HEADINGS['spell-usage'],
         bodies['spell-usage'],
-        '',
-      ];
+        ''
+      );
 
       if (bodies.opening) {
         sections.push(AXIS_HEADINGS.opening, bodies.opening, '');
