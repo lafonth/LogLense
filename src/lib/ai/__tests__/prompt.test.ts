@@ -1,6 +1,6 @@
 import type { AnalysisResult, BossResult, ReferenceSample } from '@/types';
 import { describe, expect, it } from 'vitest';
-import { buildAnalysisPrompt, SYSTEM_PROMPT } from '../prompt';
+import { buildAnalysisPrompt, coveredAxes, PROMPT_AXES, SYSTEM_PROMPT } from '../prompt';
 
 /**
  * La fenêtre vérifiée est plus large que les trois références chères : c'est sur elle que
@@ -375,5 +375,43 @@ describe('system prompt', () => {
     expect(SYSTEM_PROMPT).toContain('WarcraftLogs');
     expect(SYSTEM_PROMPT).toContain('Fight targets');
     expect(SYSTEM_PROMPT).toContain('Spell Usage');
+  });
+});
+
+describe('coveredAxes', () => {
+  it('reports the axes the prompt actually filled', () => {
+    const axes = coveredAxes(makeBoss());
+
+    expect(axes).toContain('stats');
+    expect(axes).toContain('spell-usage');
+    expect(axes).toContain('damage');
+  });
+
+  // Un titre rendu au-dessus d'un tableau vide n'est pas une couverture : l'empreinte doit
+  // dire ce dont le rapport a pu parler, pas ce que le gabarit a imprimé.
+  it('does not count an axis whose body came out empty', () => {
+    const boss = makeBoss();
+    boss.character.rotation = { ...boss.character.rotation, buffs: {} };
+    boss.topPlayers = boss.topPlayers.map((p) => ({
+      ...p,
+      rotation: { ...p.rotation, buffs: {} },
+    }));
+
+    const axes = coveredAxes(boss);
+
+    expect(axes).not.toContain('uptimes');
+    expect(axes).toContain('spell-usage');
+  });
+
+  // Le fixture n'a pas d'ouverture : la section est absente du prompt, elle doit l'être de
+  // l'empreinte aussi.
+  it('leaves out the opening when there is none', () => {
+    expect(coveredAxes(makeBoss())).not.toContain('opening');
+  });
+
+  it('never invents an axis outside the shared vocabulary', () => {
+    for (const axis of coveredAxes(makeBoss())) {
+      expect(PROMPT_AXES).toContain(axis);
+    }
   });
 });

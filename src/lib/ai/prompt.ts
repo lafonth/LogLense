@@ -402,6 +402,82 @@ function talentDiff(
   return lines.length === 1 ? 'Your build matches the field on every node.' : lines.join('\n');
 }
 
+/**
+ * Version du prompt. À incrémenter dès qu'une consigne change ce que le modèle produit.
+ *
+ * Sans elle, le corpus de retours mélangerait des jugements portés sur deux conseils
+ * différents sous une seule étiquette : « inutile » ne dirait plus de quel rapport on parle.
+ */
+export const PROMPT_VERSION = 1;
+
+/**
+ * Les axes que le rapport peut couvrir — le vocabulaire commun de l'empreinte du conseil
+ * et du retour du lecteur.
+ *
+ * Un seul vocabulaire pour les deux, volontairement : c'est ce qui rend détectable le cas
+ * où un lecteur juge inutile un axe que le prompt n'avait pas couvert. Deux listes
+ * distinctes rendraient cette confrontation impossible.
+ */
+export const PROMPT_AXES = [
+  'stats',
+  'spell-usage',
+  'opening',
+  'uptimes',
+  'damage',
+  'talents',
+] as const;
+export type PromptAxis = (typeof PROMPT_AXES)[number];
+
+const AXIS_HEADINGS: Record<PromptAxis, string> = {
+  stats: '### Gear & Stats',
+  'spell-usage': '### Spell Usage',
+  opening: '### Opening',
+  uptimes: '### Buff Uptimes',
+  damage: '### Damage Breakdown',
+  talents: '### Talent Differences',
+};
+
+/** Le corps de chaque axe, vide quand l'axe n'a rien à dire. Source unique du prompt et de l'empreinte. */
+function axisBodies(
+  boss: BossResult,
+  talentName: (id: number) => string
+): Record<PromptAxis, string> {
+  const topPlayers = boss.topPlayers.slice(0, 3);
+  const charStats = {
+    ...boss.character.stats,
+    dps: boss.character.dps,
+    killTime: boss.character.killTime,
+    overallPct: boss.character.overallPct,
+    bossDps: boss.character.bossDps,
+    bossDpsPct: boss.character.bossDpsPct,
+  };
+
+  return {
+    stats: statsTable(charStats, boss.comparability.myKillTimeMs, boss.sample),
+    'spell-usage': spellUsageTable(boss.character.rotation, topPlayers),
+    opening: openingSection(boss.character.rotation, topPlayers),
+    uptimes: uptimeTable(boss.character.rotation, topPlayers),
+    damage: damageTable(boss.character.damageTable.entries, topPlayers),
+    talents: talentDiff(boss.character.stats.talents, boss.sample, talentName),
+  };
+}
+
+/**
+ * Les axes que le rapport a réellement couverts — l'empreinte du conseil, sans sa prose.
+ *
+ * C'est ce qui manquait pour exploiter un retour de lecteur : « inutile » ne veut rien dire
+ * si l'on ignore ce qui avait été dit. On garde les axes, pas le texte : le texte est du
+ * dérivé du modèle, il ne se compare pas d'un rapport à l'autre et n'a pas sa place dans un
+ * corpus permanent.
+ *
+ * Un titre de section rendu au-dessus d'un tableau vide n'est pas une couverture : seuls les
+ * axes au corps non vide sont comptés.
+ */
+export function coveredAxes(boss: BossResult, talentNodes: TalentNode[] = []): PromptAxis[] {
+  const bodies = axisBodies(boss, makeTalentNameFn(talentNodes));
+  return PROMPT_AXES.filter((axis) => bodies[axis].trim().length > 0);
+}
+
 export function buildAnalysisPrompt(
   result: AnalysisResult,
   talentNodes: TalentNode[] = []
@@ -427,14 +503,7 @@ export function buildAnalysisPrompt(
       // alors que les tableaux se lisent sur les seuls qualifiés donnerait deux effectifs
       // différents pour la même chose.
       const fieldSize = usableSample(boss.sample).entries.length;
-      const charStats = {
-        ...boss.character.stats,
-        dps: boss.character.dps,
-        killTime: boss.character.killTime,
-        overallPct: boss.character.overallPct,
-        bossDps: boss.character.bossDps,
-        bossDpsPct: boss.character.bossDpsPct,
-      };
+      const bodies = axisBodies(boss, talentName);
 
       const sections: string[] = [
         `## ${boss.encounter}`,
@@ -450,31 +519,23 @@ export function buildAnalysisPrompt(
           `Spell usage, buff uptimes and damage breakdown are compared against the ${topPlayers.length} closest of them only — ` +
           'do not present those as the behaviour of a whole population.',
         '',
-        '### Gear & Stats',
-        statsTable(charStats, boss.comparability.myKillTimeMs, boss.sample),
+        AXIS_HEADINGS.stats,
+        bodies.stats,
         '',
-        '### Spell Usage',
-        spellUsageTable(boss.character.rotation, topPlayers),
+        AXIS_HEADINGS['spell-usage'],
+        bodies['spell-usage'],
         '',
       ];
 
-      const opening = openingSection(boss.character.rotation, topPlayers);
-      if (opening) {
-        sections.push('### Opening', opening, '');
+      if (bodies.opening) {
+        sections.push(AXIS_HEADINGS.opening, bodies.opening, '');
       }
 
-      const uptimes = uptimeTable(boss.character.rotation, topPlayers);
-      if (uptimes) {
-        sections.push('### Buff Uptimes', uptimes, '');
+      if (bodies.uptimes) {
+        sections.push(AXIS_HEADINGS.uptimes, bodies.uptimes, '');
       }
 
-      sections.push(
-        '### Damage Breakdown',
-        damageTable(boss.character.damageTable.entries, topPlayers),
-        '',
-        '### Talent Differences',
-        talentDiff(boss.character.stats.talents, boss.sample, talentName)
-      );
+      sections.push(AXIS_HEADINGS.damage, bodies.damage, '', AXIS_HEADINGS.talents, bodies.talents);
 
       return sections.join('\n');
     })

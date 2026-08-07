@@ -6,6 +6,7 @@ import { ClaudeProvider } from '@/lib/ai/claude';
 import { GeminiProvider } from '@/lib/ai/gemini';
 import { DEFAULT_GROQ_MODEL, GroqProvider } from '@/lib/ai/groq';
 import { buildAnalysisPrompt, SYSTEM_PROMPT } from '@/lib/ai/prompt';
+import { recordAdvice } from '@/lib/labels/record-advice';
 import { getTalentNodes } from '@/lib/talent-loader';
 
 export const runtime = 'nodejs';
@@ -57,6 +58,18 @@ export async function POST(req: Request) {
 
     const talentNodes = getTalentNodes(result.input.specId);
     const prompt = buildAnalysisPrompt(result, talentNodes);
+
+    // Avant le flux, et attendue : ce qui part sans être enregistré ne se rattrape pas, et un
+    // retour de lecteur arrivant sur un rendu sans empreinte ne dirait plus de quel conseil
+    // il parle. L'appel ne jette jamais — le rapport ne dépend pas de sa capture.
+    const boss = result.bosses.find((b) => b !== null);
+    if (boss) {
+      await recordAdvice(boss, {
+        provider: providerName,
+        model: providerName === 'groq' ? groqModel : null,
+      });
+    }
+
     const chunks = provider.stream(prompt, SYSTEM_PROMPT);
 
     const encoder = new TextEncoder();

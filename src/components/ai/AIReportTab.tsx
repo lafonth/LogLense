@@ -15,6 +15,7 @@ import { useApiKey } from '@/hooks/useApiKey';
 import { DEFAULT_GROQ_MODEL, GROQ_MODELS } from '@/lib/ai/groq';
 import { buildAnalysisPrompt } from '@/lib/ai/prompt';
 import { getSpecInfo } from '@/lib/specs';
+import { ReportFeedback } from './ReportFeedback';
 import { StreamingText } from './StreamingText';
 
 interface AIReportTabProps {
@@ -158,6 +159,11 @@ export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTab
 
   const canGenerate = serverHasKey || !!apiKey.trim();
 
+  // Le boss dont le rapport parle, pas celui de la barre latérale : c'est son `renderId` que
+  // le serveur a enregistré en empreinte du conseil.
+  const reportedState = bossStates[selectedBossIdx];
+  const reportedBoss = reportedState?.status === 'success' ? reportedState.result : null;
+
   return (
     <div className="max-w-[760px] py-6">
       {/* Provider picker */}
@@ -279,6 +285,14 @@ export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTab
         <div className="border-border bg-surface mt-4 rounded-sm border p-6">
           <StreamingText text={text} loading={loading} />
         </div>
+      )}
+
+      {/*
+        Après la fin du flux seulement : un jugement porté sur un texte encore en train de
+        s'écrire ne porte pas sur le rapport, et il s'enregistrerait quand même.
+      */}
+      {text && !loading && reportedBoss && (
+        <ReportFeedback key={reportedBoss.renderId} boss={reportedBoss} />
       )}
 
       {usage && !loading && (
