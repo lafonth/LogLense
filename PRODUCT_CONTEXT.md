@@ -422,7 +422,7 @@ et `references.ts` portent désormais le traitement commun.
    la donnée non capturée est perdue. Et **le stockage reste un Redis append-only** :
    assumé comme insuffisant pour de l'entraînement, à migrer le jour où il y aura assez
    de volume pour valoir une vraie base. Les CGU WCL sur le stockage de données dérivées
-   restent à trancher avant cette migration. *(v1)*
+   sont tranchées — voir « CGU RPGLogs » plus bas. *(v1)*
 2. ~~**Rendre C2 visible**~~ — **fait le 2026-08-06.** `ComparabilityBanner` énonce le
    niveau atteint et les écarts signés, sur les deux chemins.
 3. ~~**Corriger D3**~~ — **fait le 2026-08-06.** Le joueur de référence est apparié par
@@ -452,16 +452,47 @@ et `references.ts` portent désormais le traitement commun.
 
 ### Points ouverts à trancher
 
-- **CGU de l'API WCL** sur le stockage et la redistribution de données dérivées.
-  Une app qui requête à la demande et une app qui constitue une base dérivée ne sont
-  pas nécessairement traitées de la même façon. **À vérifier avant tout
-  investissement en v2.**
+- ~~**CGU de l'API WCL**~~ — **vérifié le 2026-08-07, et arbitré.** Voir « CGU RPGLogs »
+  ci-dessous. La réponse est défavorable ; la décision est de continuer et de demander
+  l'approbation en fin de projet.
 - **Volume d'étiquettes** nécessaire pour qu'un classifieur batte une heuristique
   simple. Inconnu tant que la capture n'a pas démarré.
 - **Chiffre exact du consentement à payer** dans la guilde (combien sur 25).
 - **Spec-agnosticisme du prompt IA** — le pipeline est spec-agnostique (D6), `src/lib/ai/`
   n'a pas été audité. Faire bien une spec vaut mieux que faire mal 39 — à assumer
   explicitement ou à corriger, pas à laisser flou.
+
+### CGU RPGLogs — vérifié le 2026-08-07
+
+`warcraftlogs.com/help/terms` renvoie 403 aux fetchers. Le texte a été lu sur
+[archon.gg](https://www.archon.gg/wow/articles/help/rpg-logs-api-terms-of-service), même
+éditeur (RPGLogs opère Warcraft Logs, FFLogs et Archon) et même CMS d'articles. Trois
+clauses décident :
+
+| Clause | Texte | Portée |
+|---|---|---|
+| §2a | « earning money from it, including, but not limited to advertising, subscriptions, **or** you intend to learn from the data and repackage for sale » | Approbation écrite requise pour tout usage commercial |
+| §5d | « Scrape, build databases, or otherwise create permanent copies of such content, or keep cached copies longer than permitted by the cache header » | Vise le corpus d'étiquettes, sans TTL sur `labels:comparability:*` |
+| §5c | « you may not expose that content to other users or to third parties without explicit opt-in consent from that user » | `reference.name` et ses mesures |
+
+**Le ML n'est pas la source du problème.** Le §2a se déclenche sur le revenu, pas sur
+l'apprentissage : l'abonnement seul suffit à qualifier l'usage de commercial. Retirer la
+tâche 8 ne lèverait donc pas l'obligation d'approbation — et ferait tomber le produit sur
+la contrainte non négociable n°2, puisque `ia-ml-architecture.md` classe le rapport LLM
+comme **gadget** et fait du ML ce qui rend l'IA structurante. Les deux contraintes
+non négociables et les CGU se croisent : aucune version monétisée n'échappe à l'approbation.
+
+**Décision du 2026-08-07** — la demande d'approbation est repoussée en fin de projet.
+Le développement continue comme si elle était acquise. Ce qui est en jeu si elle est
+refusée : le modèle de revenu, pas le code. Atténuation identifiée mais non retenue pour
+l'instant — un schéma d'étiquette `v: 3` réduit aux pointeurs (`code`, `fightID`,
+`actorId`) et aux jugements propres, les mesures WCL étant réhydratées à l'entraînement
+plutôt que copiées.
+
+Le mécanisme d'application n'est pas judiciaire mais discrétionnaire : révocation de clé
+API, déclenchée par la visibilité et la concurrence. À noter qu'Archon — distributions de
+stats par spec sur une population de parses — est le produit visé ici, et appartient à
+RPGLogs.
 
 ---
 

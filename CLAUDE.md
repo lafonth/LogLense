@@ -52,7 +52,7 @@ laissé en contexte, et de la durée d'une session avant compaction.
   contexte moi-même — mais je dois dire quand le faire. `/clear` au changement de sujet,
   c'est le cas courant et le moins cher : le hook `SessionStart` réinjecte l'état du
   dépôt, donc repartir de zéro ne coûte rien. `/compact` seulement si la suite a besoin
-  des conclusions intermédiaires.
+  des conclusions intermédiaires. Toujours proposer un prochain prompt post clear/compact
 
 ## Vocabulaire du domaine
 

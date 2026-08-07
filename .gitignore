@@ -22,6 +22,10 @@ legacy/character_analysis.json
 # prompt download output
 ai-prompt.txt
 
+# brouillons et documents de travail — utiles maintenant, sans valeur dans l'historique.
+# Ce qui mérite d'être versionné sort de ce dossier ; ce qui y reste est jetable.
+scratch/
+
 # skills and agents (restore with: npx skills experimental_install)
 .agents
 .superpowers
