@@ -4,7 +4,7 @@ import { getSpecInfo } from '@/lib/specs';
 import { gql } from './client';
 import { findCombatantByActorId } from './combatant';
 import { fetchFightData } from './fight-data';
-import { fetchHistoricalParse } from './historical-parse';
+import { fetchCharacterHistory } from './historical-parse';
 import { fmtMs } from './parsers';
 import { Q_REPORT_RANKINGS_BOSSDPS, Q_REPORT_RANKINGS_DPS } from './queries';
 import { fetchCandidatePool, resolveReferences } from './references';
@@ -115,9 +115,9 @@ export async function analyzeReportBoss(
   // absent de l'entrée, panne WCL) dégrade vers le percentile du jour plutôt que d'annuler
   // l'analyse — mais alors les deux écrans annoncent des mesures différentes, et c'est le
   // seul cas où ça arrive.
-  const historicalPromise =
+  const historyPromise =
     myDpsRank?.server?.name && myDpsRank.server.region
-      ? fetchHistoricalParse(token, {
+      ? fetchCharacterHistory(token, {
           name: actorName,
           serverName: myDpsRank.server.name,
           regionSlug: myDpsRank.server.region,
@@ -128,7 +128,7 @@ export async function analyzeReportBoss(
           code,
           fightID: fightId,
         })
-      : Promise.resolve(null);
+      : Promise.resolve({ parse: null, trajectory: [] });
 
   const { topPlayers, sample, comparability } = await resolveReferences(token, pool, {
     myIlvl: stats.avgIlvl,
@@ -137,7 +137,7 @@ export async function analyzeReportBoss(
     mine: eligibility,
   });
 
-  const historical = await historicalPromise;
+  const { parse: historical, trajectory } = await historyPromise;
 
   return {
     renderId: randomUUID(),
@@ -163,6 +163,9 @@ export async function analyzeReportBoss(
       bossDpsPct: myBossRank ? Math.round(myBossRank.rankPercent * 10) / 10 : null,
       bracket: myDpsRank ? Math.round(myDpsRank.bracketData * 10) / 10 : null,
       source: { code, fightID: fightId, actorId: charEvent.sourceID },
+      // Même réponse que le percentile verrouillé : quand la réconciliation échoue, la
+      // trajectoire tombe avec elle, et l'écran retombe sur le rapport isolé.
+      trajectory,
       eligibility,
     },
     topPlayers,

@@ -51,6 +51,7 @@ function boss(renderId: string): BossResult {
       bossDpsPct: null,
       bracket: null,
       source: { code: 'abc', fightID: 17, actorId: 63 },
+      trajectory: [],
       eligibility: { tierPieces: 4, externalUptime: 0, externals: [] },
     },
     topPlayers: [],

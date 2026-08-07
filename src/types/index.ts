@@ -1,5 +1,6 @@
 import type { ComparabilityLevel } from '@/lib/wcl/comparability';
 import type { DisqualificationReason, EligibilityProfile } from '@/lib/wcl/eligibility';
+import type { TrajectoryPoint } from '@/lib/wcl/trajectory';
 export interface WowCharacter {
   id: number;
   name: string;
@@ -204,6 +205,12 @@ export interface BossResult {
     bracket: number | null;
     /** Le combat analysé, pour que l'écran puisse nommer ce qu'il étiquette. */
     source: { code: string; fightID: number; actorId: number };
+    /**
+     * Tous les kills classés du joueur sur cette rencontre, du plus ancien au plus récent,
+     * le combat analysé marqué. Vide quand la source n'a pas pu être lue — un rapport isolé
+     * reste un rapport valide.
+     */
+    trajectory: TrajectoryPoint[];
     /**
      * Ce à quoi les références ont été confrontées. Une décision « pas comparable » sur le
      * set bonus ne veut rien dire sans le palier des deux côtés : le corpus doit porter

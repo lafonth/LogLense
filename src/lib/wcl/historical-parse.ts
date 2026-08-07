@@ -1,5 +1,7 @@
+import type { TrajectoryPoint } from './trajectory';
 import { gql } from './client';
 import { Q_CHARACTER_PARSE_DPS } from './queries';
+import { parseTrajectory } from './trajectory';
 
 /**
  * Les deux chemins d'analyse ne lisaient pas le même percentile.
@@ -76,14 +78,25 @@ export interface HistoricalParseQuery {
 }
 
 /**
- * Rend `null` plutôt que de lever : le percentile est un axe d'affichage, pas une
- * dépendance du rapport. Un log privé, un personnage renommé ou une panne WCL doivent
+ * Le parse du combat demandé **et** toute l'histoire du personnage sur la rencontre.
+ *
+ * Les deux sortent du même `encounterRankings` : la trajectoire ne coûte pas une requête,
+ * seulement une lecture de plus de la réponse déjà payée.
+ */
+export interface CharacterHistory {
+  parse: HistoricalParse | null;
+  trajectory: TrajectoryPoint[];
+}
+
+/**
+ * Rend une histoire vide plutôt que de lever : le percentile est un axe d'affichage, pas
+ * une dépendance du rapport. Un log privé, un personnage renommé ou une panne WCL doivent
  * coûter la réconciliation, jamais l'analyse.
  */
-export async function fetchHistoricalParse(
+export async function fetchCharacterHistory(
   token: string,
   q: HistoricalParseQuery
-): Promise<HistoricalParse | null> {
+): Promise<CharacterHistory> {
   try {
     const payload = await gql<{
       characterData: { character: { dps: unknown } | null };
@@ -97,8 +110,12 @@ export async function fetchHistoricalParse(
       className: q.className,
     });
 
-    return findParseInRanks(payload.characterData?.character?.dps, q.code, q.fightID);
+    const dps = payload.characterData?.character?.dps;
+    return {
+      parse: findParseInRanks(dps, q.code, q.fightID),
+      trajectory: parseTrajectory(dps, { code: q.code, fightID: q.fightID }),
+    };
   } catch {
-    return null;
+    return { parse: null, trajectory: [] };
   }
 }

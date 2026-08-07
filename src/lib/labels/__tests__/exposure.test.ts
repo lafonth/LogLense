@@ -104,6 +104,7 @@ function result(over: Partial<BossResult> = {}): BossResult {
       bossDpsPct: null,
       bracket: 0,
       source: { code: 'abc', fightID: 17, actorId: 63 },
+      trajectory: [],
       eligibility: { tierPieces: 4, externalUptime: 0, externals: [] },
     },
     topPlayers: REFERENCE_NAMES.slice(0, 3).map((n, i) => topPlayer(n, i + 1)),

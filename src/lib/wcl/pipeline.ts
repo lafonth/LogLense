@@ -8,6 +8,7 @@ import { fetchFightData } from './fight-data';
 import { fmtMs } from './parsers';
 import { Q_CHARACTER_RANKINGS, Q_CHARACTER_RANKINGS_SPEC } from './queries';
 import { fetchCandidatePool, resolveReferences } from './references';
+import { parseTrajectory } from './trajectory';
 
 interface CharacterRankingsResponse {
   characterData: {
@@ -136,6 +137,9 @@ export async function analyzeBoss(
       bossDpsPct: bossMatch ? Math.round(bossMatch.rankPercent * 10) / 10 : null,
       bracket: best.bracketData,
       source: { code: bestCode, fightID: bestFightId, actorId: charEvent.sourceID },
+      // Les mêmes `ranks` que ceux qui ont désigné le meilleur parse : la trajectoire est
+      // déjà payée. Le point analysé est donc, par construction, le sommet de sa courbe.
+      trajectory: parseTrajectory(char.dps, { code: bestCode, fightID: bestFightId }),
       eligibility,
     },
     topPlayers,
