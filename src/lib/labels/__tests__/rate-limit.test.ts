@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { consumeLabelQuota, LABEL_LIMIT, rateLimitKey, WINDOW_MS } from '../rate-limit';
+import {
+  AI_LIMIT,
+  AI_PREFIX,
+  consumeAiQuota,
+  consumeLabelQuota,
+  LABEL_LIMIT,
+  quotaKey,
+  rateLimitKey,
+  WINDOW_MS,
+} from '../rate-limit';
 
 const { redisIncr, redisExpire } = vi.hoisted(() => ({
   redisIncr: vi.fn(),
@@ -77,5 +86,62 @@ describe('consumeLabelQuota', () => {
       allowed: true,
       retryAfterSeconds: 0,
     });
+  });
+});
+
+describe('consumeAiQuota', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    redisExpire.mockResolvedValue(undefined);
+  });
+
+  it('counts on its own key, so saturating the labels does not close the AI', async () => {
+    redisIncr.mockResolvedValue(1);
+
+    await consumeAiQuota(BY, 0);
+
+    expect(redisIncr).toHaveBeenCalledWith(quotaKey(AI_PREFIX, BY, 0));
+  });
+
+  it('lets the last report of the quota through', async () => {
+    redisIncr.mockResolvedValue(AI_LIMIT);
+
+    await expect(consumeAiQuota(BY, 0)).resolves.toEqual({
+      allowed: true,
+      retryAfterSeconds: 0,
+      unavailable: false,
+    });
+  });
+
+  it('refuses the one past it and points at the next window', async () => {
+    redisIncr.mockResolvedValue(AI_LIMIT + 1);
+
+    const verdict = await consumeAiQuota(BY, WINDOW_MS / 2);
+
+    expect(verdict).toEqual({
+      allowed: false,
+      retryAfterSeconds: WINDOW_MS / 2000,
+      unavailable: false,
+    });
+  });
+
+  // L'inverse exact de `consumeQuota` : là une donnée perdue, ici une dépense sans plafond.
+  it('refuses when the counter cannot be read, and says why', async () => {
+    redisIncr.mockRejectedValue(new Error('upstash down'));
+
+    const verdict = await consumeAiQuota(BY, 0);
+
+    expect(verdict.allowed).toBe(false);
+    expect(verdict.unavailable).toBe(true);
+  });
+
+  it('refuses when the window can no longer be guaranteed to reset', async () => {
+    redisIncr.mockResolvedValue(1);
+    redisExpire.mockRejectedValue(new Error('upstash down'));
+
+    const verdict = await consumeAiQuota(BY, 0);
+
+    expect(verdict.allowed).toBe(false);
+    expect(verdict.unavailable).toBe(true);
   });
 });

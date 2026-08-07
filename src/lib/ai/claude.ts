@@ -20,7 +20,9 @@ export class ClaudeProvider implements AIProvider {
           const stream = client.messages.stream({
             model: CLAUDE_MODEL,
             max_tokens: 1500,
-            system: systemPrompt,
+            // Le prompt système est fixe et fait le gros de l'entrée facturée : le mettre en
+            // cache est le seul levier de coût qui ne change rien au produit.
+            system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
             messages: [{ role: 'user', content: prompt }],
           });
 
@@ -29,7 +31,13 @@ export class ClaudeProvider implements AIProvider {
 
           for await (const event of stream) {
             if (event.type === 'message_start') {
-              inputTokens = event.message.usage.input_tokens;
+              // `input_tokens` exclut ce qui est lu ou écrit dans le cache : sans ces deux
+              // termes, l'entrée affichée fondrait dès que le cache prend.
+              const usage = event.message.usage;
+              inputTokens =
+                usage.input_tokens +
+                (usage.cache_creation_input_tokens ?? 0) +
+                (usage.cache_read_input_tokens ?? 0);
             } else if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
               controller.enqueue({ type: 'text', content: event.delta.text });
             } else if (event.type === 'message_delta' && event.usage) {

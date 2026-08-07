@@ -39,7 +39,9 @@ export class GroqProvider implements AIProvider {
 
   stream(prompt: string, systemPrompt: string): ReadableStream<AIStreamChunk> {
     const apiKey = this.apiKey;
-    const model = process.env.GROQ_MODEL ?? this.model;
+    // Le modèle vient de l'appelant, jamais de l'environnement : sur une clé qu'il fournit
+    // lui-même, c'est lui qui décide ce qu'il paie.
+    const model = this.model;
 
     return new ReadableStream<AIStreamChunk>({
       async start(controller) {
@@ -90,7 +92,8 @@ export class GroqProvider implements AIProvider {
         const decoder = new TextDecoder();
         let buffer = '';
         let usageChunk: OpenAIChunk['usage'] | null = null;
-        let resolvedModel = model;
+        // Le modèle que Groq dit avoir servi, qui peut différer de celui demandé.
+        let resolvedModel: string = model;
 
         while (true) {
           const { value, done } = await reader.read();

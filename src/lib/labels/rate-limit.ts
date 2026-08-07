@@ -10,9 +10,16 @@ export const LABEL_LIMIT = 60;
  */
 export const EXPOSURE_LIMIT = 120;
 
-/** Préfixes de compteur. Deux quotas distincts : saturer l'un ne doit pas fermer l'autre. */
+/**
+ * Rapports IA par heure et par compte, **sur la clé serveur uniquement**. Bien plus bas que
+ * les deux précédents : ceux-là bornent des écritures, celui-ci borne une dépense réelle.
+ */
+export const AI_LIMIT = 20;
+
+/** Préfixes de compteur. Trois quotas distincts : saturer l'un ne doit pas fermer les autres. */
 export const LABEL_PREFIX = 'ratelimit:labels';
 export const EXPOSURE_PREFIX = 'ratelimit:exposure';
+export const AI_PREFIX = 'ratelimit:ai';
 
 /** Largeur de la fenêtre. Fixe, pas glissante : un compteur, pas un historique à relire. */
 export const WINDOW_MS = 3_600_000;
@@ -87,4 +94,51 @@ export function consumeLabelQuota(by: string, atMs: number): Promise<RateVerdict
 
 export function consumeExposureQuota(by: string, atMs: number): Promise<RateVerdict> {
   return consumeQuota(EXPOSURE_PREFIX, EXPOSURE_LIMIT, by, atMs);
+}
+
+export interface StrictVerdict extends RateVerdict {
+  /** Vrai quand le refus vient d'un compteur illisible, pas d'un plafond atteint. */
+  unavailable: boolean;
+}
+
+/**
+ * Consomme un jeton d'un quota horaire, **en échouant fermé**.
+ *
+ * Le pendant de `consumeQuota` pour ce qui dépense au lieu d'écrire. Là-bas, Redis muet
+ * laisse passer parce que la donnée non capturée est perdue ; ici, Redis muet ferme le
+ * robinet, parce qu'une dépense non comptée est une dépense sans plafond.
+ *
+ * Un `EXPIRE` manqué refuse lui aussi : la clé porte l'index de sa fenêtre, donc un compteur
+ * resté sans durée de vie ne coûte que l'heure en cours — jamais un compte verrouillé.
+ */
+export async function consumeStrictQuota(
+  prefix: string,
+  limit: number,
+  by: string,
+  atMs: number
+): Promise<StrictVerdict> {
+  const key = quotaKey(prefix, by, atMs);
+  const windowSeconds = Math.ceil(WINDOW_MS / 1000);
+  const retryAfterSeconds = Math.max(1, Math.ceil((WINDOW_MS - (atMs % WINDOW_MS)) / 1000));
+
+  let count: number;
+  try {
+    count = await redisIncr(key);
+  } catch {
+    return { allowed: false, retryAfterSeconds, unavailable: true };
+  }
+
+  try {
+    await redisExpire(key, windowSeconds);
+  } catch {
+    return { allowed: false, retryAfterSeconds, unavailable: true };
+  }
+
+  return count > limit
+    ? { allowed: false, retryAfterSeconds, unavailable: false }
+    : { allowed: true, retryAfterSeconds: 0, unavailable: false };
+}
+
+export function consumeAiQuota(by: string, atMs: number): Promise<StrictVerdict> {
+  return consumeStrictQuota(AI_PREFIX, AI_LIMIT, by, atMs);
 }
