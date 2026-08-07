@@ -72,7 +72,10 @@ export function ReportDashboard({
     region,
     difficulty: difficulty as AnalysisInput['difficulty'],
     encounters,
-    specId: result?.input.specId ?? 103,
+    // 0 = spec inconnue, et c'est la vérité tant que le résultat n'est pas revenu : la
+    // valeur descend jusqu'au prompt IA, qui la déclare inconnue au lieu de la deviner.
+    // Un défaut concret ici nommerait une spec que personne n'a mesurée.
+    specId: result?.input.specId ?? 0,
   };
   const analysisResult: AnalysisResult = {
     input: analysisInput,

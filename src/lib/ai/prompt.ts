@@ -11,6 +11,7 @@ import type {
 } from '@/types';
 import { diffOpening } from '@/lib/comparison/opening-diff';
 import { describeValues, STAT_AXES, usableSample } from '@/lib/comparison/stat-distribution';
+import { getSpecInfo } from '@/lib/specs';
 import { fmtMs } from '@/lib/wcl/parsers';
 
 export const SYSTEM_PROMPT = `You are a WarcraftLogs performance coach. Speak directly to the player. \
@@ -27,11 +28,13 @@ STEP 2 — FIND THE BIGGEST SPELL USAGE GAP
 Scan every row of the Spell Usage table. For each ability, compute the difference between your casts/min and the top players' average.
 The row with the largest gap IS the primary issue — lead with it. Read the exact numbers directly from the table; do not estimate.
 Look especially for SUBSTITUTION PAIRS: one ability you cast much more than top players, and another ability you cast much less. \
-This almost always means you are using a single-target ability where the fight calls for its multi-target equivalent (or vice versa).
+On many specs this means a single-target ability is being used where the fight calls for its multi-target equivalent (or vice versa) — but not on all of them: \
+some specs cleave passively, or use the same buttons at every target count. Treat a substitution pair as a hypothesis and confirm it against the damage breakdown in STEP 3 before reporting it as the primary issue.
 
 STEP 3 — DAMAGE BREAKDOWN
 Check whether the damage split reflects the fight type. On multi-target fights, AoE abilities should rank highly for top players. \
-If your damage is concentrated on a single-target ability that barely appears in top players' breakdowns, that confirms the substitution.
+If your damage is concentrated on a single-target ability that barely appears in top players' breakdowns, that confirms the substitution. \
+If the breakdown does not corroborate it, drop the substitution hypothesis and lead with the next largest gap instead.
 
 STEP 4 — STATS
 The Gear & Stats table gives, for each axis, your value and the comparable field's min, median, max and your percentile within it. \
@@ -407,6 +410,14 @@ export function buildAnalysisPrompt(
   const difficultyLabel: Record<number, string> = { 3: 'Normal', 4: 'Heroic', 5: 'Mythic' };
   const diff = difficultyLabel[result.input.difficulty] ?? `Difficulty ${result.input.difficulty}`;
 
+  // Sans cette ligne, le modèle déduit la spec des noms de sorts des tableaux. Ça marche le
+  // plus souvent, et ça se dégrade exactement là où ça compte : deux specs d'une même classe
+  // qui partagent l'essentiel de leur kit. Une spec inconnue se dit, elle ne se devine pas.
+  const spec = getSpecInfo(result.input.specId);
+  const specLine = spec
+    ? `Spec: ${spec.specName} ${spec.className}.`
+    : `Spec: unknown (id ${result.input.specId}) — infer it from the ability names in the tables, and do not state it as fact.`;
+
   const bossSections = result.bosses
     .map((boss, i) => {
       if (!boss) return `## Boss ${i + 1}\nNo data available for this boss.`;
@@ -471,6 +482,7 @@ export function buildAnalysisPrompt(
 
   return [
     `# WarcraftLogs Performance Analysis — ${result.input.characterName}-${result.input.serverSlug} (${diff})`,
+    specLine,
     '',
     bossSections,
     '',

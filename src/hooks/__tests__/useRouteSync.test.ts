@@ -52,6 +52,14 @@ describe('useRouteSync — param parsing', () => {
     expect(result.current.bossParam).toBeNull();
     expect(result.current.reportCode).toBeNull();
     expect(result.current.reportActorId).toBeNull();
+    expect(result.current.specParam).toBeNull();
+  });
+
+  it('parses spec, and reports it absent rather than defaulting', () => {
+    mockParams('spec=253');
+    expect(renderHook(() => useRouteSync(makeHookArgs())).result.current.specParam).toBe(253);
+    mockParams('char=Jumbaa');
+    expect(renderHook(() => useRouteSync(makeHookArgs())).result.current.specParam).toBeNull();
   });
 
   it('parses char, server, region, difficulty from URL', () => {
@@ -105,7 +113,7 @@ describe('useRouteSync — param parsing', () => {
 
 describe('useRouteSync — character analysis effect', () => {
   it('calls start when char, server, and zones are present', async () => {
-    mockParams('char=Jumbaa&server=ysondre&region=EU&difficulty=4');
+    mockParams('char=Jumbaa&server=ysondre&region=EU&difficulty=4&spec=103');
     const start = vi.fn();
     renderHook(() => useRouteSync(makeHookArgs({ zones: [zone], start })));
     await waitFor(() => expect(start).toHaveBeenCalledTimes(1));
@@ -115,8 +123,17 @@ describe('useRouteSync — character analysis effect', () => {
         serverSlug: 'ysondre',
         region: 'EU',
         difficulty: 4,
+        specId: 103,
       })
     );
+  });
+
+  it('does not call start when spec is missing', async () => {
+    mockParams('char=Jumbaa&server=ysondre&region=EU&difficulty=4');
+    const start = vi.fn();
+    renderHook(() => useRouteSync(makeHookArgs({ zones: [zone], start })));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(start).not.toHaveBeenCalled();
   });
 
   it('does not call start when zones are loading', async () => {
@@ -136,7 +153,7 @@ describe('useRouteSync — character analysis effect', () => {
   });
 
   it('does not fire start again for the same key', async () => {
-    mockParams('char=Jumbaa&server=ysondre&region=EU&difficulty=4');
+    mockParams('char=Jumbaa&server=ysondre&region=EU&difficulty=4&spec=103');
     const start = vi.fn();
     const args = makeHookArgs({ zones: [zone], start });
     const { rerender } = renderHook(() => useRouteSync(args));
@@ -149,7 +166,7 @@ describe('useRouteSync — character analysis effect', () => {
 
 describe('useRouteSync — clearCharKey / clearReportKey / setReportKey', () => {
   it('clearCharKey allows start to fire again for same params', async () => {
-    mockParams('char=Jumbaa&server=ysondre&region=EU&difficulty=4');
+    mockParams('char=Jumbaa&server=ysondre&region=EU&difficulty=4&spec=103');
     const start = vi.fn();
     const { result, rerender } = renderHook(() =>
       useRouteSync(makeHookArgs({ zones: [zone], start }))
@@ -164,7 +181,7 @@ describe('useRouteSync — clearCharKey / clearReportKey / setReportKey', () => 
   });
 
   it('setReportKey re-blocks startReport after clearReportKey', async () => {
-    mockParams('report=abc123&actor=7&difficulty=4');
+    mockParams('report=abc123&actor=7&difficulty=4&spec=103');
     const startReport = vi.fn();
     const fetchMeta = vi.fn();
     const actors = [{ id: 7, name: 'Jumbaa', type: 'Player', subType: 'Druid', server: 'Ysondre' }];
@@ -200,14 +217,22 @@ describe('useRouteSync — clearCharKey / clearReportKey / setReportKey', () => 
 
 describe('useRouteSync — report meta fetch effect', () => {
   it('calls fetchMeta when reportCode present but meta not yet loaded', async () => {
-    mockParams('report=abc123&actor=7');
+    mockParams('report=abc123&actor=7&spec=103');
     const fetchMeta = vi.fn();
     renderHook(() => useRouteSync(makeHookArgs({ fetchMeta })));
     await waitFor(() => expect(fetchMeta).toHaveBeenCalledWith('abc123'));
   });
 
+  it('does not fetch meta when spec is missing', async () => {
+    mockParams('report=abc123&actor=7');
+    const fetchMeta = vi.fn();
+    renderHook(() => useRouteSync(makeHookArgs({ fetchMeta })));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(fetchMeta).not.toHaveBeenCalled();
+  });
+
   it('calls startReport once meta is loaded and actor found', async () => {
-    mockParams('report=abc123&actor=7&difficulty=4');
+    mockParams('report=abc123&actor=7&difficulty=4&spec=103');
     const startReport = vi.fn();
     const fetchMeta = vi.fn();
     const actors = [{ id: 7, name: 'Jumbaa', type: 'Player', subType: 'Druid', server: 'Ysondre' }];

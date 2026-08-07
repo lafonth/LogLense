@@ -44,8 +44,10 @@ export async function POST(req: NextRequest) {
     )
   );
 
-  // Resolve specId: use provided specId if valid, else fall back to first DPS spec for the class
-  const resolvedSpecId = specId || getDpsSpecsForClass(actorClass)[0]?.specId || 103;
+  // Resolve specId: use provided specId if valid, else fall back to first DPS spec for the class.
+  // Si la classe elle-même est inconnue, on renvoie 0 : le prompt sait dire « spec inconnue »,
+  // il ne sait pas rattraper une spec affirmée à tort.
+  const resolvedSpecId = specId || getDpsSpecsForClass(actorClass)[0]?.specId || 0;
 
   return NextResponse.json({
     input: {

@@ -52,6 +52,7 @@ export function HomeClient() {
     reportCode,
     reportActorId,
     reportDifficulty,
+    specParam,
     bossParam,
     clearCharKey,
     clearReportKey,
@@ -166,7 +167,9 @@ export function HomeClient() {
     const diff = reportContext?.difficulty ?? reportDifficulty;
     const fights = reportContext?.fights ?? reportShellMeta?.fights;
     if (!code || !fights) return;
-    const currentSpecId = reportResult?.input.specId ?? 103;
+    // L'URL porte toujours `spec` sur ce chemin : c'est une mesure, pas une supposition.
+    // Le 0 final ne sert qu'au cas dégradé, où il vaut mieux dire « inconnue » que « Feral ».
+    const currentSpecId = reportResult?.input.specId ?? specParam ?? 0;
     setReportKey(`${code}|${actor.id}|${diff}`);
     setReportContext((prev) => (prev ? { ...prev, selectedActorId: actor.id } : null));
     const params = new URLSearchParams(searchParams.toString());
@@ -241,7 +244,9 @@ export function HomeClient() {
     );
   }
 
-  if ((char && server) || (reportCode && reportActorId)) {
+  // Sans `spec`, `useRouteSync` ne lance rien : afficher le spinner ici tournerait sans fin.
+  // On retombe sur le formulaire, où la spec se choisit.
+  if (specParam && ((char && server) || (reportCode && reportActorId))) {
     return (
       <div className="flex h-full items-center justify-center">
         <LoadingSpinner label="Loading…" />

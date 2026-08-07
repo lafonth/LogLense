@@ -33,7 +33,7 @@ export function CharacterForm({
   const [difficulty, setDifficulty] = useState<AnalysisInput['difficulty']>(4);
   const [selectedEncounterIds, setSelectedEncounterIds] = useState<Set<number> | null>(null);
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
-  const [specId, setSpecId] = useState<number>(103);
+  const [specId, setSpecId] = useState<number | null>(null);
 
   const activeZoneId = selectedZoneId ?? zones[0]?.id ?? null;
   const currentZone = zones.find((z) => z.id === activeZoneId) ?? null;
@@ -54,7 +54,8 @@ export function CharacterForm({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!characterName.trim() || !realm || !activeZoneId || encounters.length === 0) return;
+    if (!characterName.trim() || !realm || !specId || !activeZoneId || encounters.length === 0)
+      return;
     onSubmit(
       {
         characterName: characterName.trim(),

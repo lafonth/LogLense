@@ -5,7 +5,8 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'LogLense',
-  description: 'Feral Druid WarcraftLogs analyser',
+  description:
+    'WarcraftLogs analyser for DPS specs — compare a parse against a field of comparable logs',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

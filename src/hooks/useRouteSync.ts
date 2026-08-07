@@ -32,6 +32,7 @@ export interface RouteParams {
   reportCode: string | null;
   reportActorId: number | null;
   reportDifficulty: AnalysisInput['difficulty'];
+  specParam: number | null;
   bossParam: number | null;
   clearCharKey: () => void;
   clearReportKey: () => void;
@@ -58,14 +59,17 @@ export function useRouteSync({
   const reportCode = searchParams.get('report');
   const reportActorId = Number(searchParams.get('actor')) || null;
   const reportDifficulty = parseDifficulty(searchParams.get('difficulty'));
-  const specParam = Number(searchParams.get('spec')) || 103;
+  // Les deux écritures d'URL posent toujours `spec`. Une URL qui en manque est tronquée, et
+  // lui donner une spec par défaut lancerait une analyse entière sur une spec que personne
+  // n'a choisie — un rapport faux qui ne se signale pas. On refuse de démarrer à la place.
+  const specParam = Number(searchParams.get('spec')) || null;
   const bossParam = Number(searchParams.get('boss')) || null;
 
   const lastKeyRef = useRef<string | null>(null);
   const lastReportKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!char || !server || zonesLoading || zones.length === 0) return;
+    if (!char || !server || !specParam || zonesLoading || zones.length === 0) return;
     const zone = (zoneId ? zones.find((z) => z.id === zoneId) : null) ?? zones[0];
     if (!zone) return;
     const key = `${char}|${server}|${region}|${difficulty}|${zone.id}|${specParam}`;
@@ -82,7 +86,7 @@ export function useRouteSync({
   }, [char, server, region, difficulty, zoneId, zones, zonesLoading, specParam, start]);
 
   useEffect(() => {
-    if (!reportCode || !reportActorId) return;
+    if (!reportCode || !reportActorId || !specParam) return;
     if (reportMetaLoading) return;
     const key = `${reportCode}|${reportActorId}|${reportDifficulty}|${specParam}`;
     if (lastReportKeyRef.current === key) return;
@@ -121,6 +125,7 @@ export function useRouteSync({
     reportCode,
     reportActorId,
     reportDifficulty,
+    specParam,
     bossParam,
     clearCharKey: () => {
       lastKeyRef.current = null;
