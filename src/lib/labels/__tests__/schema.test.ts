@@ -3,32 +3,14 @@ import { LABEL_REASONS, MAX_FIELD_LENGTH, monthKey, parseSubmission } from '../s
 
 function validBody() {
   return {
+    renderId: 'a3f1c2d4-0000-4000-8000-000000000001',
     reason: 'externals',
     encounterId: 3177,
     difficulty: 5,
     specId: 103,
-    subject: {
-      code: 'abc',
-      fightID: 17,
-      actorId: 63,
-      ilvl: 284.1,
-      killTimeMs: 326876,
-      tierPieces: 4,
-      externalUptime: 0,
-    },
-    reference: {
-      code: 'xyz',
-      fightID: 3,
-      name: 'Aidan',
-      ilvl: 285,
-      killTimeMs: 317924,
-      dps: 123456,
-      tierPieces: 2,
-      externalUptime: 12.5,
-      disqualifiedBy: [],
-    },
+    subject: { code: 'abc', fightID: 17, actorId: 63 },
+    reference: { code: 'xyz', fightID: 3, actorId: 12, disqualifiedBy: [] },
     scores: { distance: 0.42, ilvlGap: 0.9, killTimeGapPct: -2.7, rank: 1 },
-    pool: { candidatesConsidered: 981, pagesFetched: 10, level: 'close' },
   };
 }
 
@@ -48,19 +30,56 @@ describe('parseSubmission', () => {
     expect(parseSubmission({ ...validBody(), reason: 'bad-vibes' })).toBeNull();
   });
 
-  it('rejects a comparability level outside the four known ones', () => {
+  // Sans lui le verdict ne se joint à aucune exposition : il ne se déduplique pas, et le
+  // positif faible qu'il devait contredire ne se dérive plus. Un orphelin par construction.
+  it('rejects a verdict that points at no render', () => {
     const body = validBody();
-    expect(parseSubmission({ ...body, pool: { ...body.pool, level: 'perfect' } })).toBeNull();
+    const { renderId, ...withoutRender } = body;
+    expect(parseSubmission(withoutRender)).toBeNull();
+    expect(parseSubmission({ ...body, renderId: '' })).toBeNull();
+    expect(parseSubmission({ ...body, renderId: 42 })).toBeNull();
   });
 
-  it('accepts a null ilvl and a null ilvlGap together', () => {
-    const body = validBody();
+  // §5c des CGU : aucun nom de tiers dans le corpus. `actorId` réhydrate ce que le nom disait.
+  it('keeps no character name, on either side', () => {
     const parsed = parseSubmission({
-      ...body,
-      reference: { ...body.reference, ilvl: null },
-      scores: { ...body.scores, ilvlGap: null },
+      ...validBody(),
+      subject: { code: 'abc', fightID: 17, actorId: 63, name: 'Jumbaa' },
+      reference: { code: 'xyz', fightID: 3, actorId: 12, disqualifiedBy: [], name: 'Aidan' },
     });
-    expect(parsed?.reference.ilvl).toBeNull();
+    expect(parsed).not.toBeNull();
+    expect(JSON.stringify(parsed)).not.toContain('Aidan');
+    expect(JSON.stringify(parsed)).not.toContain('Jumbaa');
+  });
+
+  // Ce que le corps ne porte plus se réhydrate depuis WCL ; le recopier ferait vieillir le
+  // corpus avec les mesures d'aujourd'hui plutôt qu'avec le pointeur qui les retrouve.
+  it('drops the WCL measurements a client might still send', () => {
+    const parsed = parseSubmission({
+      ...validBody(),
+      subject: { code: 'abc', fightID: 17, actorId: 63, ilvl: 284.1, killTimeMs: 326876 },
+      reference: {
+        code: 'xyz',
+        fightID: 3,
+        actorId: 12,
+        disqualifiedBy: [],
+        dps: 123456,
+        tierPieces: 2,
+        externalUptime: 12.5,
+      },
+      pool: { candidatesConsidered: 981, pagesFetched: 10, level: 'close' },
+    });
+    expect(parsed).not.toBeNull();
+    expect(parsed).not.toHaveProperty('pool');
+    expect(parsed?.subject).toEqual({ code: 'abc', fightID: 17, actorId: 63 });
+    expect(parsed?.reference).toEqual({ code: 'xyz', fightID: 3, actorId: 12, disqualifiedBy: [] });
+  });
+
+  // Les écarts restent quand les mesures partent : ce sont les jugements portés sur un vivier
+  // qui n'existera plus dans un mois, et ils ne se recalculent pas.
+  it('accepts a null ilvlGap', () => {
+    const body = validBody();
+    const parsed = parseSubmission({ ...body, scores: { ...body.scores, ilvlGap: null } });
     expect(parsed?.scores.ilvlGap).toBeNull();
   });
 
@@ -91,11 +110,7 @@ describe('parseSubmission', () => {
 
   it('rejects a string past the field length cap', () => {
     const body = validBody();
-    const parsed = parseSubmission({
-      ...body,
-      reference: { ...body.reference, name: 'A'.repeat(MAX_FIELD_LENGTH + 1) },
-    });
-    expect(parsed).toBeNull();
+    expect(parseSubmission({ ...body, renderId: 'a'.repeat(MAX_FIELD_LENGTH + 1) })).toBeNull();
   });
 
   it('rejects an empty report code', () => {
@@ -103,17 +118,10 @@ describe('parseSubmission', () => {
     expect(parseSubmission({ ...body, subject: { ...body.subject, code: '' } })).toBeNull();
   });
 
-  // Un palier inconnu se dit `null` et se recopie tel quel : le lire comme zéro
-  // fabriquerait une mesure qui n'a pas eu lieu, dans un corpus qu'on ne peut pas corriger.
-  it('accepts an unknown tier on either side', () => {
+  it('rejects a missing actor pointer', () => {
     const body = validBody();
-    const parsed = parseSubmission({
-      ...body,
-      subject: { ...body.subject, tierPieces: null },
-      reference: { ...body.reference, tierPieces: null },
-    });
-    expect(parsed?.subject.tierPieces).toBeNull();
-    expect(parsed?.reference.tierPieces).toBeNull();
+    const { actorId, ...withoutActor } = body.reference;
+    expect(parseSubmission({ ...body, reference: withoutActor })).toBeNull();
   });
 
   it('carries the verdict of the selection', () => {
@@ -168,10 +176,17 @@ describe('parseSubmission', () => {
   });
 
   // The client must not be able to choose who it is or when this happened.
-  it('drops client-supplied v, at and by', () => {
-    const parsed = parseSubmission({ ...validBody(), v: 9, at: '1999-01-01', by: 'someone-else' });
+  it('drops client-supplied v, kind, at and by', () => {
+    const parsed = parseSubmission({
+      ...validBody(),
+      v: 9,
+      kind: 'exposure',
+      at: '1999-01-01',
+      by: 'someone-else',
+    });
     expect(parsed).not.toBeNull();
     expect(parsed).not.toHaveProperty('v');
+    expect(parsed).not.toHaveProperty('kind');
     expect(parsed).not.toHaveProperty('at');
     expect(parsed).not.toHaveProperty('by');
   });

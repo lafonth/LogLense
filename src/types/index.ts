@@ -93,6 +93,11 @@ export interface DamageEntry {
 export interface ReferenceProvenance {
   code: string;
   fightID: number;
+  /**
+   * Le pointeur de réhydratation : `code` + `fightID` + `actorId` désignent la référence
+   * sans son nom. C'est ce qui dispense le corpus de conserver le nom d'un tiers.
+   */
+  actorId: number;
   name: string;
   ilvl: number | null;
   killTimeMs: number;
@@ -129,6 +134,8 @@ export interface ReferenceSample {
   name: string;
   code: string;
   fightID: number;
+  /** Même pointeur de réhydratation que sur {@link ReferenceProvenance}. */
+  actorId: number;
   stats: CharacterStats;
   dps: number;
   killTimeMs: number;
@@ -163,6 +170,12 @@ export interface Comparability {
 }
 
 export interface BossResult {
+  /**
+   * Identifie ce rendu-ci. Les verdicts « pas comparable » le reprennent : sans lui, un
+   * refus ne peut être ni rattaché à ce qui a été montré, ni dédupliqué. Une ré-analyse du
+   * même combat en produit un nouveau — c'est une nouvelle exposition, pas un doublon.
+   */
+  renderId: string;
   encounter: string;
   encounterId: number;
   specId: number;

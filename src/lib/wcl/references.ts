@@ -139,6 +139,7 @@ function sampleOf(verified: VerifiedCandidate[]): ReferenceSample[] {
         name: candidate.name,
         code: candidate.report.code,
         fightID: candidate.report.fightID,
+        actorId: v.combatant.sourceID,
         stats,
         dps: Math.round(candidate.amount),
         killTimeMs: candidate.duration,
@@ -170,6 +171,7 @@ async function buildTopPlayer(token: string, verified: VerifiedCandidate): Promi
     provenance: {
       code,
       fightID,
+      actorId: combatant.sourceID,
       name: candidate.name,
       ilvl: candidate.bracketData ?? null,
       killTimeMs: candidate.duration,

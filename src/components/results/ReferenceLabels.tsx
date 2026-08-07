@@ -52,26 +52,21 @@ export function ReferenceLabels({ result }: ReferenceLabelsProps) {
     setStatus((s) => ({ ...s, [key]: 'sending' }));
 
     const body = {
+      // Celui que le serveur a posé sur ce rendu, jamais un identifiant fabriqué ici : c'est
+      // la seule chose qui rattache ce refus à l'exposition qui l'a précédé.
+      renderId: result.renderId,
       reason,
       encounterId: result.encounterId,
       difficulty: result.difficulty,
       specId: result.specId,
-      subject: {
-        ...character.source,
-        ilvl: comparability.myIlvl,
-        killTimeMs: comparability.myKillTimeMs,
-        tierPieces: character.eligibility.tierPieces,
-        externalUptime: character.eligibility.externalUptime,
-      },
+      // Pointeurs seuls des deux côtés. Les mesures — ilvl, kill time, set bonus, externals,
+      // et le nom de la référence, que le §5c des CGU interdit — se réhydratent depuis WCL à
+      // partir de `code` + `fightID` + `actorId`. Les recopier n'ajouterait rien qu'un risque.
+      subject: { ...character.source },
       reference: {
         code: provenance.code,
         fightID: provenance.fightID,
-        name: provenance.name,
-        ilvl: provenance.ilvl,
-        killTimeMs: provenance.killTimeMs,
-        dps: provenance.dps,
-        tierPieces: provenance.tierPieces,
-        externalUptime: provenance.externalUptime,
+        actorId: provenance.actorId,
         disqualifiedBy: provenance.disqualifiedBy,
       },
       scores: {
@@ -87,11 +82,6 @@ export function ReferenceLabels({ result }: ReferenceLabelsProps) {
             : ((provenance.killTimeMs - comparability.myKillTimeMs) / comparability.myKillTimeMs) *
               100,
         rank,
-      },
-      pool: {
-        candidatesConsidered: comparability.candidatesConsidered,
-        pagesFetched: comparability.pagesFetched,
-        level: comparability.level,
       },
     };
 

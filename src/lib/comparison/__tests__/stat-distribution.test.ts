@@ -21,6 +21,7 @@ function entry(name: string, avgIlvl: number, qualified = true): ReferenceSample
     name,
     code: `code-${name}`,
     fightID: 1,
+    actorId: 4,
     stats: stats({ name, avgIlvl }),
     dps: 300000,
     killTimeMs: 200000,

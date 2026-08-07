@@ -1,5 +1,6 @@
 import type { BossResult } from '@/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { recordExposure } from '@/lib/labels/record-exposure';
 import { analyzeBoss } from '@/lib/wcl/pipeline';
 import { POST } from '../route';
 
@@ -11,7 +12,12 @@ vi.mock('@/lib/wcl/pipeline', () => ({
   analyzeBoss: vi.fn(),
 }));
 
+vi.mock('@/lib/labels/record-exposure', () => ({
+  recordExposure: vi.fn().mockResolvedValue(undefined),
+}));
+
 const mockBossResult: BossResult = {
+  renderId: 'render-1',
   encounter: 'Chimaerus',
   encounterId: 3306,
   specId: 103,
@@ -74,6 +80,7 @@ function makeRequest(body: Record<string, unknown>, encounterId = '3306') {
 describe('analyze route', () => {
   beforeEach(() => {
     vi.mocked(analyzeBoss).mockResolvedValue(mockBossResult);
+    vi.mocked(recordExposure).mockReset().mockResolvedValue(undefined);
     process.env.WCL_CLIENT_ID = 'test-id';
     process.env.WCL_CLIENT_SECRET = 'test-secret';
   });
@@ -179,5 +186,63 @@ describe('analyze route', () => {
 
     expect(res.status).toBe(500);
     expect(body.error).toBe('WCL rate limit');
+  });
+
+  // La capture est le seul actif que ce produit ne peut pas reconstituer plus tard : elle
+  // part avec la réponse, et elle dit de quelle mesure le DPS du sujet provient.
+  it('records the exposure of what it is about to render', async () => {
+    const req = makeRequest({
+      characterName: 'Jumbaa',
+      serverSlug: 'ysondre',
+      region: 'EU',
+      difficulty: 5,
+      encounterName: 'Chimaerus',
+      specId: 103,
+    });
+
+    const res = await POST(req, { params: Promise.resolve({ encounterId: '3306' }) });
+    const body = await res.json();
+
+    expect(recordExposure).toHaveBeenCalledTimes(1);
+    expect(recordExposure).toHaveBeenCalledWith([mockBossResult], { dpsSource: 'ranking' });
+    // La réponse ne change pas : la capture s'ajoute au rendu, elle ne le reformule pas.
+    expect(body.encounter).toBe('Chimaerus');
+  });
+
+  it('records nothing when there is no analysis to show', async () => {
+    vi.mocked(analyzeBoss).mockResolvedValue(null);
+
+    const req = makeRequest({
+      characterName: 'NoData',
+      serverSlug: 'ysondre',
+      region: 'EU',
+      difficulty: 5,
+      encounterName: 'Chimaerus',
+      specId: 103,
+    });
+
+    await POST(req, { params: Promise.resolve({ encounterId: '3306' }) });
+
+    expect(recordExposure).toHaveBeenCalledWith([], { dpsSource: 'ranking' });
+  });
+
+  // `recordExposure` avale ses propres échecs ; si l'un lui échappait quand même, il ne doit
+  // pas transformer une analyse réussie en 500.
+  it('still renders the analysis if the capture were to reject', async () => {
+    vi.mocked(recordExposure).mockRejectedValue(new Error('redis down'));
+
+    const req = makeRequest({
+      characterName: 'Jumbaa',
+      serverSlug: 'ysondre',
+      region: 'EU',
+      difficulty: 5,
+      encounterName: 'Chimaerus',
+      specId: 103,
+    });
+
+    const res = await POST(req, { params: Promise.resolve({ encounterId: '3306' }) });
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).encounter).toBe('Chimaerus');
   });
 });

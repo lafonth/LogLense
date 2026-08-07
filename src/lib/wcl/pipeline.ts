@@ -1,4 +1,5 @@
 import type { AnalysisInput, AnalysisResult, BossResult } from '@/types';
+import { randomUUID } from 'node:crypto';
 import { getSpecInfo } from '@/lib/specs';
 import { getWCLToken } from './auth';
 import { gql } from './client';
@@ -116,6 +117,7 @@ export async function analyzeBoss(
   });
 
   return {
+    renderId: randomUUID(),
     encounter: encounterName,
     encounterId,
     specId: charEvent.specID,

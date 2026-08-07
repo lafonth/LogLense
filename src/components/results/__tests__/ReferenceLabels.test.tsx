@@ -5,10 +5,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseSubmission } from '@/lib/labels/schema';
 import { ReferenceLabels } from '../ReferenceLabels';
 
+// Le code de rapport ne dérive pas du nom : le corps envoyé est vérifié par recherche de
+// sous-chaîne, et un `code-Baldan` ferait passer ce contrôle pour une raison qui n'en est pas une.
 function provenance(name: string, rank: number): ReferenceProvenance {
   return {
-    code: `code-${name}`,
+    code: `log-${rank}`,
     fightID: rank,
+    actorId: 40 + rank,
     name,
     ilvl: 285,
     killTimeMs: 317924,
@@ -42,6 +45,7 @@ function topPlayer(name: string, rank: number): TopPlayer {
 
 function result(): BossResult {
   return {
+    renderId: 'render-1',
     encounter: 'Vorasius',
     encounterId: 3177,
     difficulty: 5,
@@ -146,27 +150,40 @@ describe('referenceLabels', () => {
     const sent = JSON.parse(String((init as RequestInit).body));
 
     expect(sent.reason).toBe('kill-time');
-    expect(sent.reference.name).toBe('Baldan');
     expect(sent.scores.rank).toBe(2);
-    expect(sent.subject).toEqual({
-      code: 'abc',
-      fightID: 17,
-      actorId: 63,
-      ilvl: 284.1,
-      killTimeMs: 326876,
-      // Le palier et l'uptime du sujet, sans quoi le verdict sur la référence ne se relit pas.
-      tierPieces: 4,
-      externalUptime: 0,
-    });
-    expect(sent.reference).toMatchObject({
-      tierPieces: 4,
-      externalUptime: 0,
+    // Le rendu que le serveur a estampillé, repris tel quel : c'est la jointure.
+    expect(sent.renderId).toBe('render-1');
+    // Pointeurs seuls des deux côtés — ni mesure recopiée, ni vivier.
+    expect(sent.subject).toEqual({ code: 'abc', fightID: 17, actorId: 63 });
+    expect(sent.reference).toEqual({
+      code: 'log-2',
+      fightID: 2,
+      actorId: 42,
       disqualifiedBy: [],
     });
+    expect(sent.pool).toBeUndefined();
     // Signed, reference − subject: these references are better geared and faster.
     expect(sent.scores.ilvlGap).toBeCloseTo(0.9, 5);
     expect(sent.scores.killTimeGapPct).toBeLessThan(0);
-    expect(sent.pool).toEqual({ candidatesConsidered: 981, pagesFetched: 10, level: 'close' });
+  });
+
+  // §5c des CGU : le nom s'affiche à l'écran pour que le lecteur sache qui il conteste, et
+  // ne quitte jamais le navigateur. `actorId` porte la même information dans le corpus.
+  it('sends no character name, though it shows them', async () => {
+    const user = userEvent.setup();
+    render(<ReferenceLabels result={result()} />);
+
+    expect(screen.getByText('Baldan')).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole('button', { name: 'Not comparable' })[1]);
+    await user.click(screen.getByRole('button', { name: 'Externals' }));
+
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(1));
+    const [, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = String((init as RequestInit).body);
+
+    expect(body).not.toContain('Baldan');
+    expect(body).not.toContain('Jumbaa');
   });
 
   it('marks the reference as recorded once the write succeeds', async () => {
@@ -246,7 +263,7 @@ describe('referenceLabels', () => {
     expect(await screen.findByText('Recorded')).toBeInTheDocument();
 
     const otherBoss = result();
-    otherBoss.topPlayers = [topPlayer('Cedran', 1), topPlayer('Doran', 2)];
+    otherBoss.topPlayers = [topPlayer('Cedran', 3), topPlayer('Doran', 4)];
     rerender(<ReferenceLabels result={otherBoss} />);
 
     expect(screen.queryByText('Recorded')).not.toBeInTheDocument();

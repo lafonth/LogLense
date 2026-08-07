@@ -291,6 +291,9 @@ describe('resolveReferences', () => {
     expect(topPlayers[0].provenance).toMatchObject({
       code: 'Aidan',
       fightID: 1,
+      // Le pointeur de réhydratation : sans lui il faudrait garder le nom pour retrouver
+      // l'acteur, c'est-à-dire garder ce que le corpus doit justement pouvoir jeter.
+      actorId: 4,
       name: 'Aidan',
       // The ranking's bracketData, not stats.avgIlvl (640) — the selection scored on this.
       ilvl: 285,
@@ -403,6 +406,8 @@ describe('resolveReferences', () => {
     expect(topPlayers).toHaveLength(3);
     expect(sample.map((s) => s.name)).toEqual(['a', 'boosted', 'c', 'd']);
     expect(sample.map((s) => s.qualified)).toEqual([true, false, true, true]);
+    // Chaque entrée porte son pointeur : le corpus doit pouvoir la retrouver sans son nom.
+    expect(sample.map((s) => s.actorId)).toEqual([4, 4, 4, 4]);
     expect(sample[0].stats.avgIlvl).toBe(640);
   });
 });

@@ -33,6 +33,7 @@ function reference(
     provenance: {
       code: `code-${name}`,
       fightID: 1,
+      actorId: 4,
       name,
       ilvl: 639,
       killTimeMs: 263000,

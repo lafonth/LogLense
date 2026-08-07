@@ -15,32 +15,14 @@ vi.mock('@/lib/auth', () => ({ authOptions: {} }));
 
 function body(overrides: Record<string, unknown> = {}) {
   return {
+    renderId: 'a3f1c2d4-0000-4000-8000-000000000001',
     reason: 'externals',
     encounterId: 3177,
     difficulty: 5,
     specId: 103,
-    subject: {
-      code: 'abc',
-      fightID: 17,
-      actorId: 63,
-      ilvl: 284.1,
-      killTimeMs: 326876,
-      tierPieces: 4,
-      externalUptime: 0,
-    },
-    reference: {
-      code: 'xyz',
-      fightID: 3,
-      name: 'Aidan',
-      ilvl: 285,
-      killTimeMs: 317924,
-      dps: 123456,
-      tierPieces: 2,
-      externalUptime: 12.5,
-      disqualifiedBy: [],
-    },
+    subject: { code: 'abc', fightID: 17, actorId: 63 },
+    reference: { code: 'xyz', fightID: 3, actorId: 12, disqualifiedBy: [] },
     scores: { distance: 0.42, ilvlGap: 0.9, killTimeGapPct: -2.7, rank: 1 },
-    pool: { candidatesConsidered: 981, pagesFetched: 10, level: 'close' },
     ...overrides,
   };
 }
@@ -95,21 +77,42 @@ describe('pOST /api/labels/comparability', () => {
     vi.useRealTimers();
   });
 
-  it('stamps v, at and a hashed by that is not the email', async () => {
+  it('stamps v, kind, at and a hashed by that is not the email', async () => {
     await POST(request(body()));
 
     const stored = JSON.parse(String(redisAppend.mock.calls[0][1]));
-    expect(stored.v).toBe(2);
+    expect(stored.v).toBe(3);
+    expect(stored.kind).toBe('verdict');
     expect(typeof stored.at).toBe('string');
     expect(stored.by).toMatch(/^[0-9a-f]{32}$/);
     expect(JSON.stringify(stored)).not.toContain('someone@example.com');
   });
 
-  it('ignores a client-supplied identity and timestamp', async () => {
-    await POST(request(body({ v: 9, at: '1999-01-01T00:00:00.000Z', by: 'someone-else' })));
+  // La jointure avec l'exposition. Un verdict qui ne s'y rattache pas ne s'exploite pas.
+  it('rejects a verdict that carries no renderId', async () => {
+    const { renderId, ...withoutRender } = body();
+
+    const res = await POST(request(withoutRender));
+
+    expect(res.status).toBe(400);
+    expect(redisAppend).not.toHaveBeenCalled();
+  });
+
+  it('stores the renderId of the contested render', async () => {
+    await POST(request(body()));
 
     const stored = JSON.parse(String(redisAppend.mock.calls[0][1]));
-    expect(stored.v).toBe(2);
+    expect(stored.renderId).toBe('a3f1c2d4-0000-4000-8000-000000000001');
+  });
+
+  it('ignores a client-supplied identity and timestamp', async () => {
+    await POST(
+      request(body({ v: 9, kind: 'exposure', at: '1999-01-01T00:00:00.000Z', by: 'someone-else' }))
+    );
+
+    const stored = JSON.parse(String(redisAppend.mock.calls[0][1]));
+    expect(stored.v).toBe(3);
+    expect(stored.kind).toBe('verdict');
     expect(stored.by).not.toBe('someone-else');
     expect(stored.at).not.toBe('1999-01-01T00:00:00.000Z');
   });

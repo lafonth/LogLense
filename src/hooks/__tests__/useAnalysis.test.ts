@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAnalysis } from '@/hooks/useAnalysis';
 
 const mockBossResult: BossResult = {
+  renderId: 'render-1',
   encounter: 'Chimaerus',
   encounterId: 3306,
   specId: 103,

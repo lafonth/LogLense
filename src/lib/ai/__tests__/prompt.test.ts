@@ -17,6 +17,7 @@ function sampleEntry(
     name,
     code: `code-${name}`,
     fightID: 4,
+    actorId: 4,
     stats: {
       name,
       avgIlvl,
@@ -35,6 +36,7 @@ function sampleEntry(
 
 function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult {
   return {
+    renderId: 'render-1',
     encounter: 'Chimaerus',
     encounterId: 3306,
     specId: 103,
@@ -120,6 +122,7 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
         provenance: {
           code: 'ref1',
           fightID: 4,
+          actorId: 4,
           name: 'TopPlayer1',
           ilvl: 639,
           killTimeMs: 175000,

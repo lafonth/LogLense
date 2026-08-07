@@ -131,10 +131,9 @@ devient utile qu'une fois les gains faciles épuisés.
 Note d'architecture complémentaire, avec les diagrammes de flux v0 / v1 / v2 et l'arbre
 de décision gadget / structurant : [ia-ml-architecture.md](ia-ml-architecture.md).
 
-> **Divergence à trancher** — la section 5 de cette note laisse le persona payeur ouvert
-> (joueur individuel ou raid leader), alors que la section 4 ci-dessus tranche pour
-> l'abonnement saisonnier de guilde. Les deux documents ne peuvent pas rester en
-> désaccord sur ce point.
+> ~~**Divergence à trancher**~~ — **close le 2026-08-07.** La section 5 de cette note
+> laissait le persona payeur ouvert ; elle renvoie désormais à la section 4 ci-dessus,
+> qui fait autorité : abonnement saisonnier de guilde, donc le raid leader.
 
 ### Le découpage de monétisation
 
@@ -452,7 +451,139 @@ et `references.ts` portent désormais le traitement commun.
    séquence, `src/lib/comparison/opening-diff.ts` la confronte à la majorité des
    références, et `OpeningChain` comme la section `### Opening` du prompt n'énoncent
    que la **première** divergence. Voir « Constats clos » ci-dessous.
-8. **ML** — seulement après accumulation d'étiquettes. *(v2)*
+8. ~~**ML**~~ — **sorti de la v1 le 2026-08-07.** Voir « Le ML sort de la v1 » ci-dessous.
+   Reste en v2, sans date, conditionné au volume d'étiquettes. *(v2)*
+9. **Suivi dans le temps** — le nouvel axe de fidélisation. Voir ci-dessous. *(v1)*
+10. **Capture manquante** — `subject.dps`, les références affichées-non-contestées, et un
+    retour sur le rapport. Voir « Cadrage de la capture manquante ». *(v1, avant 9)*
+
+### Le ML sort de la v1 — décision du 2026-08-07
+
+Trois constats la motivent : le volume d'étiquettes nécessaire reste inconnu (la capture
+a démarré la veille), le corpus est un Redis append-only assumé insuffisant pour de
+l'entraînement, et la classe positive n'est pas capturée du tout — voir la capture
+manquante ci-dessous. Entraîner sur ce qui existe aujourd'hui produirait un classifieur
+qui n'a vu que des refus.
+
+**Ce que cette décision coûte, et il faut l'écrire :** la section « CGU RPGLogs » énonce
+déjà que retirer la tâche 8 fait tomber le produit sur la **contrainte non négociable
+n° 2**, puisque `ia-ml-architecture.md` classe le rapport LLM comme gadget et fait du ML
+ce qui rend l'IA structurante. Le suivi dans le temps ne répare pas ça : c'est du calcul
+déterministe sur des parses publics, réplicable, pas de l'IA. **La v1 ne satisfait donc
+plus la contrainte n° 2**, et c'est un renoncement daté, pas un oubli.
+
+Ce qui rend le renoncement réversible — et donc acceptable — est la capture, et elle
+seule. Le corollaire opérationnel joue exactement son rôle ici : le calcul repoussé se
+rattrape, la donnée non capturée est perdue. **Conséquence directe : la tâche 10 passe
+devant la tâche 9.** Repousser le ML sans compléter la capture ne serait pas un
+séquencement, ce serait un abandon qui ne dit pas son nom.
+
+### Le suivi dans le temps remplace le rapport isolé — décision du 2026-08-07
+
+L'axe de fidélisation n'est plus la qualité d'un rapport ponctuel mais la **trajectoire**.
+C'est le retour de ce que la section 2 avait déjà relevé et que le produit n'avait pas
+suivi : *« accélérer une boucle d'apprentissage, pas produire un rapport ponctuel »*, et
+*« WCL donne un état, jamais une trajectoire »*.
+
+Le rapport isolé était un mauvais axe de rétention pour une raison structurelle : il est
+consommé une fois. Sa qualité fait revenir au prochain kill, jamais demain. Une
+trajectoire, elle, a une valeur qui croît avec l'ancienneté du compte — ce qui est aussi
+la forme d'actif que la section 6 attend de la base pré-calculée.
+
+**Ce qui est reconstituable et ce qui ne l'est pas** — la distinction commande le travail :
+
+| Donnée | Reconstituable plus tard ? |
+|---|---|
+| Les parses passés du joueur | **Oui** — WCL garde l'historique, une trajectoire de DPS se rebâtit à froid |
+| Le vivier de références au moment T | **Non** — les world rankings d'un tier changent en continu ; qui étaient tes comparables en semaine 2 est irrécupérable en semaine 20 |
+| Le verdict de comparabilité rendu au moment T | **Non** — il dépend du vivier ci-dessus |
+
+Donc le suivi lui-même n'est pas urgent : il se calcule après coup. **Ce qui est urgent
+est l'instantané de comparabilité**, qui périme avec la saison. C'est un quatrième trou de
+capture, non nommé dans le cadrage initial, et de la même nature irréversible que les
+trois autres — traité comme candidat en fin de section 10.
+
+### Cadrage de la capture manquante
+
+Le corpus actuel (`v: 2`, `src/lib/labels/schema.ts`) capture **un verdict humain négatif
+sur une référence**. Trois trous, par ordre de coût si on ne les comble pas.
+
+#### 10a — `subject.dps` : le corpus ne porte pas l'écart
+
+`reference.dps` est enregistré, le DPS du sujet ne l'est pas. À l'entraînement, aucune
+étiquette ne permet donc de savoir si le lecteur a contesté une référence 5 % au-dessus de
+lui ou 60 % au-dessus — alors que l'écart de DPS *est* la variable que tout le produit
+cherche à expliquer. C'est le trou le moins cher et le plus absurde : la valeur est déjà
+dans `BossResult.character.dps`, à portée de `ReferenceLabels`.
+
+**Mais il ne suffit pas de recopier le champ.** Les deux chemins ne mesurent pas la même
+chose sous ce nom :
+
+| Chemin | Origine de `character.dps` | Comparable à `reference.dps` ? |
+|---|---|---|
+| Personnage | `ranks[].amount` du meilleur parse (`pipeline.ts:74-75`) | **Oui** — même source que `candidate.amount` |
+| Rapport | Calculé par `fetchFightData` sur la table de dégâts (`report-pipeline.ts:91`) | **Non vérifié** — autre source, autre périmètre de cibles possible |
+
+C'est le défaut déjà payé une fois sur le percentile (`23354b4`, « deux mesures sous un
+seul nom »). La tâche n'est donc pas « ajouter `subject.dps` » mais **réconcilier les deux
+mesures ou enregistrer laquelle a été utilisée** ; passe en `v: 3`.
+
+#### 10b — Les références affichées-non-contestées : il n'y a pas de classe positive
+
+Un classifieur de comparabilité entraîné sur le corpus actuel n'a jamais vu de référence
+jugée comparable. C'est le trou le plus grave : il rend la tâche 8 impossible, quel que
+soit le volume accumulé. Aggravant, l'absence de clic est **ambiguë** — elle confond « je
+la trouve comparable », « je ne l'ai pas regardée » et « je ne me suis pas donné la peine ».
+
+Ce qui manque est un enregistrement d'**exposition** : pour chaque analyse rendue, la
+liste des références montrées avec leurs features, et un identifiant que les verdicts
+négatifs référencent. Le positif est alors une déduction — *montrée, non contestée* — et
+non une mesure. Quatre points de conception à trancher :
+
+- **Écrit côté serveur, à la construction du rapport.** Un POST client peut être bloqué ou
+  perdu ; ici c'est toute la classe positive qui partirait avec.
+- **Un identifiant de rendu**, porté par `BossResult`, que la soumission de 10a/10c
+  reprend. Sans lui, on ne peut ni joindre un refus à son exposition ni dédupliquer.
+- **Étiqueté faible, explicitement.** Un champ qui dit que le positif est implicite. Un
+  corpus qui mélange un jugement énoncé et une absence de clic sous la même colonne est
+  irrécupérable après coup — c'est la leçon de `v: 2` sur les champs non mesurés.
+- **Le volume change d'ordre de grandeur.** Aujourd'hui : quelques refus rares. Demain :
+  `TOP_N`, voire toute la fenêtre de vérification, à chaque analyse. La liste mensuelle
+  Redis n'est pas dimensionnée pour ça, et le §5d des CGU (« build databases ») mord
+  nettement plus fort sur une copie systématique de mesures WCL que sur des refus
+  ponctuels. **L'atténuation `v: 3` réduite aux pointeurs** — `code`, `fightID`, `actorId`,
+  jugements propres, mesures réhydratées à l'entraînement — déjà identifiée puis non
+  retenue au titre des CGU, redevient le schéma par défaut pour cette raison-ci.
+
+#### 10c — Un retour sur le rapport lui-même
+
+Rien ne mesure aujourd'hui si le rapport sert. Objection immédiate, et il faut y répondre
+avant d'écrire la feature : le rapport LLM est classé **gadget**, pourquoi instrumenter un
+gadget ? Deux raisons, et aucune n'est « améliorer le prompt » :
+
+1. Le découpage gratuit/payant repose sur l'hypothèse que le gratuit — le rapport ponctuel
+   — est ce que WCL donne déjà. Cette hypothèse n'est **pas mesurée**. Un retour est ce qui
+   la teste.
+2. Couplé au suivi dans le temps, un jugement sur le rapport devient l'amorce d'une
+   étiquette d'un autre ordre : *le conseil a-t-il été suivi d'un progrès au kill suivant*.
+   Ça, ce n'est pas du réglage de prose, c'est une cible d'apprentissage — et elle n'existe
+   que si les deux bouts sont capturés maintenant.
+
+Forme minimale : un verdict, plus **quel axe** a été inutile (DPS, dégâts, ouverture, CD,
+talents), rattaché à l'identifiant de rendu de 10b. **Pas de champ de texte libre** :
+`MAX_FIELD_LENGTH` le borne mal, il ouvre une entrée de données personnelles dans un
+corpus append-only qu'on ne peut pas nettoyer, et le §5c des CGU s'applique dès qu'un
+tiers y est nommé.
+
+#### 10d — Candidat : l'instantané de comparabilité
+
+Non demandé, issu de la décision sur le suivi (voir le tableau ci-dessus). Le vivier et le
+verdict de comparabilité d'un jour donné ne se reconstituent pas une fois la saison
+avancée. 10b y répond en grande partie *si* l'enregistrement d'exposition porte le bloc
+`comparability` complet et pas seulement les références retenues — c'est-à-dire
+`candidatesConsidered`, `pagesFetched`, `disqualified`, `substituted`, `level`.
+**Recommandation : le prévoir dans le schéma de 10b**, plutôt que d'en faire une tâche.
+Le coût est de quelques champs ; l'omettre est irréversible.
 
 ### Points ouverts à trancher
 
@@ -460,7 +591,11 @@ et `references.ts` portent désormais le traitement commun.
   ci-dessous. La réponse est défavorable ; la décision est de continuer et de demander
   l'approbation en fin de projet.
 - **Volume d'étiquettes** nécessaire pour qu'un classifieur batte une heuristique
-  simple. Inconnu tant que la capture n'a pas démarré.
+  simple. Toujours inconnu, et la question est mal posée tant que 10b n'est pas fait :
+  un corpus sans classe positive n'a pas de volume utile, quel que soit son nombre de
+  lignes. À reposer après la capture d'exposition.
+- **Migration du corpus** hors du Redis append-only. 10b change l'ordre de grandeur du
+  volume ; c'est probablement lui qui déclenche la migration, pas le ML.
 - **Chiffre exact du consentement à payer** dans la guilde (combien sur 25).
 - **Spec-agnosticisme du prompt IA** — le pipeline est spec-agnostique (D6), `src/lib/ai/`
   n'a pas été audité. Faire bien une spec vaut mieux que faire mal 39 — à assumer
@@ -485,6 +620,10 @@ tâche 8 ne lèverait donc pas l'obligation d'approbation — et ferait tomber l
 la contrainte non négociable n°2, puisque `ia-ml-architecture.md` classe le rapport LLM
 comme **gadget** et fait du ML ce qui rend l'IA structurante. Les deux contraintes
 non négociables et les CGU se croisent : aucune version monétisée n'échappe à l'approbation.
+
+*Le 2026-08-07, la tâche 8 a précisément été sortie de la v1 — voir « Le ML sort de la
+v1 ». Ce paragraphe n'est pas périmé pour autant : il énonce le prix de cette sortie, et
+c'est à ce titre qu'il a été repris dans la décision.*
 
 **Décision du 2026-08-07** — la demande d'approbation est repoussée en fin de projet.
 Le développement continue comme si elle était acquise. Ce qui est en jeu si elle est

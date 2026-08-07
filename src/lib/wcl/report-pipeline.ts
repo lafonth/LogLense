@@ -1,4 +1,5 @@
 import type { BossResult } from '@/types';
+import { randomUUID } from 'node:crypto';
 import { getSpecInfo } from '@/lib/specs';
 import { gql } from './client';
 import { findCombatantByActorId } from './combatant';
@@ -139,6 +140,7 @@ export async function analyzeReportBoss(
   const historical = await historicalPromise;
 
   return {
+    renderId: randomUUID(),
     encounter: encounterName,
     encounterId,
     specId: charEvent.specID,

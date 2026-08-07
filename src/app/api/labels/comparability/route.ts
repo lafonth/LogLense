@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const label: ComparabilityLabel = { v: 2, at, by, ...submission };
+  const label: ComparabilityLabel = { v: 3, kind: 'verdict', at, by, ...submission };
 
   try {
     // La longueur renvoyée par Redis reste ici : elle mesure la croissance du corpus, qui

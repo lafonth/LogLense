@@ -56,6 +56,32 @@ Le rapport commente des agrégats (casts totaux, uptime, diff de talents) que
 l'utilisateur peut lire lui-même dans l'onglet Comparison. C'est le cas gadget
 au sens littéral.
 
+### Où en est la v1 après la décision du 2026-08-07
+
+Le ML sort de la v1 et l'axe de fidélisation devient le suivi dans le temps.
+Il faut passer le test au résultat, sans l'arranger.
+
+| Composant de la v1 | Position | Verdict |
+|---|---|---|
+| Sélection par règles (distance, set bonus, externals) | Déterministe, en amont | Structurel, mais **réplicable** — c'est du seuil, pas du modèle |
+| Suivi dans le temps | Déterministe, sur des parses publics | **Réplicable** — WCL garde l'historique, un concurrent le rebâtit à froid |
+| Rapport de coaching LLM | Aval | **Gadget** |
+
+**Retire l'IA de la v1 : elle tient encore debout.** La v1 échoue donc au test de la
+contrainte n° 2, et ce n'est pas un accident de rédaction — c'est ce que la décision
+coûte, assumé et daté. Voir la section 8 de
+[PRODUCT_CONTEXT.md](PRODUCT_CONTEXT.md), « Le ML sort de la v1 ».
+
+Une nuance, et une seule : le suivi dans le temps est réplicable **en tant que calcul**,
+pas en tant que série. Un concurrent rebâtit la trajectoire de DPS d'un joueur ; il ne
+rebâtit pas quel vivier de références existait en semaine 2 d'un tier, ni quel verdict de
+comparabilité avait été rendu ce jour-là. Cette part-là périme avec la saison, et c'est
+donc une **capture**, pas un calcul — elle relève de la règle ci-dessous, pas de celles
+qu'on peut repousser.
+
+Ce qui rend l'échec au test réversible est la capture, et rien d'autre. D'où l'ordre :
+compléter la capture **avant** de construire le suivi.
+
 ---
 
 ## 2. Les familles de modèles
@@ -150,30 +176,49 @@ Caractéristiques : stateless, aucun stockage, aucun coût fixe.
 Limites : fenêtre de candidats étroite, aucune donnée accumulée,
 aucun actif constitué.
 
-### v1 — cible court terme
+### v1 — atteinte le 2026-08-06, sauf la capture
 
-Reste synchrone. Deux ajouts seulement.
+Reste synchrone. Les deux ajouts prévus sont faits : fenêtre de candidats élargie
+(dix pages en parallèle) et capture des étiquettes (`POST /api/labels/comparability`,
+liste mensuelle Redis). Le repli n'est plus silencieux : `ComparabilityBanner` énonce
+le niveau atteint et les écarts signés.
 
 ```mermaid
 flowchart LR
     U[Utilisateur] --> N[Next.js API route]
-    N --> W["WCL : 40+ candidats<br/>Promise.all parallèle"]
-    W --> FEAT["Extraction de features<br/>ilvl, set bonus, externals,<br/>phase, kill time"]
-    FEAT --> RULE["Sélection par règles<br/>+ affichage explicite<br/>du niveau de confiance"]
+    N --> W["WCL : 10 pages<br/>Promise.all parallèle"]
+    W --> FEAT["Extraction de features<br/>ilvl, set bonus, externals,<br/>kill time"]
+    FEAT --> RULE["Sélection par règles<br/>+ niveau de confiance<br/>affiché"]
     RULE --> S[Structuration]
     S --> LLM[LLM : rapport]
     LLM --> UI[UI]
-    UI -.->|"bouton<br/>pas comparable"| DB[(Étiquettes)]
+    UI -.->|"bouton<br/>pas comparable"| DB[(Étiquettes<br/>négatives seules)]
 ```
 
-Les deux ajouts qui comptent :
+Le trait pointillé est le seul lien qui alimente l'actif — et il ne transporte que des
+refus. Ce qu'il manque pour que la v2 reste atteignable :
 
-1. **Fenêtre de candidats élargie** — parallélisation, pas de changement d'archi.
-2. **Capture des étiquettes** — une table, un endpoint, une insertion.
-   Ne nécessite ni worker, ni pré-calcul.
+```mermaid
+flowchart LR
+    RULE["Sélection<br/>par règles"] --> EXP["Exposition<br/>références montrées<br/>+ instantané du vivier"]
+    EXP --> DB[(Corpus)]
+    UI[UI] -.->|"pas comparable<br/>+ écart de DPS"| DB
+    UI -.->|"verdict sur<br/>le rapport"| DB
+    DB --> POS["Classe positive<br/>montrée, non contestée<br/>— implicite, marquée telle"]
+```
 
-Le fallback silencieux vers le top 3 mondial doit devenir visible : l'utilisateur
-doit savoir quand la comparaison n'est pas légitime.
+Trois trous, détaillés en section 8 de [PRODUCT_CONTEXT.md](PRODUCT_CONTEXT.md) :
+
+1. **`subject.dps`** — le corpus porte le DPS de la référence, pas celui du sujet.
+   L'écart, qui est la variable à expliquer, n'y est donc pas.
+2. **Les références affichées-non-contestées** — sans elles, aucune classe positive :
+   le classifieur de comparabilité est impossible, quel que soit le volume accumulé.
+   C'est le trou bloquant.
+3. **Un retour sur le rapport** — la seule mesure de l'hypothèse « le gratuit suffit »,
+   et, couplée au suivi, l'amorce d'une étiquette « le conseil a-t-il fait progresser ».
+
+L'exposition est écrite **côté serveur**, à la construction du rapport : un POST client
+peut être perdu, et c'est ici toute la classe positive qui partirait avec.
 
 ### v2 — cible avec ML
 
@@ -237,11 +282,18 @@ flowchart TD
 
 ## 5. Points ouverts
 
-- **Conditions d'utilisation de l'API WCL** sur le stockage et la redistribution
-  de données dérivées. Une app qui requête à la demande et une app qui constitue
-  une base dérivée ne sont pas nécessairement traitées de la même façon.
-  À vérifier avant tout investissement en v2.
+- ~~**Conditions d'utilisation de l'API WCL**~~ — **vérifié le 2026-08-07.** Réponse
+  défavorable : §2a (approbation écrite pour tout usage commercial), §5d (pas de base
+  permanente de contenu dérivé), §5c (pas d'exposition à des tiers sans opt-in). Le §2a se
+  déclenche sur le revenu, pas sur l'apprentissage — retirer le ML ne lève rien. Décision :
+  demander l'approbation en fin de projet, développer comme si elle était acquise. Texte
+  intégral en section 8 de [PRODUCT_CONTEXT.md](PRODUCT_CONTEXT.md), « CGU RPGLogs ».
 - **Volume d'étiquettes nécessaire** pour que le classifieur de comparabilité
-  dépasse une heuristique simple. Inconnu tant que la capture n'a pas démarré.
-- **Persona payeur** — joueur individuel ou raid leader. Détermine si la vue
-  roster est une feature v2 ou le produit lui-même.
+  dépasse une heuristique simple. Toujours inconnu, et la question ne se pose pas
+  utilement avant que la classe positive soit capturée.
+- ~~**Persona payeur**~~ — **tranché** : abonnement saisonnier de guilde, donc le raid
+  leader. La section 4 de [PRODUCT_CONTEXT.md](PRODUCT_CONTEXT.md) fait autorité ; la vue
+  roster est le produit à vendre, le moteur individuel est la phase de validation qualité.
+- **Ce qui rend l'IA structurante en v1** — reste sans réponse depuis que le ML est sorti
+  du périmètre. Aucune réponse n'est due tant que la capture progresse ; il en faudra une
+  avant de facturer quoi que ce soit.

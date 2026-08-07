@@ -1,5 +1,6 @@
 import type { AnalysisInput } from '@/types';
 import { NextResponse } from 'next/server';
+import { recordExposure } from '@/lib/labels/record-exposure';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { analyzeBoss } from '@/lib/wcl/pipeline';
 
@@ -55,6 +56,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
       body.encounterName,
       body.specIdOverride
     );
+
+    // Attendue, pas mise en `void` : sur un runtime serverless, une promesse non attendue
+    // part avec la fonction, et c'est toute la classe positive qui disparaît. Le chemin
+    // personnage mesure le DPS par `ranks[].amount` — d'où `'ranking'`.
+    //
+    // `recordExposure` avale déjà ses échecs ; le `catch` d'ici est la seconde barrière, à
+    // l'intérieur du `try` qui rend un 500. La capture ne doit jamais coûter l'analyse.
+    await recordExposure(result ? [result] : [], { dpsSource: 'ranking' }).catch(() => {});
+
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Analysis failed';
