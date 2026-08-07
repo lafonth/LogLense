@@ -5,6 +5,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { DamageBreakdown } from './DamageBreakdown';
 import { DpsBanner } from './DpsBanner';
 import { StatsTable } from './StatsTable';
+import { TrajectoryChart } from './TrajectoryChart';
 
 interface OverviewTabProps {
   encounter: Encounter;
@@ -51,6 +52,9 @@ export function OverviewTab({ encounter, bossState, specName }: OverviewTabProps
         bossDps={result.character.bossDps}
         bossDpsPct={result.character.bossDpsPct}
       />
+      {/* Avant les stats : le rapport isolé décrit un soir, la trajectoire le situe. Le
+          composant se tait entièrement — titre compris — quand la source n'a rendu qu'un kill. */}
+      <TrajectoryChart trajectory={result.character.trajectory} />
       <div className="mt-6">
         <h3 className="text-muted mb-2 font-mono text-xs tracking-[0.08em] uppercase">Stats</h3>
         <StatsTable character={result.character.stats} sample={[]} />
