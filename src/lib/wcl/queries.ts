@@ -230,6 +230,38 @@ export const Q_REPORT_RANKINGS_BOSSDPS = `
   }
 `;
 
+// Le classement du raid tient en une requête (spec « mode raid » §5) : les rankings donnent le
+// percentile, la table de dégâts sert à la fois de contrôle de couverture et de repli DPS, et
+// `masterData` fait le pont entre le nom rendu par les rankings et l'`actorId` du rapport —
+// `rankings[].id` est un identifiant global de personnage, pas un acteur de ce rapport.
+export const Q_RAID_RANKING = `
+  query RaidRanking($code: String!, $fightIDs: [Int]!) {
+    reportData {
+      report(code: $code) {
+        rankings(fightIDs: $fightIDs, playerMetric: dps)
+        table(dataType: DamageDone, fightIDs: $fightIDs)
+        events(dataType: CombatantInfo, fightIDs: $fightIDs) { data }
+        fights(fightIDs: $fightIDs) {
+          id
+          name
+          encounterID
+          kill
+          difficulty
+          startTime
+          endTime
+        }
+        masterData {
+          actors(type: "Player") {
+            id
+            name
+            subType
+          }
+        }
+      }
+    }
+  }
+`;
+
 export const Q_REPORT_META = `
   query ReportMeta($code: String!) {
     reportData {

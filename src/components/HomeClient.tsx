@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { CharacterDashboard } from '@/components/character/CharacterDashboard';
 import { CharacterForm } from '@/components/forms/CharacterForm';
 import { LoggedInCharacterForm } from '@/components/forms/LoggedInCharacterForm';
+import { RaidForm } from '@/components/forms/RaidForm';
 import { ReportForm } from '@/components/forms/ReportForm';
 import { MarketingLanding } from '@/components/landing/MarketingLanding';
 import { ReportDashboard } from '@/components/report/ReportDashboard';
@@ -50,7 +51,7 @@ export function HomeClient() {
   } = useReportAnalysis();
   const { meta: reportMeta, fetchedCode, loading: reportMetaLoading, fetchMeta } = useReportMeta();
 
-  const [mode, setMode] = useState<'character' | 'report' | null>(null);
+  const [mode, setMode] = useState<'character' | 'report' | 'raid' | null>(null);
   const [reportContext, setReportContext] = useState<ReportContext | null>(null);
 
   const {
@@ -273,6 +274,13 @@ export function HomeClient() {
     );
   }
   if (mode === null) return <ModeSelector onSelect={setMode} />;
+
+  // Ouvrir un joueur depuis le classement emprunte exactement le chemin d'analyse par
+  // rapport : mêmes états, même URL, même hook. Le mode raid n'est qu'une autre façon de
+  // choisir qui analyser.
+  if (mode === 'raid') {
+    return <RaidForm onOpenPlayer={handleReportSubmit} onBack={() => setMode(null)} />;
+  }
 
   if (mode === 'report') {
     return (

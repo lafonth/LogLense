@@ -17,6 +17,14 @@ export const BOSS_ANALYSIS_UNITS = 50;
 export const METADATA_UNITS = 1;
 
 /**
+ * Coût du classement d'un raid : une requête, mais large — rankings, table de dégâts et
+ * `CombatantInfo` de tous les acteurs dans le même appel. Comptée pour plus qu'une
+ * métadonnée, très loin d'une analyse de boss : c'est exactement ce qui rend l'écran de tri
+ * gratuit à ouvrir.
+ */
+export const RAID_RANKING_UNITS = 3;
+
+/**
  * Bosses analysables en une requête de `/api/report/analyze`.
  *
  * La route éclate en un `Promise.all` sur les rencontres, chacune valant

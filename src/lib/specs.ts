@@ -183,6 +183,15 @@ export function getSpecInfo(specId: number): SpecInfo | null {
   return SPEC_MAP.get(specId) ?? null;
 }
 
+// Warcraft Logs nomme la spec sans espace dans ses classements (`BeastMastery`), exactement
+// comme `specName` ici : la clé se compose donc telle quelle, sans normalisation.
+const SPEC_BY_NAME = new Map(SPECS.map((s) => [`${s.wowClass}|${s.specName}`, s]));
+
+/** Résout le couple (classe, spec) rendu par WCL en spec connue. `null` si ce n'est pas du DPS. */
+export function getSpecByName(wowClass: string, specName: string): SpecInfo | null {
+  return SPEC_BY_NAME.get(`${wowClass}|${specName}`) ?? null;
+}
+
 export function getDpsSpecsForClass(wowClass: string): SpecInfo[] {
   return SPECS.filter((s) => s.wowClass === wowClass);
 }

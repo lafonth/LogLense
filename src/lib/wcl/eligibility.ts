@@ -93,6 +93,71 @@ export function eligibilityOf(
 }
 
 /**
+ * Ce qui a réellement été mesuré dans une comparaison intra-raid.
+ *
+ * Le kill time est exact par construction — c'est la même pull. Le set bonus l'est dès que
+ * les deux `CombatantInfo` sont là. Les externals, eux, demanderaient une table de buffs par
+ * joueur, donc une requête par joueur : hors du budget d'une requête posé par la spec. Ils
+ * sont déclarés non mesurés plutôt que comptés à zéro — un zéro dirait « aucun external
+ * reçu », ce qu'on ne sait pas.
+ */
+export interface IntraRaidMeasured {
+  killTime: true;
+  setBonus: boolean;
+  externals: false;
+}
+
+export interface IntraRaidComparison {
+  disqualifiedBy: DisqualificationReason[];
+  /** Nul par construction : les deux joueurs ont vécu la même pull. */
+  killTimeGapPct: 0;
+  measured: IntraRaidMeasured;
+}
+
+/** Indexe les `CombatantInfo` d'un combat par acteur, pour comparer deux joueurs sans requête. */
+export function combatantsByActor(events: CombatantEvent[]): Map<number, CombatantEvent> {
+  return new Map(events.map((e) => [e.sourceID, e]));
+}
+
+/**
+ * La variante exacte : deux joueurs d'une même pull, sans vivier ni tolérance.
+ *
+ * Même kill time, même composition, mêmes buffs de groupe : il ne reste à départager que le
+ * set bonus. C'est le verdict de comparabilité le plus solide que le produit sache produire,
+ * et c'est aussi le moins cher — tout vient déjà du rapport.
+ */
+export function compareWithinPull(
+  candidate: CombatantEvent | null,
+  mine: CombatantEvent | null
+): IntraRaidComparison {
+  return comparePiecesWithinPull(
+    candidate ? tierPiecesOf(candidate) : null,
+    mine ? tierPiecesOf(mine) : null
+  );
+}
+
+/**
+ * La même comparaison, quand le compte de pièces est déjà connu — le classement du raid le
+ * lit une fois pour tous les acteurs, il n'a pas à repasser par les événements.
+ */
+export function comparePiecesWithinPull(
+  theirs: number | null,
+  ours: number | null
+): IntraRaidComparison {
+  const disqualifiedBy: DisqualificationReason[] = [];
+  const theirBonus = tierBonus(theirs);
+  const ourBonus = tierBonus(ours);
+  if (theirBonus !== null && ourBonus !== null && theirBonus > ourBonus) {
+    disqualifiedBy.push('set-bonus');
+  }
+  return {
+    disqualifiedBy,
+    killTimeGapPct: 0,
+    measured: { killTime: true, setBonus: theirs !== null && ours !== null, externals: false },
+  };
+}
+
+/**
  * Why a reference is not comparable to the player, if it is not.
  *
  * One principle covers both criteria: **a reference is eliminated only when it was helped

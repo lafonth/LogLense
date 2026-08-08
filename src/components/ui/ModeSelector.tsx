@@ -8,7 +8,7 @@ const TITLE_CLASS = 'text-text font-mono text-sm tracking-wider uppercase';
 const DESC_CLASS = 'text-dim font-mono text-xs leading-relaxed';
 
 interface ModeSelectorProps {
-  onSelect: (mode: 'character' | 'report') => void;
+  onSelect: (mode: 'character' | 'report' | 'raid') => void;
 }
 
 export function ModeSelector({ onSelect }: ModeSelectorProps) {
@@ -30,6 +30,13 @@ export function ModeSelector({ onSelect }: ModeSelectorProps) {
           <div className={DESC_CLASS}>
             Paste a WarcraftLogs report code. Pick any character from the raid and analyse their
             kills.
+          </div>
+        </button>
+        <button onClick={() => onSelect('raid')} className={CARD_CLASS}>
+          <div className={TITLE_CLASS}>Sort a Raid</div>
+          <div className={DESC_CLASS}>
+            Paste a report code and pick a pull. Ranks the raid by how much room each player has
+            left, and opens any of them into a full analysis.
           </div>
         </button>
       </div>
