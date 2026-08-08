@@ -16,6 +16,7 @@ export function Sheet({ triggerLabel, title, children }: SheetProps) {
   const titleId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -30,9 +31,34 @@ export function Sheet({ triggerLabel, title, children }: SheetProps) {
     triggerRef.current?.focus();
   };
 
+  /**
+   * `aria-modal` promet que le reste de la page est inerte ; sans piège de focus, la
+   * tabulation en sortait quand même et l'utilisateur au clavier se retrouvait à parcourir
+   * une page qu'il croyait masquée, sans savoir comment revenir au panneau.
+   */
+  const trapTab = (event: React.KeyboardEvent) => {
+    const focusable = panelRef.current?.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    if (!focusable || focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!first || !last) return;
+
+    const edge = event.shiftKey ? first : last;
+    if (document.activeElement !== edge) return;
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  };
+
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Escape') {
       handleClose();
+      return;
+    }
+    if (event.key === 'Tab') {
+      trapTab(event);
     }
   };
 
@@ -55,6 +81,7 @@ export function Sheet({ triggerLabel, title, children }: SheetProps) {
             {/* `relative` on the panel is load-bearing: the backdrop is absolutely positioned
                 and would otherwise paint over this static block, swallowing every click. */}
             <div
+              ref={panelRef}
               role="dialog"
               aria-modal="true"
               aria-labelledby={titleId}

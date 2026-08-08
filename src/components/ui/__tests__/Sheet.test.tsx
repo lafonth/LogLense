@@ -89,6 +89,32 @@ describe('sheet', () => {
     expect(trigger).toHaveFocus();
   });
 
+  // `aria-modal` promet une page inerte derrière le panneau. Sans piège, la tabulation
+  // sortait quand même, et rien ne ramenait au panneau.
+  it('keeps the tabulation inside the panel', async () => {
+    const user = userEvent.setup();
+    render(
+      <Sheet triggerLabel="Rotmire" title="Bosses">
+        <button>Select Boss</button>
+      </Sheet>
+    );
+
+    await user.click(screen.getByRole('button', { name: /Rotmire/ }));
+
+    const close = screen.getByRole('button', { name: 'Close' });
+    const inside = screen.getAllByRole('button', { name: 'Select Boss' })[0]!;
+    expect(close).toHaveFocus();
+
+    // Depuis le dernier élément, Tab revient au premier.
+    inside.focus();
+    await user.tab();
+    expect(close).toHaveFocus();
+
+    // Et Shift+Tab depuis le premier repart sur le dernier.
+    await user.tab({ shift: true });
+    expect(inside).toHaveFocus();
+  });
+
   it('dialog is not a descendant of inert or aria-hidden elements', async () => {
     const user = userEvent.setup();
     render(

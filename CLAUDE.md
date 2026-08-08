@@ -101,8 +101,8 @@ src/lib/specs.ts      Table des specs (id → nom de spec et de classe)
 src/lib/redis.ts      Upstash en REST — seule persistance existante. GET, SET, SETEX,
                       INCRBY, EXPIRE, LLEN, RPUSH. Un refus jette, il ne rend pas `undefined`
 src/data/talents/     Arbres de talents par spec, générés par scripts/
-src/components/ui/    Les primitives : Button, Card, Input, Select, Tabs, StatTile,
-                      ScrollArea, Sheet, Badge, ErrorBanner, LoadingSpinner, ProgressSteps
+src/components/ui/    Les primitives : Button, Card, Input, Select, Tabs, ScrollArea,
+                      Sheet, Badge, ErrorBanner, LoadingSpinner, ProgressSteps
 ```
 
 Les deux modules de `comparison/` sont des fonctions pures, testables sans rendu. Ils sont
