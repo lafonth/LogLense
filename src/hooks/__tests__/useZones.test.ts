@@ -1,5 +1,5 @@
 import type { Zone } from '@/types';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useZones } from '../useZones';
 
@@ -43,6 +43,24 @@ describe('useZones', () => {
     const { result } = renderHook(() => useZones());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBe('Network error');
+  });
+
+  it('clears the error and refetches when retry is called', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ error: 'WCL down' }) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(zones) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useZones());
+    await waitFor(() => expect(result.current.error).toBe('WCL down'));
+
+    act(() => result.current.retry());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.zones).toEqual(zones);
+    expect(result.current.error).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('starts in loading state', () => {

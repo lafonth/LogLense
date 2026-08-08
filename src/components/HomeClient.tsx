@@ -38,6 +38,7 @@ export function HomeClient() {
     zones,
     loading: zonesLoading,
     error: zonesError,
+    retry: retryZones,
   } = useZones(sessionStatus === 'authenticated');
   const { bossStates, currentDifficulty, isAnyLoading, input, start, switchBossSpec, reset } =
     useAnalysis();
@@ -283,6 +284,7 @@ export function HomeClient() {
         zones={zones}
         zonesLoading={zonesLoading}
         zonesError={zonesError}
+        onZonesRetry={retryZones}
       />
     );
   }
@@ -294,6 +296,7 @@ export function HomeClient() {
       zones={zones}
       zonesLoading={zonesLoading}
       zonesError={zonesError}
+      onZonesRetry={retryZones}
     />
   );
 }

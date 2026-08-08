@@ -18,6 +18,7 @@ interface CharacterFormProps {
   zones: Zone[];
   zonesLoading: boolean;
   zonesError: string | null;
+  onZonesRetry?: () => void;
 }
 
 export function CharacterForm({
@@ -26,6 +27,7 @@ export function CharacterForm({
   zones,
   zonesLoading,
   zonesError,
+  onZonesRetry,
 }: CharacterFormProps) {
   const [characterName, setCharacterName] = useState('');
   const [realm, setRealm] = useState<RealmSelection | null>(null);
@@ -121,7 +123,7 @@ export function CharacterForm({
                 <div className="text-2xs text-muted mb-1.5 font-sans tracking-widest uppercase">
                   Raid
                 </div>
-                <ErrorBanner message={zonesError} />
+                <ErrorBanner message={zonesError} onRetry={onZonesRetry} />
               </>
             ) : (
               <Select

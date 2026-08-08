@@ -88,17 +88,24 @@ export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTab
   });
   const { text, usage, loading, error, start, reset } = useAIReport();
 
-  // Sync selected boss to the active boss when the tab is opened
-  useEffect(() => {
-    if (activeBossResult) {
-      const idx = bossStates.findIndex(
-        (s) => s.status === 'success' && s.result?.encounterId === activeBossResult.encounterId
-      );
-      if (idx >= 0) setSelectedBossIdx(idx);
-    }
-    // Only sync on mount / when activeBossResult identity changes
-    // eslint-disable-next-line react/exhaustive-deps
-  }, [activeBossResult]);
+  /*
+   * Le boss de la barre latérale devient celui du rapport, mais l'utilisateur garde le
+   * droit d'en choisir un autre ici : on ne resynchronise donc qu'au changement de boss
+   * actif, d'où l'encounter déjà synchronisé gardé en état.
+   *
+   * L'ajustement se fait pendant le rendu, pas dans un effet. Un effet aurait rendu une
+   * première fois avec le mauvais boss sélectionné avant de se corriger — visible, et
+   * suffisant pour que le bouton d'analyse parte sur le mauvais payload si on le presse
+   * assez vite.
+   */
+  const [syncedEncounterId, setSyncedEncounterId] = useState<number | null>(null);
+  if (activeBossResult && activeBossResult.encounterId !== syncedEncounterId) {
+    setSyncedEncounterId(activeBossResult.encounterId);
+    const idx = bossStates.findIndex(
+      (s) => s.status === 'success' && s.result?.encounterId === activeBossResult.encounterId
+    );
+    if (idx >= 0) setSelectedBossIdx(idx);
+  }
 
   useEffect(() => {
     fetch('/api/ai-report')

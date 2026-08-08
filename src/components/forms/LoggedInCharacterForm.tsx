@@ -16,6 +16,7 @@ interface LoggedInCharacterFormProps {
   zones: Zone[];
   zonesLoading: boolean;
   zonesError: string | null;
+  onZonesRetry?: () => void;
 }
 
 function toStored(c: WowCharacter, region: string): StoredCharacter {
@@ -77,6 +78,7 @@ export function LoggedInCharacterForm({
   zones,
   zonesLoading,
   zonesError,
+  onZonesRetry,
 }: LoggedInCharacterFormProps) {
   const [region, setRegion] = useState<AnalysisInput['region']>('EU');
   const [characters, setCharacters] = useState<WowCharacter[]>([]);
@@ -285,7 +287,7 @@ export function LoggedInCharacterForm({
                 <div className="text-2xs text-muted mb-1.5 font-sans tracking-widest uppercase">
                   Raid
                 </div>
-                <ErrorBanner message={zonesError} />
+                <ErrorBanner message={zonesError} onRetry={onZonesRetry} />
               </>
             ) : (
               <Select
