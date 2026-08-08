@@ -87,6 +87,7 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
       ...overrides,
       source: { code: 'abc', fightID: 17, actorId: 63 },
       eligibility: { tierPieces: 4, externalUptime: 0, externals: [] },
+      context: null,
     },
     topPlayers: [
       {

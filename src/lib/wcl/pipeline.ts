@@ -97,17 +97,16 @@ export async function analyzeBoss(
     className,
   });
 
-  const { stats, rotation, damageEntries, fightTargets, eligibility } = await fetchFightData(
-    token,
-    {
+  const { stats, rotation, damageEntries, fightTargets, eligibility, context } =
+    await fetchFightData(token, {
       code: bestCode,
       fightId: bestFightId,
       combatant: charEvent,
       name,
       fightMs: bestKillMs,
       dps: bestDps,
-    }
-  );
+      context: { encounterId, difficulty },
+    });
 
   const pool = await poolPromise;
   const { topPlayers, sample, comparability } = await resolveReferences(token, pool, {
@@ -141,6 +140,7 @@ export async function analyzeBoss(
       // déjà payée. Le point analysé est donc, par construction, le sommet de sa courbe.
       trajectory: parseTrajectory(char.dps, { code: bestCode, fightID: bestFightId }),
       eligibility,
+      context,
     },
     topPlayers,
     sample,

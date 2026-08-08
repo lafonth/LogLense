@@ -89,16 +89,15 @@ export async function analyzeReportBoss(
     className,
   });
 
-  const { stats, rotation, damageEntries, fightTargets, dps, eligibility } = await fetchFightData(
-    token,
-    {
+  const { stats, rotation, damageEntries, fightTargets, dps, eligibility, context } =
+    await fetchFightData(token, {
       code,
       fightId,
       combatant: charEvent,
       name: actorName,
       fightMs,
-    }
-  );
+      context: { encounterId, difficulty },
+    });
 
   const [pool, dpsRankingsRaw, bossRankingsRaw] = await Promise.all([
     poolPromise,
@@ -167,6 +166,7 @@ export async function analyzeReportBoss(
       // trajectoire tombe avec elle, et l'écran retombe sur le rapport isolé.
       trajectory,
       eligibility,
+      context,
     },
     topPlayers,
     sample,

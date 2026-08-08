@@ -83,6 +83,7 @@ function result(): BossResult {
       source: { code: 'abc', fightID: 17, actorId: 63 },
       trajectory: [],
       eligibility: { tierPieces: 4, externalUptime: 0, externals: [] },
+      context: null,
     },
     topPlayers: [topPlayer('Aidan', 1), topPlayer('Baldan', 2)],
     sample: [],

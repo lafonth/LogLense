@@ -106,6 +106,7 @@ function result(over: Partial<BossResult> = {}): BossResult {
       source: { code: 'abc', fightID: 17, actorId: 63 },
       trajectory: [],
       eligibility: { tierPieces: 4, externalUptime: 0, externals: [] },
+      context: null,
     },
     topPlayers: REFERENCE_NAMES.slice(0, 3).map((n, i) => topPlayer(n, i + 1)),
     sample: REFERENCE_NAMES.map((n, i) => sampleEntry(n, i + 1, i !== 3)),
@@ -225,7 +226,7 @@ describe('buildExposure', () => {
   it('names the render, the subject and how its dps was measured', () => {
     const record = buildExposure(result(), { ...ARGS, dpsSource: 'damage-table' });
 
-    expect(record.v).toBe(3);
+    expect(record.v).toBe(4);
     expect(record.kind).toBe('exposure');
     expect(record.renderId).toBe('render-1');
     expect(record.by).toBe('hash');
@@ -235,8 +236,46 @@ describe('buildExposure', () => {
       fightID: 17,
       actorId: 63,
       dpsSource: 'damage-table',
+      eligibility: { tierPieces: 4, externalUptime: 0, externals: [] },
+      context: null,
     });
     expect(record).toMatchObject({ encounterId: 3177, difficulty: 5, specId: 103 });
+  });
+
+  // Le verdict « pas comparable » sur le set bonus ne se relit pas sans le palier du sujet :
+  // c'est la moitié du corpus qui manquait.
+  it("carries the subject's own eligibility and pull context", () => {
+    const record = buildExposure(
+      result({
+        character: {
+          ...result().character,
+          eligibility: { tierPieces: 2, externalUptime: 31, externals: ['Power Infusion'] },
+          context: { deaths: 3, subjectDied: true, subjectDeathMs: 128_000, wipesBefore: 7 },
+        },
+      }),
+      ARGS
+    );
+
+    expect(record.subject.eligibility).toEqual({
+      tierPieces: 2,
+      externalUptime: 31,
+      externals: ['Power Infusion'],
+    });
+    expect(record.subject.context).toEqual({
+      deaths: 3,
+      subjectDied: true,
+      subjectDeathMs: 128_000,
+      wipesBefore: 7,
+    });
+  });
+
+  // La copie doit être une copie : le corpus est écrit, puis relu longtemps après.
+  it('copies the mutable parts of the subject rather than aliasing them', () => {
+    const r = result();
+    const record = buildExposure(r, ARGS);
+
+    expect(record.subject.eligibility).not.toBe(r.character.eligibility);
+    expect(record.subject.eligibility.externals).not.toBe(r.character.eligibility.externals);
   });
 
   // Un rendu sans référence est lui aussi une exposition : il dit que le vivier n'a rien donné.

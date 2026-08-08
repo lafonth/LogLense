@@ -1,4 +1,5 @@
-import type { DisqualificationReason } from '@/lib/wcl/eligibility';
+import type { DisqualificationReason, EligibilityProfile } from '@/lib/wcl/eligibility';
+import type { FightContext } from '@/lib/wcl/fight-context';
 import type { BossResult, Comparability } from '@/types';
 
 /**
@@ -45,7 +46,7 @@ export interface ExposedReference {
 }
 
 export interface ExposureRecord {
-  v: 3;
+  v: 4;
   kind: 'exposure';
   at: string;
   /** SHA-256 salé, ou `null` pour un rendu non authentifié. Jamais l'e-mail. */
@@ -54,7 +55,23 @@ export interface ExposureRecord {
   encounterId: number;
   difficulty: number;
   specId: number;
-  subject: { code: string; fightID: number; actorId: number; dpsSource: SubjectDpsSource };
+  subject: {
+    code: string;
+    fightID: number;
+    actorId: number;
+    dpsSource: SubjectDpsSource;
+    /**
+     * Le profil d'éligibilité du sujet lui-même. Il était calculé et jamais écrit : un
+     * verdict « pas comparable » portant sur le set bonus ou un external ne se relit pas
+     * sans le palier des deux côtés, et seul celui de la référence entrait dans le corpus.
+     */
+    eligibility: EligibilityProfile;
+    /**
+     * Morts et wipes de la pull. `null` quand le rapport ne les a pas rendus — la capture
+     * échoue en douceur, mais son absence doit rester lisible comme une absence.
+     */
+    context: FightContext | null;
+  };
   references: ExposedReference[];
   /** L'instantané 10d : le vivier et le verdict du jour ne se reconstituent pas. */
   comparability: Comparability;
@@ -110,7 +127,7 @@ export function buildExposure(result: BossResult, args: ExposureArgs): ExposureR
   });
 
   return {
-    v: 3,
+    v: 4,
     kind: 'exposure',
     at: args.at,
     by: args.by,
@@ -123,6 +140,11 @@ export function buildExposure(result: BossResult, args: ExposureArgs): ExposureR
       fightID: result.character.source.fightID,
       actorId: result.character.source.actorId,
       dpsSource: args.dpsSource,
+      eligibility: {
+        ...result.character.eligibility,
+        externals: [...result.character.eligibility.externals],
+      },
+      context: result.character.context ? { ...result.character.context } : null,
     },
     references,
     comparability: { ...result.comparability },

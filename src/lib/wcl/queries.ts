@@ -187,6 +187,29 @@ export const Q_BUFFS = `
   }
 `;
 
+/**
+ * Le contexte de la pull : qui est mort, et combien de fois le raid a échoué avant.
+ *
+ * Les deux tiennent dans une seule requête parce qu'elles portent sur le même rapport. La
+ * liste des pulls sert deux fois : elle compte les wipes, et elle donne l'instant de départ
+ * du combat, sans lequel un instant de mort absolu ne dit rien.
+ */
+export const Q_FIGHT_CONTEXT = `
+  query FightContext($code: String!, $fightIDs: [Int]!, $encounterID: Int!) {
+    reportData {
+      report(code: $code) {
+        deaths: table(dataType: Deaths, fightIDs: $fightIDs)
+        fights(encounterID: $encounterID) {
+          id
+          kill
+          startTime
+          difficulty
+        }
+      }
+    }
+  }
+`;
+
 export const Q_REPORT_RANKINGS_DPS = `
   query ReportRankingsDPS($code: String!, $fightIDs: [Int]!) {
     reportData {

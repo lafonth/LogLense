@@ -1,5 +1,6 @@
 import type { ComparabilityLevel } from '@/lib/wcl/comparability';
 import type { DisqualificationReason, EligibilityProfile } from '@/lib/wcl/eligibility';
+import type { FightContext } from '@/lib/wcl/fight-context';
 import type { TrajectoryPoint } from '@/lib/wcl/trajectory';
 export interface WowCharacter {
   id: number;
@@ -224,6 +225,11 @@ export interface BossResult {
      * celui du sujet, pas seulement celui de la référence.
      */
     eligibility: EligibilityProfile;
+    /**
+     * Ce qui est arrivé au raid pendant la pull : morts, wipes. `null` quand le rapport ne
+     * l'a pas rendu — le contexte enrichit l'analyse, il ne la conditionne pas.
+     */
+    context: FightContext | null;
   };
   /** Les `TOP_N` références dont dégâts et rotation ont été récupérés. */
   topPlayers: TopPlayer[];

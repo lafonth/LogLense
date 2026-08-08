@@ -53,6 +53,7 @@ function boss(renderId: string): BossResult {
       source: { code: 'abc', fightID: 17, actorId: 63 },
       trajectory: [],
       eligibility: { tierPieces: 4, externalUptime: 0, externals: [] },
+      context: null,
     },
     topPlayers: [],
     sample: [],
@@ -94,7 +95,7 @@ describe('recordExposure', () => {
     expect(written().map((r) => r.renderId)).toEqual(['r1', 'r2']);
     expect(String(redisAppend.mock.calls[0][0])).toMatch(/^labels:exposure:\d{4}-\d{2}$/);
     expect(written()[0]).toMatchObject({
-      v: 3,
+      v: 4,
       kind: 'exposure',
       subject: { dpsSource: 'ranking' },
     });

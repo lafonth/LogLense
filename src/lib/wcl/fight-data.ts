@@ -1,10 +1,12 @@
 import type { CombatantEvent } from './combatant';
 import type { EligibilityProfile } from './eligibility';
+import type { FightContext } from './fight-context';
 import type { CastEvent, WCLTable } from './parsers';
 import type { CharacterStats, DamageEntry, FightTarget, RotationSummary } from '@/types';
 import { gql } from './client';
 import { OPENING_EVENT_LIMIT, OPENING_LENGTH } from './constants';
 import { eligibilityOf } from './eligibility';
+import { fetchFightContext } from './fight-context';
 import { parseCasts, parseOpening, parseStats, parseUptime, summarizeRotation } from './parsers';
 import { Q_CAST_EVENTS, Q_DAMAGE, Q_ROTATION } from './queries';
 
@@ -44,6 +46,11 @@ export interface FightData {
    * combatant and the buff table already fetched here — it costs no extra query.
    */
   eligibility: EligibilityProfile;
+  /**
+   * Ce qui est arrivé au raid pendant la pull. `null` quand l'appelant ne l'a pas demandé
+   * — cf. `FightDataArgs.context` — ou quand la requête a échoué.
+   */
+  context: FightContext | null;
 }
 
 export interface FightDataArgs {
@@ -55,6 +62,14 @@ export interface FightDataArgs {
   fightMs: number;
   /** Taken from the WCL ranking when there is one; derived from total damage otherwise. */
   dps?: number;
+  /**
+   * Demande le contexte de la pull, au prix d'une requête de plus.
+   *
+   * Seul le sujet le paie. Une référence est enregistrée dans le corpus par son pointeur
+   * (`code`, `fightID`, `actorId`) : son contexte se réhydrate plus tard sans rien perdre,
+   * alors que multiplier la requête par la fenêtre de vérification, non.
+   */
+  context?: { encounterId: number; difficulty: number };
 }
 
 /** Targets below this share of total damage are noise, not fight structure. */
@@ -65,7 +80,7 @@ export async function fetchFightData(token: string, args: FightDataArgs): Promis
 
   const vars = { code, fightIDs: [fightId], sourceID: combatant.sourceID };
 
-  const [dmgData, rotData, castEvents] = await Promise.all([
+  const [dmgData, rotData, castEvents, context] = await Promise.all([
     gql<DamageResponse>(token, Q_DAMAGE, vars),
     gql<RotationResponse>(token, Q_ROTATION, vars),
     // L'ouverture est un axe de plus, pas une dépendance : un log qui ne rend pas ses
@@ -74,6 +89,15 @@ export async function fetchFightData(token: string, args: FightDataArgs): Promis
       ...vars,
       limit: OPENING_EVENT_LIMIT,
     }).catch(() => null),
+    args.context
+      ? fetchFightContext(token, {
+          code,
+          fightId,
+          encounterId: args.context.encounterId,
+          difficulty: args.context.difficulty,
+          actorId: combatant.sourceID,
+        })
+      : null,
   ]);
 
   const allDmgEntries = dmgData.reportData.report.table.data?.entries ?? [];
@@ -123,5 +147,5 @@ export async function fetchFightData(token: string, args: FightDataArgs): Promis
 
   const eligibility = eligibilityOf(combatant, rotData.reportData.report.buffs, fightMs);
 
-  return { stats, rotation, damageEntries, fightTargets, dps, eligibility };
+  return { stats, rotation, damageEntries, fightTargets, dps, eligibility, context };
 }
