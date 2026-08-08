@@ -240,7 +240,7 @@ Rapport complet : [docs/superpowers/specs/2026-08-03-audit-pipeline-wcl.md](docs
 
 | # | Constat | Localisation réelle |
 |---|---|---|
-| C1 | `KILL_TIME_TOLERANCE = 0.2` et `TOP_N = 3` en constantes | `src/lib/wcl/constants.ts:4-5` |
+| C1 | `KILL_TIME_TOLERANCE = 0.2` et `TOP_N = 3` en constantes | `src/lib/wcl/constants.ts:23-24` |
 | ~~C2~~ | ~~**Fallback silencieux**~~ — **clos le 2026-08-06.** Voir « Constats clos » ci-dessous | — |
 | ~~C3~~ | ~~La requête world rankings ne pagine pas~~ — **clos le 2026-08-06.** Le filtrage reste par `specName` / `className` seuls, mais l'univers n'est plus plafonné à la première page | — |
 | ~~C5~~ | ~~L'ordre temporel est perdu à la source~~ — **clos le 2026-08-06.** `events(dataType: Casts)` s'ajoute au tableau agrégé, qui reste la source des fréquences. Voir « Constats clos » ci-dessous | — |
@@ -368,12 +368,12 @@ lieu de le masquer. Un échec de cette requête coûte l'axe, jamais le rapport.
 
 | # | Divergence |
 |---|---|
-| D1 | **Le pipeline existe en deux exemplaires** — `pipeline.ts` et `report-pipeline.ts` dupliquent sélection des références, fallback, boucle séquentielle et agrégation. Chaque tâche de la section 8 coûte le double tant que ce n'est pas traité |
+| ~~D1~~ | ~~**Le pipeline existe en deux exemplaires**~~ — **clos le 2026-08-03**, comme l'annonce le préalable de la section 8. `combatant.ts`, `fight-data.ts` et `references.ts` portent le traitement commun ; les deux pipelines ne diffèrent plus que sur la façon dont le sujet est trouvé et sur l'origine des percentiles |
 | ~~D2~~ | ~~**Aucune base de données** — la capture d'étiquettes n'a pas de substrat~~ — **clos le 2026-08-06.** Voir ci-dessous : la prémisse était fausse dès l'écriture |
 | ~~D3~~ | ~~**Le joueur de référence est apparié par spec, pas par nom**~~ — **clos le 2026-08-06.** `fetchReferencePlayers` apparie par nom ; un candidat non identifiable est écarté, jamais remplacé par un autre joueur. `findCombatantBySpecId` est supprimé |
 | ~~D4~~ | ~~**Le chemin nominal ne produit pas une distribution**~~ — **clos le 2026-08-06.** `BossResult.sample` porte toute la fenêtre vérifiée : stats et talents se lisent en min / médiane / max / percentile sur cet effectif. `topPlayers` reste à `TOP_N` pour dégâts et rotation, qui coûtent une requête par référence — et l'écran comme le prompt disent lequel des deux effectifs porte quel tableau |
 | ~~D5~~ | ~~**Les externals sont déjà à portée**~~ — **clos le 2026-08-06.** Les buffs sont désormais requêtés pour la fenêtre de vérification et appariés par guid ; une PI reçue au-delà de la tolérance élimine le candidat |
-| D6 | **Le spec-agnosticisme est atteint côté pipeline** — la spec est détectée depuis le `CombatantInfo`, `src/data/talents/` couvre de nombreuses specs. Reste ouvert côté prompt IA |
+| ~~D6~~ | ~~**Le spec-agnosticisme reste ouvert côté prompt IA**~~ — **clos le 2026-08-08.** La spec est détectée depuis le `CombatantInfo` et `src/data/talents/` couvre de nombreuses specs ; le prompt la nomme depuis `getSpecInfo` au lieu de la laisser deviner, et dit explicitement quand elle est inconnue. Aucun sort ni aucune spec n'y est codé en dur |
 
 **Gravité produit de C2** — pourquoi il a été traité en premier : c'était le défaut le
 plus coûteux. Il reproduisait exactement la comparaison illégitime que l'outil est censé
@@ -693,9 +693,12 @@ le bloc entier, et non les seules références retenues.
 - **Migration du corpus** hors du Redis append-only. 10b change l'ordre de grandeur du
   volume ; c'est probablement lui qui déclenche la migration, pas le ML.
 - **Chiffre exact du consentement à payer** dans la guilde (combien sur 25).
-- **Spec-agnosticisme du prompt IA** — le pipeline est spec-agnostique (D6), `src/lib/ai/`
-  n'a pas été audité. Faire bien une spec vaut mieux que faire mal 39 — à assumer
-  explicitement ou à corriger, pas à laisser flou.
+- ~~**Spec-agnosticisme du prompt IA**~~ — **répondu le 2026-08-08.** `src/lib/ai/` est
+  audité : aucun sort, aucune classe et aucune spec n'y sont codés en dur, seuls les tests
+  en nomment comme fixtures. Le prompt lit la spec depuis `getSpecInfo` et déclare
+  explicitement le cas inconnu au lieu de la faire deviner au modèle. Reste une question de
+  qualité, pas de couverture : la consigne sur les paires de substitution est écrite pour
+  le cas général et son exactitude par spec n'est pas mesurée.
 
 ### CGU RPGLogs — vérifié le 2026-08-07
 

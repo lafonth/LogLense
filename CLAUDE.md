@@ -78,6 +78,9 @@ src/lib/wcl/
   parsers.ts          Réponses WCL → types du domaine (stats, casts, uptimes)
   combatant.ts        Type CombatantEvent + recherche par acteur, par nom, par spec
   fight-data.ts       Dégâts + rotation d'un combat → stats, rotation, cibles, dps
+  eligibility.ts      Set bonus et externals d'un combattant : les critères éliminatoires
+  fight-context.ts    Ce qui est arrivé au raid pendant la pull (morts, wipes, durée)
+  pool-cache.ts       Cache à TTL du pool de candidats — jamais un pool incomplet
   references.ts       Sélection des logs de comparaison et récupération des joueurs
   pipeline.ts         Analyse par personnage : nom → rankings → meilleur parse → rapport
   report-pipeline.ts  Analyse par rapport WCL : code + acteur → rapport
@@ -85,8 +88,18 @@ src/lib/comparison/
   talent-diff.ts      Écarts de build : toi seul / eux seuls / communs, avec le compte k sur n
   rotation-stats.ts   Par sort : fourchette des références, médiane, écart, tri par écart
 src/lib/ai/           Construction du prompt et appel Claude
+src/lib/api/
+  parse.ts            Validation des corps de requête — un `as` sur `req.json()` ne vérifie rien
+  wcl-guard.ts        Ce qu'un compte a le droit de dépenser chez WCL avant d'être refusé
+src/lib/labels/
+  corpus.ts           Écriture bornée par mois, jamais purgée : le corpus est l'actif
+  record-exposure.ts  Capture de ce qui a été rendu, avec la provenance du DPS
+  record-advice.ts    Capture des rapports IA rendus
+  rate-limit.ts       Quotas : `consumeQuota` échoue ouvert, `consumeStrictQuota` fermé
+  schema.ts           Validation des soumissions entrant au corpus (plafonds de corpus)
 src/lib/specs.ts      Table des specs (id → nom de spec et de classe)
-src/lib/redis.ts      Upstash en REST, GET/SET uniquement — seule persistance existante
+src/lib/redis.ts      Upstash en REST — seule persistance existante. GET, SET, SETEX,
+                      INCRBY, EXPIRE, LLEN, RPUSH. Un refus jette, il ne rend pas `undefined`
 src/data/talents/     Arbres de talents par spec, générés par scripts/
 src/components/ui/    Les primitives : Button, Card, Input, Select, Tabs, StatTile,
                       ScrollArea, Sheet, Badge, ErrorBanner, LoadingSpinner, ProgressSteps
@@ -98,8 +111,10 @@ passeront de trois exemplaires à une distribution.
 
 ## Interface : tokens et primitives
 
-**Aucun `style={{}}` dans les composants.** Deux exceptions, toutes deux des géométries
-calculées à l'exécution : la largeur des barres dans `DamageBreakdown` et `RotationCards`.
+**Aucun `style={{}}` dans les composants.** Trois exceptions, toutes des géométries calculées
+à l'exécution : la largeur des barres dans `DamageBreakdown` et `TalentDiff`, la position de
+la bande et du marqueur dans `RotationCards`. `TrajectoryChart` montre l'alternative quand
+elle existe : la géométrie passe par des attributs SVG, pas par un style en ligne.
 
 Les couleurs, tailles, rayons et points de rupture sont déclarés une fois dans
 `src/app/globals.css`, dans un bloc `@theme` Tailwind v4, et consommés uniquement par des

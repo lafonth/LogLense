@@ -88,8 +88,8 @@ export async function redisLlen(key: string): Promise<number> {
  * routes `user/*` ne garantit pas, et qu'un corpus non reconstituable ne peut pas se
  * permettre.
  *
- * `exec` ne vérifie pas `res.ok` ; on valide donc ici que Redis a bien rendu une longueur,
- * faute de quoi une écriture échouée passerait pour un succès.
+ * `exec` jette sur un refus, mais un `RPUSH` accepté rend toujours une longueur : on la
+ * valide ici, faute de quoi une réponse muette passerait pour une écriture réussie.
  */
 export async function redisAppend(key: string, value: string): Promise<number> {
   const length = await exec<number | null>(['RPUSH', key, value]);
