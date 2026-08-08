@@ -634,7 +634,9 @@ export function buildAnalysisPrompt(
     .join('\n\n---\n\n');
 
   return [
-    `# WarcraftLogs Performance Analysis — ${result.input.characterName}-${result.input.serverSlug} (${diff})`,
+    // Le chemin rapport ne connaît pas le royaume du sujet : il part d'un `code` et d'un
+    // acteur, pas d'un personnage nommé. Le trait d'union pendait alors dans le titre.
+    `# WarcraftLogs Performance Analysis — ${result.input.serverSlug ? `${result.input.characterName}-${result.input.serverSlug}` : result.input.characterName} (${diff})`,
     specLine,
     '',
     bossSections,

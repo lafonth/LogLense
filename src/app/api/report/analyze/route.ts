@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { isNum, isRecord, isStr, readJson } from '@/lib/api/parse';
 import {
   BOSS_ANALYSIS_UNITS,
   guardWclSpend,
@@ -22,13 +23,45 @@ interface ReportAnalyzeBody {
   encounters: { id: number; name: string; fightId: number; fightMs: number }[];
 }
 
-export async function POST(req: NextRequest) {
-  const body = (await req.json()) as ReportAnalyzeBody;
-  const { code, actorId, actorName, actorClass, specId, difficulty, encounters } = body;
+/**
+ * Valide le corps, ou rend `null`.
+ *
+ * Chaque rencontre du tableau vaut une cinquantaine de requêtes chez WCL : ce qui n'a pas
+ * la forme attendue doit être refusé avant le garde de dépense, pas découvert au milieu
+ * du `Promise.all` par un `.catch(() => null)` qui a déjà payé.
+ */
+function parseBody(input: unknown): ReportAnalyzeBody | null {
+  if (!isRecord(input)) return null;
 
-  if (!code || !actorId || !encounters?.length) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+  const { code, actorId, actorName, actorClass, specId, difficulty, encounters } = input;
+
+  if (!isStr(code) || !isNum(actorId)) return null;
+  if (!isStr(actorName) || !isStr(actorClass)) return null;
+  if (!isNum(specId) || !isNum(difficulty)) return null;
+
+  // Le plafond de rencontres reste à l'appelant : il a son propre message, qui dit au
+  // client quoi faire, là où un `null` ne dirait que « non ».
+  if (!Array.isArray(encounters) || encounters.length === 0) return null;
+
+  const parsed: ReportAnalyzeBody['encounters'] = [];
+  for (const enc of encounters) {
+    if (!isRecord(enc)) return null;
+    if (!isNum(enc.id) || !isStr(enc.name)) return null;
+    if (!isNum(enc.fightId) || !isNum(enc.fightMs)) return null;
+    parsed.push({ id: enc.id, name: enc.name, fightId: enc.fightId, fightMs: enc.fightMs });
   }
+
+  return { code, actorId, actorName, actorClass, specId, difficulty, encounters: parsed };
+}
+
+export async function POST(req: NextRequest) {
+  const body = parseBody(await readJson(req));
+
+  if (!body) {
+    return NextResponse.json({ error: 'Invalid analysis request' }, { status: 400 });
+  }
+
+  const { code, actorId, actorName, actorClass, specId, difficulty, encounters } = body;
 
   if (encounters.length > MAX_ENCOUNTERS_PER_REQUEST) {
     return NextResponse.json(
@@ -42,8 +75,15 @@ export async function POST(req: NextRequest) {
   const refusal = await guardWclSpend(encounters.length * BOSS_ANALYSIS_UNITS);
   if (refusal) return refusal;
 
-  const clientId = process.env.WCL_CLIENT_ID!;
-  const clientSecret = process.env.WCL_CLIENT_SECRET!;
+  // Le `!` d'avant affirmait une variable d'environnement que rien ne garantit : absente,
+  // le jeton partait avec `undefined` et WCL rendait un refus qu'on lisait comme une panne.
+  const clientId = process.env.WCL_CLIENT_ID;
+  const clientSecret = process.env.WCL_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    return NextResponse.json({ error: 'WCL credentials not configured' }, { status: 500 });
+  }
+
   const token = await getWCLToken(clientId, clientSecret);
 
   const bosses = await Promise.all(

@@ -4,7 +4,7 @@ import type { FightContext } from './fight-context';
 import type { CastEvent, WCLTable } from './parsers';
 import type { CharacterStats, DamageEntry, FightTarget, RotationSummary } from '@/types';
 import { gql } from './client';
-import { OPENING_EVENT_LIMIT, OPENING_LENGTH } from './constants';
+import { MIN_TARGET_PCT, OPENING_EVENT_LIMIT, OPENING_LENGTH } from './constants';
 import { eligibilityOf } from './eligibility';
 import { fetchFightContext } from './fight-context';
 import { parseCasts, parseOpening, parseStats, parseUptime, summarizeRotation } from './parsers';
@@ -71,9 +71,6 @@ export interface FightDataArgs {
    */
   context?: { encounterId: number; difficulty: number };
 }
-
-/** Targets below this share of total damage are noise, not fight structure. */
-const MIN_TARGET_PCT = 1;
 
 export async function fetchFightData(token: string, args: FightDataArgs): Promise<FightData> {
   const { code, fightId, combatant, name, fightMs } = args;

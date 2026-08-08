@@ -29,7 +29,7 @@ function makeRequest(body: unknown) {
 beforeEach(() => {
   vi.mocked(getServerSession).mockResolvedValue({ user: { name: 'Jumbaa#1234' } } as never);
   vi.mocked(redisGet).mockResolvedValue(null);
-  vi.mocked(redisSet).mockResolvedValue(undefined);
+  vi.mocked(redisSet).mockClear().mockResolvedValue(undefined);
 });
 
 describe('pOST /api/user/favourites', () => {
@@ -61,6 +61,49 @@ describe('pOST /api/user/favourites', () => {
     const res = await POST(makeRequest(char));
     const body = (await res.json()) as { favourites: StoredCharacter[] };
     expect(body.favourites).toHaveLength(2);
+  });
+
+  // Un champ manquant faisait jeter `charKey` : le serveur rendait 500 pour une faute du
+  // client, et rien ne disait au client laquelle.
+  it('returns 400 on an incomplete character, without writing', async () => {
+    const res = await POST(makeRequest({ name: 'Jumbaa', realmSlug: 'ysondre' }));
+
+    expect(res.status).toBe(400);
+    expect(vi.mocked(redisSet)).not.toHaveBeenCalled();
+  });
+
+  it('refuses to grow the list past its cap', async () => {
+    const full = Array.from({ length: 50 }, (_, i) => ({ ...char, name: `Alt${i}` }));
+    vi.mocked(redisGet).mockResolvedValue(JSON.stringify(full));
+
+    const res = await POST(makeRequest(char));
+
+    expect(res.status).toBe(409);
+    expect(vi.mocked(redisSet)).not.toHaveBeenCalled();
+  });
+
+  // Le plafond ne doit pas enfermer : au-delà, retirer reste la seule façon de redescendre.
+  it('still removes a favourite from a list already at its cap', async () => {
+    const full = Array.from({ length: 49 }, (_, i) => ({ ...char, name: `Alt${i}` }));
+    vi.mocked(redisGet).mockResolvedValue(JSON.stringify([...full, char]));
+
+    const res = await POST(makeRequest(char));
+    const body = (await res.json()) as { favourites: StoredCharacter[] };
+
+    expect(res.status).toBe(200);
+    expect(body.favourites).toHaveLength(49);
+  });
+
+  // Ce qu'une version antérieure a écrit n'a pas la forme d'aujourd'hui : une clé illisible
+  // ne doit pas empêcher d'épingler, elle repart d'une liste vide.
+  it('recovers from an unreadable stored list', async () => {
+    vi.mocked(redisGet).mockResolvedValue('not json at all');
+
+    const res = await POST(makeRequest(char));
+    const body = (await res.json()) as { favourites: StoredCharacter[] };
+
+    expect(res.status).toBe(200);
+    expect(body.favourites).toHaveLength(1);
   });
 
   it('is case-insensitive for deduplication', async () => {

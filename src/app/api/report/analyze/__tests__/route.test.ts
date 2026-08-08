@@ -126,6 +126,32 @@ describe('report analyze route', () => {
     expect(recordExposure).not.toHaveBeenCalled();
   });
 
+  // Chaque rencontre vaut une cinquantaine de requêtes : une entrée malformée doit sortir
+  // avant le garde de dépense, pas au milieu du `Promise.all` qui a déjà payé.
+  it('returns 400 on a malformed encounter, without analysing anything', async () => {
+    vi.mocked(analyzeReportBoss).mockClear();
+
+    const res = await POST(
+      makeRequest(validBody({ encounters: [{ id: 3306, name: 'Chimaerus', fightId: 17 }] }))
+    );
+
+    expect(res.status).toBe(400);
+    expect(vi.mocked(analyzeReportBoss)).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 on an empty encounter list', async () => {
+    const res = await POST(makeRequest(validBody({ encounters: [] })));
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 500 when WCL credentials are missing', async () => {
+    delete process.env.WCL_CLIENT_ID;
+    delete process.env.WCL_CLIENT_SECRET;
+
+    const res = await POST(makeRequest(validBody()));
+    expect(res.status).toBe(500);
+  });
+
   // Le chemin rapport ne mesure pas le DPS comme le chemin personnage : il le calcule depuis
   // la table de dégâts. Le corpus doit porter laquelle des deux mesures il tient.
   it('records the exposure with the damage-table provenance', async () => {

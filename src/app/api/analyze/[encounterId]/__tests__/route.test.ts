@@ -164,6 +164,40 @@ describe('analyze route', () => {
     expect(res.status).toBe(400);
   });
 
+  // Une région ou une difficulté hors domaine partait chez WCL et s'y faisait refuser :
+  // la dépense était engagée sous la clé du produit pour un corps qu'on savait invalide.
+  it('returns 400 for a region or a difficulty outside the domain, without spending', async () => {
+    vi.mocked(analyzeBoss).mockClear();
+
+    const base = {
+      characterName: 'Jumbaa',
+      serverSlug: 'ysondre',
+      region: 'EU',
+      difficulty: 5,
+      encounterName: 'Chimaerus',
+      specId: 103,
+    };
+    const params = { params: Promise.resolve({ encounterId: '3306' }) };
+
+    const badRegion = await POST(makeRequest({ ...base, region: 'XX' }), params);
+    const badDifficulty = await POST(makeRequest({ ...base, difficulty: 9 }), params);
+
+    expect(badRegion.status).toBe(400);
+    expect(badDifficulty.status).toBe(400);
+    expect(vi.mocked(analyzeBoss)).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 rather than 500 on a body that is not JSON', async () => {
+    const req = new Request('http://localhost/api/analyze/3306', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{ not json',
+    });
+
+    const res = await POST(req, { params: Promise.resolve({ encounterId: '3306' }) });
+    expect(res.status).toBe(400);
+  });
+
   it('returns 500 when WCL credentials are missing', async () => {
     delete process.env.WCL_CLIENT_ID;
     delete process.env.WCL_CLIENT_SECRET;

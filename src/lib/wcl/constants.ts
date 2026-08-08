@@ -74,3 +74,6 @@ export const OPENING_EVENT_LIMIT = 40;
  * a full-fight Ebon Might they had and the player did not is a different fight.
  */
 export const EXTERNAL_TOLERANCE = 10;
+
+/** Targets below this share of total damage are noise, not fight structure. */
+export const MIN_TARGET_PCT = 1;
