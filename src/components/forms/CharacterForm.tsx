@@ -79,7 +79,7 @@ export function CharacterForm({
 
   return (
     <div className="flex h-full flex-col items-center justify-center px-5 py-10">
-      <h1 className="font-display text-brass mb-2 text-4xl tracking-[0.04em]">LogLense</h1>
+      <h1 className="font-display text-brass mb-2 text-4xl tracking-wide">LogLense</h1>
       <p className="text-dim mb-10 font-mono text-xs">WarcraftLogs analyser</p>
 
       <form
@@ -111,14 +111,14 @@ export function CharacterForm({
           <div>
             {zonesLoading ? (
               <>
-                <div className="text-2xs text-muted mb-1.5 font-sans tracking-[0.1em] uppercase">
+                <div className="text-2xs text-muted mb-1.5 font-sans tracking-widest uppercase">
                   Raid
                 </div>
                 <div className="text-dim py-2 font-mono text-xs">Loading raids…</div>
               </>
             ) : zonesError ? (
               <>
-                <div className="text-2xs text-muted mb-1.5 font-sans tracking-[0.1em] uppercase">
+                <div className="text-2xs text-muted mb-1.5 font-sans tracking-widest uppercase">
                   Raid
                 </div>
                 <ErrorBanner message={zonesError} />
@@ -140,7 +140,7 @@ export function CharacterForm({
 
           {currentZone && (
             <div>
-              <div className="text-2xs text-muted mb-1.5 font-sans tracking-[0.1em] uppercase">
+              <div className="text-2xs text-muted mb-1.5 font-sans tracking-widest uppercase">
                 Bosses
               </div>
               <EncounterSelector
@@ -156,7 +156,7 @@ export function CharacterForm({
             variant="primary"
             size="lg"
             disabled={!canSubmit}
-            className="w-full tracking-[0.06em] uppercase"
+            className="w-full tracking-wider uppercase"
           >
             {loading ? 'Analysing…' : 'Analyse'}
           </Button>

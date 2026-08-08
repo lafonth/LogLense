@@ -56,11 +56,11 @@ export function OverviewTab({ encounter, bossState, specName }: OverviewTabProps
           composant se tait entièrement — titre compris — quand la source n'a rendu qu'un kill. */}
       <TrajectoryChart trajectory={result.character.trajectory} />
       <div className="mt-6">
-        <h3 className="text-muted mb-2 font-mono text-xs tracking-[0.08em] uppercase">Stats</h3>
+        <h3 className="text-muted mb-2 font-mono text-xs tracking-wider uppercase">Stats</h3>
         <StatsTable character={result.character.stats} sample={[]} />
       </div>
       <div className="mt-6">
-        <h3 className="text-muted mb-2 font-mono text-xs tracking-[0.08em] uppercase">
+        <h3 className="text-muted mb-2 font-mono text-xs tracking-wider uppercase">
           Damage breakdown
         </h3>
         <DamageBreakdown entries={result.character.damageTable.entries} />

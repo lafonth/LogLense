@@ -12,14 +12,14 @@ export function AuthHeader() {
     <div className="flex w-full items-center justify-end gap-2.5 p-4">
       {session ? (
         <>
-          <span className="text-muted text-2xs font-mono tracking-[0.04em]">
+          <span className="text-muted text-2xs font-mono tracking-wide">
             {session.user?.name ?? ''}
           </span>
           <Button
             variant="secondary"
             size="xs"
             onClick={() => void signOut()}
-            className="bg-transparent font-mono tracking-[0.06em] uppercase"
+            className="bg-transparent font-mono tracking-wider uppercase"
           >
             Sign out
           </Button>
@@ -29,7 +29,7 @@ export function AuthHeader() {
           variant="secondary"
           size="xs"
           onClick={() => void signIn('battlenet')}
-          className="border-muted text-muted bg-transparent font-mono tracking-[0.06em] uppercase"
+          className="border-muted text-muted bg-transparent font-mono tracking-wider uppercase"
         >
           Sign in with Battle.net
         </Button>

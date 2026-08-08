@@ -37,6 +37,18 @@
   --text-5xl: 3.5rem;
   --text-6xl: 5.5rem;
 
+  /*
+   * Interlettrage. Neuf valeurs littérales circulaient dans les composants pour cinq rôles
+   * réels ; l'écart entre 0.06em et 0.07em n'était pas une intention, c'était de la dérive.
+   * Les noms disent l'emploi : `wide` pour une pastille, `widest` pour une étiquette en
+   * capitales, `display` pour un titre de marque.
+   */
+  --tracking-wide: 0.04em;
+  --tracking-wider: 0.08em;
+  --tracking-widest: 0.1em;
+  --tracking-caps: 0.14em;
+  --tracking-display: 0.2em;
+
   --radius-xs: 2px;
   --radius-sm: 6px;
   --radius-md: 10px;

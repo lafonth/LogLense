@@ -2,10 +2,17 @@ import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
 
 type Variant = 'primary' | 'secondary' | 'ghost';
 type Size = 'xs' | 'sm' | 'md' | 'lg';
+type Shape = 'default' | 'pill';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
+  /**
+   * `pill` est une propriété plutôt qu'un `rounded-full` passé en `className` : Tailwind
+   * départage deux utilitaires de rayon par leur ordre dans la feuille générée, pas par
+   * leur position dans la chaîne. La surcharge partait donc au hasard du build.
+   */
+  shape?: Shape;
   children: ReactNode;
   ref?: Ref<HTMLButtonElement>;
 }
@@ -23,9 +30,15 @@ const SIZES: Record<Size, string> = {
   lg: 'px-5 py-2.5 text-base',
 };
 
+const SHAPES: Record<Shape, string> = {
+  default: 'rounded-sm',
+  pill: 'rounded-full',
+};
+
 export function Button({
   variant = 'primary',
   size = 'md',
+  shape = 'default',
   className = '',
   type = 'button',
   children,
@@ -36,7 +49,7 @@ export function Button({
     <button
       ref={ref}
       type={type}
-      className={`focus-visible:outline-brass-bright inline-flex cursor-pointer items-center justify-center gap-2 rounded-sm font-sans transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
+      className={`focus-visible:outline-brass-bright inline-flex cursor-pointer items-center justify-center gap-2 font-sans transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${SHAPES[shape]} ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
       {...rest}
     >
       {children}

@@ -16,7 +16,7 @@ export function SidebarSwitcher({ children }: { children: React.ReactNode }) {
     <div className="border-border w-full shrink-0 py-5 pr-3 md:h-full md:min-h-0 md:w-45 md:overflow-y-auto md:border-r">
       {/* "Characters" is already the Sheet dialog title on mobile; showing it
           again here would duplicate it, so it only renders from `md` up. */}
-      <div className="text-2xs text-muted mb-2 hidden pl-2 font-mono tracking-[0.1em] uppercase md:block">
+      <div className="text-2xs text-muted mb-2 hidden pl-2 font-mono tracking-widest uppercase md:block">
         Characters
       </div>
       {children}

@@ -9,7 +9,7 @@ export function Card({ header, className = '', children, ...rest }: CardProps) {
   return (
     <section className={`border-border bg-surface rounded-md border ${className}`} {...rest}>
       {header !== undefined && (
-        <header className="border-border font-display text-muted border-b px-4 py-3 text-xs tracking-[0.14em] uppercase">
+        <header className="border-border font-display text-muted tracking-caps border-b px-4 py-3 text-xs uppercase">
           {header}
         </header>
       )}

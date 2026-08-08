@@ -63,7 +63,7 @@ export function Sheet({ triggerLabel, title, children }: SheetProps) {
               onKeyDown={handleKeyDown}
             >
               <div className="mb-3 flex items-center justify-between">
-                <h2 id={titleId} className="font-display text-sm tracking-[0.14em] uppercase">
+                <h2 id={titleId} className="font-display tracking-caps text-sm uppercase">
                   {title}
                 </h2>
                 <Button ref={closeRef} variant="ghost" size="sm" onClick={handleClose}>

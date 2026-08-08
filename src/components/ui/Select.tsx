@@ -11,7 +11,7 @@ export function Select({ label, className = '', children, ...rest }: SelectProps
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-2xs text-muted font-sans tracking-[0.1em] uppercase">
+      <label htmlFor={id} className="text-2xs text-muted font-sans tracking-widest uppercase">
         {label}
       </label>
       <select

@@ -211,7 +211,7 @@ export function LoggedInCharacterForm({
 
   return (
     <div className="flex h-full flex-col items-center justify-center px-5 py-10">
-      <h1 className="font-display text-brass mb-2 text-4xl tracking-[0.04em]">LogLense</h1>
+      <h1 className="font-display text-brass mb-2 text-4xl tracking-wide">LogLense</h1>
       <p className="text-dim mb-10 font-mono text-xs">WarcraftLogs analyser</p>
 
       <form
@@ -227,7 +227,7 @@ export function LoggedInCharacterForm({
           />
 
           <div>
-            <div className="text-2xs text-muted mb-1.5 font-sans tracking-[0.1em] uppercase">
+            <div className="text-2xs text-muted mb-1.5 font-sans tracking-widest uppercase">
               Your Characters
               {charsLoading && (
                 <span className="text-dim ml-2 font-sans normal-case opacity-60">Loading…</span>
@@ -237,7 +237,7 @@ export function LoggedInCharacterForm({
             <div className="flex max-h-64 flex-col gap-3 overflow-y-auto">
               {favsForRegion.length > 0 && (
                 <div>
-                  <div className="text-2xs text-dim mb-1.5 font-mono tracking-[0.1em] uppercase opacity-60">
+                  <div className="text-2xs text-dim mb-1.5 font-mono tracking-widest uppercase opacity-60">
                     ★ Starred
                   </div>
                   {renderGrid(favsForRegion)}
@@ -246,7 +246,7 @@ export function LoggedInCharacterForm({
 
               {recentsForRegion.length > 0 && (
                 <div>
-                  <div className="text-2xs text-dim mb-1.5 font-mono tracking-[0.1em] uppercase opacity-60">
+                  <div className="text-2xs text-dim mb-1.5 font-mono tracking-widest uppercase opacity-60">
                     Recent
                   </div>
                   {renderGrid(recentsForRegion)}
@@ -256,7 +256,7 @@ export function LoggedInCharacterForm({
               {rest.length > 0 && (
                 <div>
                   {(favsForRegion.length > 0 || recentsForRegion.length > 0) && (
-                    <div className="text-2xs text-dim mb-1.5 font-mono tracking-[0.1em] uppercase opacity-60">
+                    <div className="text-2xs text-dim mb-1.5 font-mono tracking-widest uppercase opacity-60">
                       All
                     </div>
                   )}
@@ -275,14 +275,14 @@ export function LoggedInCharacterForm({
           <div>
             {zonesLoading ? (
               <>
-                <div className="text-2xs text-muted mb-1.5 font-sans tracking-[0.1em] uppercase">
+                <div className="text-2xs text-muted mb-1.5 font-sans tracking-widest uppercase">
                   Raid
                 </div>
                 <div className="text-dim py-2 font-mono text-xs">Loading raids…</div>
               </>
             ) : zonesError ? (
               <>
-                <div className="text-2xs text-muted mb-1.5 font-sans tracking-[0.1em] uppercase">
+                <div className="text-2xs text-muted mb-1.5 font-sans tracking-widest uppercase">
                   Raid
                 </div>
                 <ErrorBanner message={zonesError} />
@@ -304,7 +304,7 @@ export function LoggedInCharacterForm({
 
           {currentZone && (
             <div>
-              <div className="text-2xs text-muted mb-1.5 font-sans tracking-[0.1em] uppercase">
+              <div className="text-2xs text-muted mb-1.5 font-sans tracking-widest uppercase">
                 Bosses
               </div>
               <EncounterSelector
@@ -320,7 +320,7 @@ export function LoggedInCharacterForm({
             variant="primary"
             size="lg"
             disabled={!canSubmit}
-            className="w-full tracking-[0.06em] uppercase"
+            className="w-full tracking-wider uppercase"
           >
             {loading ? 'Analysing…' : 'Analyse'}
           </Button>

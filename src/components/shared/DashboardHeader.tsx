@@ -42,7 +42,7 @@ export function DashboardHeader({
                 <span
                   key={id}
                   title="No kills at this difficulty"
-                  className="border-border text-muted text-2xs rounded-full border px-2 py-1 font-mono tracking-[0.04em] opacity-30"
+                  className="border-border text-muted text-2xs rounded-full border px-2 py-1 font-mono tracking-wide opacity-30"
                 >
                   {label}
                 </span>
@@ -53,8 +53,9 @@ export function DashboardHeader({
                 key={id}
                 variant="secondary"
                 size="xs"
+                shape="pill"
                 onClick={() => !active && onDifficultyChange(id)}
-                className={`rounded-full font-mono tracking-[0.04em] ${
+                className={`font-mono tracking-wide ${
                   active ? 'border-brass-dim bg-brass/10 text-brass' : 'text-muted'
                 }`}
               >
@@ -84,7 +85,7 @@ export function LoadingProgress({ encounters, bossStates }: LoadingProgressProps
 
   return (
     <div className="border-border bg-surface mb-6 rounded-sm border p-4">
-      <div className="text-2xs text-muted mb-2 font-mono tracking-[0.08em] uppercase">
+      <div className="text-2xs text-muted mb-2 font-mono tracking-wider uppercase">
         Fetching bosses…
       </div>
       <ProgressSteps

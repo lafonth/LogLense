@@ -13,7 +13,7 @@ function Divider({ label }: { label: string }) {
   return (
     <div className="mx-auto flex max-w-[680px] items-center gap-4 px-6">
       <div className="bg-border-strong h-px flex-1" />
-      <div className="text-2xs text-muted font-mono tracking-[0.18em] whitespace-nowrap uppercase">
+      <div className="text-2xs text-muted tracking-display font-mono whitespace-nowrap uppercase">
         {label}
       </div>
       <div className="bg-border-strong h-px flex-1" />
@@ -27,7 +27,7 @@ function CtaButton({ children }: { children: React.ReactNode }) {
       variant="secondary"
       size="lg"
       onClick={() => void signIn('battlenet')}
-      className="border-brass text-brass hover:text-brass-bright bg-transparent font-mono tracking-[0.1em] uppercase"
+      className="border-brass text-brass hover:text-brass-bright bg-transparent font-mono tracking-widest uppercase"
     >
       {children}
     </Button>
@@ -40,12 +40,12 @@ export function MarketingLanding() {
       {/* Nav — logo only. The global AuthHeader (rendered in layout.tsx, above this page)
           already provides the sign-in control, so this nav does not duplicate it. */}
       <nav className="bg-bg/90 border-border sticky top-0 z-30 flex items-center border-b px-8 py-3 backdrop-blur-sm">
-        <span className="font-display text-brass text-lg tracking-[0.04em]">LogLense</span>
+        <span className="font-display text-brass text-lg tracking-wide">LogLense</span>
       </nav>
 
       {/* Hero */}
       <section className="from-brass/7 bg-radial-[at_50%_0%] to-transparent px-6 pt-24 pb-20 text-center">
-        <div className="text-2xs text-muted mb-4 font-mono tracking-[0.2em] uppercase">
+        <div className="text-2xs text-muted tracking-display mb-4 font-mono uppercase">
           WarcraftLogs · Performance Analysis
         </div>
         <h1 className="font-display text-brass mb-5 text-4xl leading-none md:text-5xl lg:text-6xl">
@@ -105,7 +105,7 @@ export function MarketingLanding() {
             <div className="flex-1">
               <div className="text-brass mb-2.5 flex items-center justify-center gap-2.5 font-mono text-base font-medium md:justify-start">
                 AI Coaching Report
-                <span className="text-brass border-brass-dim text-2xs rounded-xs border px-1.5 py-0.5 tracking-[0.1em] uppercase">
+                <span className="text-brass border-brass-dim text-2xs rounded-xs border px-1.5 py-0.5 tracking-widest uppercase">
                   Pro
                 </span>
               </div>

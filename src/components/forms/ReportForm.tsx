@@ -78,7 +78,7 @@ export function ReportForm({ onSubmit, loading, onBack }: ReportFormProps) {
             variant="primary"
             size="md"
             disabled={metaLoading || !code.trim()}
-            className="w-fit tracking-[0.08em] uppercase"
+            className="w-fit tracking-wider uppercase"
           >
             {metaLoading ? 'Loading…' : 'Load Report'}
           </Button>
@@ -116,7 +116,7 @@ export function ReportForm({ onSubmit, loading, onBack }: ReportFormProps) {
               variant="primary"
               size="md"
               disabled={loading || selectedActorId === '' || !specId}
-              className="w-fit tracking-[0.08em] uppercase"
+              className="w-fit tracking-wider uppercase"
             >
               {loading ? 'Analysing…' : 'Analyse'}
             </Button>

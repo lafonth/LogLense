@@ -18,7 +18,7 @@ const FORMATTERS: Record<StatKey, (v: number) => string> = {
 };
 
 const CELL = 'border-border font-mono text-xs border-b px-3 py-2 text-right';
-const HEADER_CELL = `${CELL} text-muted text-2xs tracking-[0.07em] uppercase`;
+const HEADER_CELL = `${CELL} text-muted text-2xs tracking-wider uppercase`;
 
 /**
  * L'écart à la médiane des références, pas à leur moyenne : une moyenne sur douze candidats

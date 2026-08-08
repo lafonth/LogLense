@@ -185,7 +185,7 @@ export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTab
       {/* Groq model selector */}
       {provider === 'groq' && (
         <div className="mb-4">
-          <span className="text-2xs text-muted mb-1.5 block font-mono tracking-[0.08em] uppercase">
+          <span className="text-2xs text-muted mb-1.5 block font-mono tracking-wider uppercase">
             Model
           </span>
           <div className="flex flex-col gap-1.5">

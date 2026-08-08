@@ -8,6 +8,7 @@ import { BossSidebar } from '@/components/results/BossSidebar';
 import { ComparisonTab } from '@/components/results/ComparisonTab';
 import { OverviewTab } from '@/components/results/OverviewTab';
 import { Button } from '@/components/ui/Button';
+import { tabId, tabPanelId } from '@/components/ui/tab-ids';
 import { Tabs } from '@/components/ui/Tabs';
 import { getDpsSpecsForClass, getSpecInfo } from '@/lib/specs';
 
@@ -87,7 +88,13 @@ export function BossContentPanel({
             onSelect={onBossChange}
           />
         )}
-        <div className="min-w-0 flex-1">
+        <div
+          id={tabPanelId(activeTab)}
+          role="tabpanel"
+          aria-labelledby={tabId(activeTab)}
+          tabIndex={0}
+          className="focus-visible:outline-brass-bright min-w-0 flex-1 focus-visible:outline-2"
+        >
           {/* Spec switcher — character mode only, shown once spec is known */}
           {onSwitchBossSpec && availableSpecs.length > 1 && (
             <div className="mb-4 flex flex-wrap gap-2">

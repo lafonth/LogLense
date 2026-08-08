@@ -71,7 +71,7 @@ function DiffColumn({
   return (
     <div>
       <h4
-        className={`text-2xs mb-2 font-sans tracking-[0.12em] uppercase ${
+        className={`text-2xs tracking-caps mb-2 font-sans uppercase ${
           accent === 'mine' ? 'text-deviation' : 'text-brass'
         }`}
       >

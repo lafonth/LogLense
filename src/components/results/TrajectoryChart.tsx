@@ -62,7 +62,7 @@ export function TrajectoryChart({ trajectory }: TrajectoryChartProps) {
 
   return (
     <div className="mt-6">
-      <h3 className="text-muted mb-2 font-mono text-xs tracking-[0.08em] uppercase">Trajectory</h3>
+      <h3 className="text-muted mb-2 font-mono text-xs tracking-wider uppercase">Trajectory</h3>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className={`font-mono text-xs font-semibold ${verdict.tone}`}>{verdict.label}</span>
         {trend.verdict !== 'insufficient' && (
