@@ -1,6 +1,7 @@
 'use client';
 
 import type { BossState } from '@/hooks/useAnalysis';
+import type { Provider } from '@/hooks/useProvider';
 import type { GroqModelId } from '@/lib/ai/groq';
 import type { AnalysisInput, AnalysisResult, BossResult } from '@/types';
 
@@ -12,6 +13,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { useAIReport } from '@/hooks/useAIReport';
 import { useApiKey } from '@/hooks/useApiKey';
+import { useProvider } from '@/hooks/useProvider';
 import { DEFAULT_GROQ_MODEL, GROQ_MODELS } from '@/lib/ai/groq';
 import { buildAnalysisPrompt } from '@/lib/ai/prompt';
 import { getSpecInfo } from '@/lib/specs';
@@ -23,8 +25,6 @@ interface AIReportTabProps {
   input: AnalysisInput;
   activeBossResult: BossResult | null;
 }
-
-type Provider = 'claude' | 'gemini' | 'groq';
 
 const PROVIDERS: {
   id: Provider;
@@ -55,20 +55,6 @@ const PROVIDERS: {
     keyHint: 'console.anthropic.com',
   },
 ];
-
-function useProvider(): [Provider, (p: Provider) => void] {
-  const [provider, setProvider] = useState<Provider>(() => {
-    if (typeof window === 'undefined') return 'gemini';
-    return (localStorage.getItem('loglense_ai_provider') as Provider | null) ?? 'groq';
-  });
-
-  function persist(p: Provider) {
-    setProvider(p);
-    localStorage.setItem('loglense_ai_provider', p);
-  }
-
-  return [provider, persist];
-}
 
 export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTabProps) {
   const [provider, setProvider] = useProvider();

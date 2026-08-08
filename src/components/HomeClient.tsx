@@ -263,7 +263,15 @@ export function HomeClient() {
   }
 
   if (sessionStatus === 'unauthenticated') return <MarketingLanding />;
-  if (sessionStatus === 'loading') return null;
+  // Rendre `null` laissait une page blanche le temps que la session revienne, indiscernable
+  // d'une panne : le même spinner que plus haut dit au moins qu'il se passe quelque chose.
+  if (sessionStatus === 'loading') {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <LoadingSpinner label="Loading…" />
+      </div>
+    );
+  }
   if (mode === null) return <ModeSelector onSelect={setMode} />;
 
   if (mode === 'report') {
