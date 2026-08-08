@@ -119,7 +119,9 @@ export class GeminiProvider implements AIProvider {
               completionTokens,
               totalTokens: lastUsage.totalTokenCount ?? promptTokens + completionTokens,
               model: resolvedModel,
-              contextWindow: GEMINI_CONTEXT_WINDOWS[model] ?? 1048576,
+              // Indexé sur le modèle que Gemini dit avoir servi, pas sur celui demandé :
+              // annoncer un modèle avec la fenêtre d'un autre fausse la jauge de contexte.
+              contextWindow: GEMINI_CONTEXT_WINDOWS[resolvedModel] ?? 1048576,
             },
           });
         }
