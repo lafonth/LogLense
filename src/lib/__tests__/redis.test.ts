@@ -72,18 +72,41 @@ describe('redisAppend', () => {
     );
   });
 
-  // exec() does not check res.ok, so a failed write would otherwise resolve to undefined
-  // and the route would answer 200 for a label that was never stored.
+  // Sans cette garde, une écriture refusée résolvait sur `undefined` et la route répondait
+  // 200 pour un label qui n'a jamais été stocké.
   it('throws when Redis does not return a list length', async () => {
+    mockUpstash(null);
+
+    await expect(redisAppend('k', 'v')).rejects.toThrow(/list length/);
+  });
+});
+
+// Une panne ne doit pas pouvoir se faire passer pour un état : c'est ce qui faisait lire un
+// jeton expiré comme « liste blanche absente », donc comme un accès ouvert à tout le monde.
+describe('a refused command', () => {
+  it('throws on a non-2xx response instead of returning undefined', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
         ok: false,
-        json: () => Promise.resolve({ error: 'ERR wrong number of arguments' }),
+        status: 401,
+        json: () => Promise.resolve({ error: 'Unauthorized' }),
       } as Response)
     );
 
-    await expect(redisAppend('k', 'v')).rejects.toThrow(/list length/);
+    await expect(redisGet('app:whitelist')).rejects.toThrow(/401/);
+  });
+
+  it('throws on an error body returned with a 2xx', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ error: 'ERR unknown command' }),
+      } as Response)
+    );
+
+    await expect(redisGet('k')).rejects.toThrow(/unknown command/);
   });
 });
 

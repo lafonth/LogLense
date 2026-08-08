@@ -23,12 +23,35 @@ async function fetchBattletag(accessToken: string): Promise<string | null> {
   }
 }
 
+/**
+ * Dit si ce battletag a le droit d'entrer.
+ *
+ * Trois cas, et ils ne se confondent pas :
+ *
+ * - clé absente : accès ouvert, pour pouvoir se connecter avant d'avoir configuré la liste ;
+ * - clé illisible ou Redis muet : accès refusé. C'est une porte d'entrée — ce qu'on n'a pas
+ *   pu vérifier ne s'accorde pas. Auparavant l'erreur remontait jusqu'à NextAuth, ou pire,
+ *   se lisait comme une clé absente et ouvrait tout ;
+ * - clé lue : appartenance, insensible à la casse comme l'affichage du battletag.
+ */
 async function isAllowed(battletag: string): Promise<boolean> {
-  const raw = await redisGet(WHITELIST_KEY);
-  // No whitelist key = open access (lets you log in before configuring)
+  let raw: string | null;
+
+  try {
+    raw = await redisGet(WHITELIST_KEY);
+  } catch {
+    return false;
+  }
+
   if (!raw) return true;
-  const list = JSON.parse(raw) as string[];
-  return list.some((t) => t.toLowerCase() === battletag.toLowerCase());
+
+  try {
+    const list: unknown = JSON.parse(raw);
+    if (!Array.isArray(list)) return false;
+    return list.some((t) => typeof t === 'string' && t.toLowerCase() === battletag.toLowerCase());
+  } catch {
+    return false;
+  }
 }
 
 export const authOptions: NextAuthOptions = {

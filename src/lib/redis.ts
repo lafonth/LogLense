@@ -1,3 +1,12 @@
+/**
+ * Envoie une commande à Upstash et rend son résultat, ou jette.
+ *
+ * Le refus doit jeter, pas rendre `undefined`. Sans cette vérification, un jeton expiré ou
+ * une URL absente rendaient un corps d'erreur dont `data.result` était `undefined`, et
+ * chaque appelant lisait ce vide comme une réponse : la liste blanche de connexion voyait
+ * « pas de clé » et ouvrait l'accès à tout le monde, indistinguable d'une liste jamais
+ * configurée. Une panne de Redis ne doit pas pouvoir se faire passer pour un état.
+ */
 async function exec<T>(cmd: unknown[]): Promise<T> {
   const base = process.env.UPSTASH_REDIS_REST_URL ?? '';
   const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? '';
@@ -7,8 +16,18 @@ async function exec<T>(cmd: unknown[]): Promise<T> {
     body: JSON.stringify(cmd),
     cache: 'no-store',
   });
-  const data = (await res.json()) as { result: T };
-  return data.result;
+
+  if (!res.ok) {
+    throw new Error(`Redis ${String(cmd[0])} failed: ${res.status}`);
+  }
+
+  const data = (await res.json()) as { result?: T; error?: string };
+
+  if (data.error !== undefined) {
+    throw new Error(`Redis ${String(cmd[0])} failed: ${data.error}`);
+  }
+
+  return data.result as T;
 }
 
 export async function redisGet(key: string): Promise<string | null> {
