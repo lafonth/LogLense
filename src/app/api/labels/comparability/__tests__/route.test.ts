@@ -1,16 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CORPUS_MONTH_CAP } from '@/lib/labels/corpus';
 import { LABEL_LIMIT } from '@/lib/labels/rate-limit';
 import { POST } from '../route';
 
-const { getServerSession, redisAppend, redisIncrBy, redisExpire } = vi.hoisted(() => ({
+const { getServerSession, redisAppend, redisLlen, redisIncrBy, redisExpire } = vi.hoisted(() => ({
   getServerSession: vi.fn(),
   redisAppend: vi.fn(),
+  redisLlen: vi.fn(),
   redisIncrBy: vi.fn(),
   redisExpire: vi.fn(),
 }));
 
 vi.mock('next-auth/next', () => ({ getServerSession }));
-vi.mock('@/lib/redis', () => ({ redisAppend, redisIncrBy, redisExpire }));
+vi.mock('@/lib/redis', () => ({ redisAppend, redisLlen, redisIncrBy, redisExpire }));
 vi.mock('@/lib/auth', () => ({ authOptions: {} }));
 
 function body(overrides: Record<string, unknown> = {}) {
@@ -42,6 +44,7 @@ describe('pOST /api/labels/comparability', () => {
     process.env.LABEL_SALT = 'pepper';
     getServerSession.mockResolvedValue({ user: { email: 'someone@example.com' } });
     redisAppend.mockResolvedValue(1);
+    redisLlen.mockResolvedValue(0);
     redisIncrBy.mockResolvedValue(1);
     redisExpire.mockResolvedValue(undefined);
   });
@@ -148,6 +151,17 @@ describe('pOST /api/labels/comparability', () => {
   // Fail closed: never write an unsalted identifier into a corpus we cannot clean up.
   it('refuses to write when the salt is missing', async () => {
     delete process.env.LABEL_SALT;
+
+    const res = await POST(request(body()));
+
+    expect(res.status).toBe(503);
+    expect(redisAppend).not.toHaveBeenCalled();
+  });
+
+  // Un mois plein n'est pas un succès : le verdict n'est pas dans le corpus, et rendre
+  // `ok` laisserait le client l'afficher comme enregistré.
+  it('reports a full month rather than claiming success', async () => {
+    redisLlen.mockResolvedValue(CORPUS_MONTH_CAP);
 
     const res = await POST(request(body()));
 

@@ -3,10 +3,10 @@ import type { ComparabilityLabel } from '@/lib/labels/schema';
 import { getServerSession } from 'next-auth/next';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
+import { appendToCorpus } from '@/lib/labels/corpus';
 import { hashUserId } from '@/lib/labels/identity';
 import { consumeLabelQuota } from '@/lib/labels/rate-limit';
 import { monthKey, parseSubmission } from '@/lib/labels/schema';
-import { redisAppend } from '@/lib/redis';
 
 export const runtime = 'nodejs';
 
@@ -74,7 +74,13 @@ export async function POST(req: NextRequest) {
   try {
     // La longueur renvoyée par Redis reste ici : elle mesure la croissance du corpus, qui
     // est l'actif du produit, et l'appelant n'en a aucun usage.
-    await redisAppend(monthKey(at), JSON.stringify(label));
+    const write = await appendToCorpus(monthKey(at), JSON.stringify(label));
+    // Un mois plein se dit comme une indisponibilité, pas comme un succès : le verdict
+    // n'est pas dans le corpus, et laisser croire le contraire est le seul mensonge que
+    // cette route puisse faire.
+    if (write === 'full') {
+      return NextResponse.json({ error: 'Label capture unavailable' }, { status: 503 });
+    }
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: 'Label capture unavailable' }, { status: 503 });

@@ -1,18 +1,20 @@
 import type { BossResult } from '@/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CORPUS_MONTH_CAP } from '../corpus';
 import { EXPOSURE_LIMIT } from '../rate-limit';
 import { recordExposure } from '../record-exposure';
 
-const { getServerSession, redisAppend, redisIncrBy, redisExpire } = vi.hoisted(() => ({
+const { getServerSession, redisAppend, redisLlen, redisIncrBy, redisExpire } = vi.hoisted(() => ({
   getServerSession: vi.fn(),
   redisAppend: vi.fn(),
+  redisLlen: vi.fn(),
   redisIncrBy: vi.fn(),
   redisExpire: vi.fn(),
 }));
 
 vi.mock('next-auth/next', () => ({ getServerSession }));
 vi.mock('@/lib/auth', () => ({ authOptions: {} }));
-vi.mock('@/lib/redis', () => ({ redisAppend, redisIncrBy, redisExpire }));
+vi.mock('@/lib/redis', () => ({ redisAppend, redisLlen, redisIncrBy, redisExpire }));
 
 function boss(renderId: string): BossResult {
   return {
@@ -85,6 +87,7 @@ describe('recordExposure', () => {
     process.env.LABEL_SALT = 'pepper';
     getServerSession.mockResolvedValue(SESSION);
     redisAppend.mockResolvedValue(1);
+    redisLlen.mockResolvedValue(0);
     redisIncrBy.mockResolvedValue(1);
     redisExpire.mockResolvedValue(undefined);
   });
@@ -100,6 +103,16 @@ describe('recordExposure', () => {
       kind: 'exposure',
       subject: { dpsSource: 'ranking' },
     });
+  });
+
+  // Un mois plein arrête le lot avant la première écriture : le plafond existe pour qu'une
+  // instance saturée ne fasse pas perdre les verdicts humains, qui sont d'un autre flux.
+  it('writes nothing once the month has reached its cap', async () => {
+    redisLlen.mockResolvedValue(CORPUS_MONTH_CAP);
+
+    await recordExposure([boss('r1'), boss('r2')], { dpsSource: 'ranking' });
+
+    expect(redisAppend).not.toHaveBeenCalled();
   });
 
   // Un boss sans données n'a rien exposé : il n'y a pas de positif faible à en tirer.

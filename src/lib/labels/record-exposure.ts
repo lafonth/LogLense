@@ -3,6 +3,7 @@ import type { BossResult } from '@/types';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { redisAppend } from '@/lib/redis';
+import { hasCorpusRoom } from './corpus';
 import { buildExposure, exposureMonthKey } from './exposure';
 import { hashUserId } from './identity';
 import { consumeExposureQuota } from './rate-limit';
@@ -38,12 +39,15 @@ export async function recordExposure(
     const key = exposureMonthKey(at);
     const atMs = Date.parse(at);
 
+    // Mesuré une fois pour le lot, pas une fois par boss : voir `hasCorpusRoom`.
+    if (!(await hasCorpusRoom(key))) return;
+
     for (const boss of bosses) {
       if (!boss) continue;
 
       // Le quota se compte sur l'identité hachée, jamais sur l'IP : c'est le compte qui
       // écrit dans le corpus. Un rendu anonyme ne consomme rien — il n'a pas de compte à
-      // débiter, et c'est `redisAppend` qui bornera le reste.
+      // débiter, et c'est le plafond mensuel du corpus qui borne le reste.
       if (by) {
         const quota = await consumeExposureQuota(by, atMs);
         // Le suivant serait refusé pour la même raison : inutile d'insister.

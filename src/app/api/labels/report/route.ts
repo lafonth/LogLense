@@ -3,10 +3,10 @@ import type { ReportFeedbackRecord } from '@/lib/labels/report';
 import { getServerSession } from 'next-auth/next';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
+import { appendToCorpus } from '@/lib/labels/corpus';
 import { hashUserId } from '@/lib/labels/identity';
 import { consumeLabelQuota } from '@/lib/labels/rate-limit';
 import { parseReportFeedback, reportMonthKey } from '@/lib/labels/report';
-import { redisAppend } from '@/lib/redis';
 
 export const runtime = 'nodejs';
 
@@ -67,7 +67,10 @@ export async function POST(req: NextRequest) {
   const record: ReportFeedbackRecord = { v: 3, kind: 'feedback', at, by, ...submission };
 
   try {
-    await redisAppend(reportMonthKey(at), JSON.stringify(record));
+    const write = await appendToCorpus(reportMonthKey(at), JSON.stringify(record));
+    if (write === 'full') {
+      return NextResponse.json({ error: 'Feedback capture unavailable' }, { status: 503 });
+    }
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: 'Feedback capture unavailable' }, { status: 503 });

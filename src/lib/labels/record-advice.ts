@@ -3,8 +3,8 @@ import type { BossResult } from '@/types';
 import { getServerSession } from 'next-auth/next';
 import { coveredAxes, PROMPT_VERSION } from '@/lib/ai/prompt';
 import { authOptions } from '@/lib/auth';
-import { redisAppend } from '@/lib/redis';
 import { getTalentNodes } from '@/lib/talent-loader';
+import { appendToCorpus } from './corpus';
 import { hashUserId } from './identity';
 import { consumeExposureQuota } from './rate-limit';
 import { reportMonthKey } from './report';
@@ -54,7 +54,7 @@ export async function recordAdvice(
       axes: coveredAxes(boss, getTalentNodes(boss.specId)),
     };
 
-    await redisAppend(reportMonthKey(at), JSON.stringify(record));
+    await appendToCorpus(reportMonthKey(at), JSON.stringify(record));
   } catch {
     // Avalé volontairement : voir l'en-tête.
   }
