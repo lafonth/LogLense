@@ -181,6 +181,12 @@ export interface Comparability {
   /** Candidats de la fenêtre écartés par un critère éliminatoire. */
   disqualified: number;
   /**
+   * Candidats que la vérification n'a pas pu juger : rapport privé, combattant introuvable,
+   * requête refusée. Ils disparaissaient sans trace, ce qui rendait un panel réduit par un
+   * incident de collecte indiscernable d'un panel réduit par les critères.
+   */
+  unverifiable: number;
+  /**
    * Références retenues bien qu'écartées, pour compléter le panel. Toute valeur non nulle
    * force `level` à `poor` : le panel est plein, mais il ne dit plus la même chose.
    */

@@ -54,6 +54,7 @@ const mockBossResult: BossResult = {
     candidatesConsidered: 500,
     pagesFetched: 5,
     disqualified: 0,
+    unverifiable: 0,
     substituted: 0,
   },
 };

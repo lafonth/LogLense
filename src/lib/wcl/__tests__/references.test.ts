@@ -41,6 +41,11 @@ describe('fetchCandidatePool', () => {
     };
   }
 
+  /** Une page qui échoue à toutes les tentatives, sans demander de délai particulier. */
+  function failedPage() {
+    return { ok: false, status: 500, headers: { get: () => null } } as unknown as Response;
+  }
+
   it('fetches every page and concatenates them', async () => {
     globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
       const body = JSON.parse(String(init.body));
@@ -79,12 +84,13 @@ describe('fetchCandidatePool', () => {
   });
 
   it('keeps the pages that succeeded when one fails', async () => {
-    let call = 0;
-    globalThis.fetch = vi.fn().mockImplementation(async () => {
-      call += 1;
-      const thisCall = call;
-      if (thisCall === 3) return { ok: false, status: 500 } as Response;
-      return { ok: true, json: async () => ({ data: page(thisCall, 1) }) } as Response;
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      const { page: n } = JSON.parse(String(init.body)).variables;
+      // La panne suit la page, pas le rang de l'appel : `gql` reprend, et une page qui
+      // n'échouerait qu'une fois reviendrait à la tentative suivante — le scénario testé
+      // ici, celui d'une page réellement perdue, ne se produirait jamais.
+      if (n === 3) return failedPage();
+      return { ok: true, json: async () => ({ data: page(n, 1) }) } as Response;
     });
 
     const pool = await fetchCandidatePool('token', {
@@ -133,11 +139,10 @@ describe('fetchCandidatePool', () => {
 
   // Une page perdue est un incident réseau ; l'écrire la figerait six heures pour toute la spec.
   it('does not cache a pool that is missing a page', async () => {
-    let call = 0;
-    globalThis.fetch = vi.fn().mockImplementation(async () => {
-      call += 1;
-      if (call === 3) return { ok: false, status: 500 } as Response;
-      return { ok: true, json: async () => ({ data: page(call, 1) }) } as Response;
+    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      const { page: n } = JSON.parse(String(init.body)).variables;
+      if (n === 3) return failedPage();
+      return { ok: true, json: async () => ({ data: page(n, 1) }) } as Response;
     });
 
     await fetchCandidatePool('token', POOL_ARGS);
@@ -303,6 +308,23 @@ describe('resolveReferences', () => {
     expect(topPlayers.map((p) => p.provenance.name)).toEqual(
       Array.from({ length: TOP_N }, (_, i) => `R${i}`)
     );
+  });
+
+  // Un rapport privé retirait un candidat du panel sans laisser de trace : la bannière
+  // annonçait alors un panel court sans rien qui distingue l'incident du verdict.
+  it('counts the candidates the verification could not read', async () => {
+    mockFights((code) =>
+      code === 'ghost' ? { combatants: [], actors: [], buffs: NO_BUFFS } : plainFight(code)
+    );
+
+    const { topPlayers, comparability } = await resolve([
+      ranking('ghost', 284),
+      ranking('near', 285),
+    ]);
+
+    expect(topPlayers.map((p) => p.provenance.name)).toEqual(['near']);
+    expect(comparability.unverifiable).toBe(1);
+    expect(comparability.disqualified).toBe(0);
   });
 
   it('returns nothing when there are no rankings at all', async () => {

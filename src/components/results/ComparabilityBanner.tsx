@@ -70,6 +70,11 @@ export function ComparabilityBanner({ comparability }: ComparabilityBannerProps)
             bonus or externals
           </>
         )}
+        {comparability.unverifiable > 0 && (
+          <>
+            , <span className="font-mono">{comparability.unverifiable}</span> unreadable
+          </>
+        )}
         .
       </p>
     </Card>

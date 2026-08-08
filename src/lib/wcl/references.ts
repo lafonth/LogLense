@@ -287,6 +287,7 @@ export async function resolveReferences(
 
   // Promise.all preserves order, so both partitions stay sorted by distance and the
   // substitutes are drawn from the least-far eliminated candidate first.
+  const attempted = closest.length + (exploration ? 1 : 0);
   const verified = (
     await Promise.all([
       ...closest.map((s) => verifyCandidate(token, s, mine, false)),
@@ -325,6 +326,7 @@ export async function resolveReferences(
     candidatesConsidered: filtered.length,
     pagesFetched: pool.pagesFetched,
     disqualified: eliminated.length,
+    unverifiable: attempted - verified.length,
     substituted: substitutes.length,
   };
 

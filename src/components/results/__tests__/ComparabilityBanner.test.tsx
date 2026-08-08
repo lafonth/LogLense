@@ -14,6 +14,7 @@ function comparability(over: Partial<Comparability> = {}): Comparability {
     candidatesConsidered: 942,
     pagesFetched: 10,
     disqualified: 0,
+    unverifiable: 0,
     substituted: 0,
     ...over,
   };
@@ -100,6 +101,21 @@ describe('comparabilityBanner', () => {
 
     expect(screen.getByText(/eliminated on set bonus or externals/)).toBeInTheDocument();
     expect(screen.getByText('7')).toBeInTheDocument();
+  });
+
+  // Un panel réduit par un rapport privé n'est pas un panel réduit par les critères : le
+  // premier se retente plus tard, le second dit quelque chose du jeu.
+  it('separates the candidates it could not read from the ones it eliminated', () => {
+    render(<ComparabilityBanner comparability={comparability({ unverifiable: 4 })} />);
+
+    expect(screen.getByText(/unreadable/)).toBeInTheDocument();
+    expect(screen.getByText('4')).toBeInTheDocument();
+  });
+
+  it('stays silent when every candidate could be read', () => {
+    render(<ComparabilityBanner comparability={comparability()} />);
+
+    expect(screen.queryByText(/unreadable/)).not.toBeInTheDocument();
   });
 
   // Le panneau complété reste un repli : il doit se dénoncer, pas se faire passer pour un choix.

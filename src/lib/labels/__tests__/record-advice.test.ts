@@ -67,6 +67,7 @@ function boss(): BossResult {
       candidatesConsidered: 981,
       pagesFetched: 10,
       disqualified: 0,
+      unverifiable: 0,
       substituted: 0,
     },
   };

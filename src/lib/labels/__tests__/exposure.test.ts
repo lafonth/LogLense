@@ -119,6 +119,7 @@ function result(over: Partial<BossResult> = {}): BossResult {
       candidatesConsidered: 981,
       pagesFetched: 10,
       disqualified: 2,
+      unverifiable: 0,
       substituted: 1,
     },
     ...over,

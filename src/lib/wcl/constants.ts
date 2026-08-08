@@ -1,6 +1,25 @@
 export const TOKEN_URL = 'https://www.warcraftlogs.com/oauth/token';
 export const API_URL = 'https://www.warcraftlogs.com/api/v2/client';
 
+/**
+ * Ce qu'une requête WCL a le droit de faire attendre avant d'être abandonnée.
+ *
+ * Sans borne, une requête qui ne revient jamais tient la route ouverte jusqu'au délai de
+ * la plateforme : l'analyse ne rend ni résultat ni erreur. Quinze secondes couvrent
+ * largement une table de dégâts sur un combat long.
+ */
+export const REQUEST_TIMEOUT_MS = 15_000;
+
+/**
+ * La politique de reprise d'une requête WCL.
+ *
+ * Un 429 est le régime normal quand dix pages de classement partent ensemble, pas une
+ * panne : le laisser remonter affichait « boss non analysé » pour un simple ralentissement.
+ * Trois tentatives, parce qu'au-delà on ne patiente plus, on insiste — et insister est
+ * exactement ce que la clé ne peut pas se permettre.
+ */
+export const RETRY_POLICY = { attempts: 3, baseDelayMs: 500, maxDelayMs: 8_000 };
+
 export const KILL_TIME_TOLERANCE = 0.2;
 export const TOP_N = 3;
 
