@@ -2,9 +2,6 @@ import type { Account } from 'next-auth';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { authOptions } from '@/lib/auth';
 import { DEV_SESSION_PROVIDER_ID } from '@/lib/dev-session';
-import { redisGet } from '@/lib/redis';
-
-vi.mock('@/lib/redis', () => ({ redisGet: vi.fn() }));
 
 const BATTLETAG = 'Jumbaa#1234';
 
@@ -29,12 +26,13 @@ function mockUserinfo(body: unknown, ok = true) {
 }
 
 beforeEach(() => {
-  vi.mocked(redisGet).mockReset().mockResolvedValue(null);
+  vi.stubEnv('BETA_ALLOWLIST', '');
   mockUserinfo({ battletag: BATTLETAG });
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe('signIn', () => {
@@ -53,35 +51,24 @@ describe('signIn', () => {
     await expect(signIn(account())).resolves.toBe(false);
   });
 
-  // L'absence de clé est un état voulu : elle permet de se connecter avant d'avoir configuré
-  // la liste.
-  it('opens access when no whitelist is configured', async () => {
-    vi.mocked(redisGet).mockResolvedValue(null);
-    await expect(signIn(account())).resolves.toBe(true);
+  // La faute classique du motif : une variable oubliée ne doit jamais ouvrir l'accès à tous.
+  it('closes access to everyone when the allowlist is unset', async () => {
+    vi.stubEnv('BETA_ALLOWLIST', '');
+    await expect(signIn(account())).resolves.toBe(false);
   });
 
   it('admits a listed battletag whatever its case', async () => {
-    vi.mocked(redisGet).mockResolvedValue(JSON.stringify(['jumbaa#1234', 'Other#1']));
+    vi.stubEnv('BETA_ALLOWLIST', 'jumbaa#1234,Other#1');
     await expect(signIn(account())).resolves.toBe(true);
   });
 
   it('refuses a battletag that is not on the list', async () => {
-    vi.mocked(redisGet).mockResolvedValue(JSON.stringify(['Other#1']));
+    vi.stubEnv('BETA_ALLOWLIST', 'Other#1');
     await expect(signIn(account())).resolves.toBe(false);
   });
 
-  // Le cœur de la correction : une panne de Redis se lisait comme « pas de liste », donc
-  // comme un accès ouvert. Ce qu'on n'a pas pu vérifier ne s'accorde pas.
-  it('refuses when the whitelist cannot be read', async () => {
-    vi.mocked(redisGet).mockRejectedValue(new Error('upstash down'));
-    await expect(signIn(account())).resolves.toBe(false);
-  });
-
-  it('refuses on a whitelist that is not a list of names', async () => {
-    vi.mocked(redisGet).mockResolvedValue('{ not json');
-    await expect(signIn(account())).resolves.toBe(false);
-
-    vi.mocked(redisGet).mockResolvedValue(JSON.stringify({ jumbaa: true }));
-    await expect(signIn(account())).resolves.toBe(false);
+  it('ignores stray whitespace and empty entries in the list', async () => {
+    vi.stubEnv('BETA_ALLOWLIST', ' , Jumbaa#1234 , ');
+    await expect(signIn(account())).resolves.toBe(true);
   });
 });

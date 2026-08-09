@@ -42,6 +42,9 @@ function sessionDouble() {
 function LandingDouble() {
   return <div data-testid="landing" />;
 }
+function BetaClosedDouble() {
+  return <div data-testid="beta-closed" />;
+}
 function ModeSelectorDouble({ onSelect }: { onSelect: (m: 'character' | 'report') => void }) {
   return (
     <div data-testid="mode">
@@ -148,6 +151,7 @@ vi.mock('@/hooks/useAnalysis', () => ({ useAnalysis: vi.fn() }));
 vi.mock('@/hooks/useReportAnalysis', () => ({ useReportAnalysis: vi.fn() }));
 vi.mock('@/hooks/useReportMeta', () => ({ useReportMeta: vi.fn() }));
 vi.mock('@/components/landing/MarketingLanding', () => ({ MarketingLanding: LandingDouble }));
+vi.mock('@/components/auth/BetaClosedScreen', () => ({ BetaClosedScreen: BetaClosedDouble }));
 vi.mock('@/components/ui/ModeSelector', () => ({ ModeSelector: ModeSelectorDouble }));
 vi.mock('@/components/forms/CharacterForm', () => ({ CharacterForm: AnonFormDouble }));
 vi.mock('@/components/forms/LoggedInCharacterForm', () => ({
@@ -266,6 +270,15 @@ describe('homeClient', () => {
       render(<HomeClient />);
 
       expect(screen.getByTestId('landing')).toBeInTheDocument();
+    });
+
+    it('shows the beta-closed screen instead of the landing page when signIn refused the account', () => {
+      sessionState = { data: null, status: 'unauthenticated' };
+      params = new URLSearchParams({ error: 'AccessDenied' });
+      render(<HomeClient />);
+
+      expect(screen.getByTestId('beta-closed')).toBeInTheDocument();
+      expect(screen.queryByTestId('landing')).not.toBeInTheDocument();
     });
 
     it('says something is happening while the session resolves', () => {

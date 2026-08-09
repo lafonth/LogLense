@@ -6,9 +6,6 @@ import {
   DEV_STUB_BATTLETAG,
   getDevSessionProviders,
 } from '@/lib/dev-session';
-import { redisGet } from '@/lib/redis';
-
-const WHITELIST_KEY = 'app:whitelist';
 
 async function fetchBattletag(accessToken: string): Promise<string | null> {
   try {
@@ -26,32 +23,18 @@ async function fetchBattletag(accessToken: string): Promise<string | null> {
 /**
  * Dit si ce battletag a le droit d'entrer.
  *
- * Trois cas, et ils ne se confondent pas :
- *
- * - clé absente : accès ouvert, pour pouvoir se connecter avant d'avoir configuré la liste ;
- * - clé illisible ou Redis muet : accès refusé. C'est une porte d'entrée — ce qu'on n'a pas
- *   pu vérifier ne s'accorde pas. Auparavant l'erreur remontait jusqu'à NextAuth, ou pire,
- *   se lisait comme une clé absente et ouvrait tout ;
- * - clé lue : appartenance, insensible à la casse comme l'affichage du battletag.
+ * `BETA_ALLOWLIST` fermée par défaut : liste absente ou vide veut dire fermé à tous, jamais
+ * ouvert à tous — la faute classique de ce motif. Comparaison insensible à la casse, comme
+ * l'affichage du battletag.
  */
-async function isAllowed(battletag: string): Promise<boolean> {
-  let raw: string | null;
-
-  try {
-    raw = await redisGet(WHITELIST_KEY);
-  } catch {
-    return false;
-  }
-
-  if (!raw) return true;
-
-  try {
-    const list: unknown = JSON.parse(raw);
-    if (!Array.isArray(list)) return false;
-    return list.some((t) => typeof t === 'string' && t.toLowerCase() === battletag.toLowerCase());
-  } catch {
-    return false;
-  }
+function isAllowed(battletag: string): boolean {
+  const raw = process.env.BETA_ALLOWLIST ?? '';
+  const list = raw
+    .split(',')
+    .map((t) => t.trim())
+    .filter(Boolean);
+  if (list.length === 0) return false;
+  return list.some((t) => t.toLowerCase() === battletag.toLowerCase());
 }
 
 export const authOptions: NextAuthOptions = {
@@ -80,6 +63,7 @@ export const authOptions: NextAuthOptions = {
     ...getDevSessionProviders(),
   ],
   session: { strategy: 'jwt' },
+  pages: { error: '/' },
   callbacks: {
     async signIn({ account }) {
       if (account?.provider === DEV_SESSION_PROVIDER_ID) return true;

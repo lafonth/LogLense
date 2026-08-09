@@ -4,6 +4,7 @@ import type { AnalysisInput, ReportActor, ReportFight } from '@/types';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
+import { BetaClosedScreen } from '@/components/auth/BetaClosedScreen';
 import { CharacterDashboard } from '@/components/character/CharacterDashboard';
 import { CharacterForm } from '@/components/forms/CharacterForm';
 import { LoggedInCharacterForm } from '@/components/forms/LoggedInCharacterForm';
@@ -263,7 +264,13 @@ export function HomeClient() {
     );
   }
 
-  if (sessionStatus === 'unauthenticated') return <MarketingLanding />;
+  if (sessionStatus === 'unauthenticated') {
+    // NextAuth redirige ici avec `?error=AccessDenied` quand `signIn` refuse un compte non
+    // listé dans `BETA_ALLOWLIST` — jamais de page blanche ni d'erreur d'authentification
+    // trompeuse pour un simple refus de bêta.
+    if (searchParams.get('error') === 'AccessDenied') return <BetaClosedScreen />;
+    return <MarketingLanding />;
+  }
   // Rendre `null` laissait une page blanche le temps que la session revienne, indiscernable
   // d'une panne : le même spinner que plus haut dit au moins qu'il se passe quelque chose.
   if (sessionStatus === 'loading') {
