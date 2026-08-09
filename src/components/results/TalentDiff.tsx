@@ -1,4 +1,4 @@
-import type { TalentDiffEntry, TalentSource } from '@/lib/comparison/talent-diff';
+import type { TalentDiffEntry, TalentDiffResult, TalentSource } from '@/lib/comparison/talent-diff';
 import type { TalentNode } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { diffTalents } from '@/lib/comparison/talent-diff';
@@ -101,13 +101,15 @@ function DiffColumn({
   );
 }
 
-export function TalentDiff({ nodes, myTalents, references }: TalentDiffProps) {
-  const { mineOnly, theirsOnly, sharedCount, referenceTotal } = diffTalents(
-    nodes,
-    myTalents,
-    references
-  );
-
+/** La partie présentationnelle : reçoit un écart déjà calculé, n'en calcule aucun.
+ *  Séparée de `TalentDiff` pour que le mode pull-comparison, dont l'écart vient déjà de
+ *  `comparePulls`, l'utilise sans repasser par `diffTalents`. */
+export function TalentDiffCard({
+  mineOnly,
+  theirsOnly,
+  sharedCount,
+  referenceTotal,
+}: TalentDiffResult) {
   if (referenceTotal === 0) {
     return (
       <Card header="Build">
@@ -155,4 +157,10 @@ export function TalentDiff({ nodes, myTalents, references }: TalentDiffProps) {
       </p>
     </Card>
   );
+}
+
+export function TalentDiff({ nodes, myTalents, references }: TalentDiffProps) {
+  const result = diffTalents(nodes, myTalents, references);
+
+  return <TalentDiffCard {...result} />;
 }

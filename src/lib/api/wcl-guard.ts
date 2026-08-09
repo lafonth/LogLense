@@ -25,6 +25,13 @@ export const METADATA_UNITS = 1;
 export const RAID_RANKING_UNITS = 3;
 
 /**
+ * Coût d'une comparaison de deux pulls (spec 04) : deux `fetchFightData`, chacune dégâts,
+ * rotation, cast events et contexte de raid, sans vivier ni classement. Nettement sous
+ * `BOSS_ANALYSIS_UNITS` — c'est précisément ce qui rend l'écran bon marché à ouvrir.
+ */
+export const PULL_COMPARISON_UNITS = 10;
+
+/**
  * Bosses analysables en une requête de `/api/report/analyze`.
  *
  * La route éclate en un `Promise.all` sur les rencontres, chacune valant

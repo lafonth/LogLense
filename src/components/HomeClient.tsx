@@ -1,5 +1,6 @@
 'use client';
 
+import type { PullPointer } from '@/lib/wcl/pull-pipeline';
 import type { AnalysisInput, ReportActor, ReportFight } from '@/types';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -8,13 +9,16 @@ import { BetaClosedScreen } from '@/components/auth/BetaClosedScreen';
 import { CharacterDashboard } from '@/components/character/CharacterDashboard';
 import { CharacterForm } from '@/components/forms/CharacterForm';
 import { LoggedInCharacterForm } from '@/components/forms/LoggedInCharacterForm';
+import { PullComparisonForm } from '@/components/forms/PullComparisonForm';
 import { RaidForm } from '@/components/forms/RaidForm';
 import { ReportForm } from '@/components/forms/ReportForm';
 import { MarketingLanding } from '@/components/landing/MarketingLanding';
 import { ReportDashboard } from '@/components/report/ReportDashboard';
+import { PullComparisonDashboard } from '@/components/results/PullComparisonDashboard';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ModeSelector } from '@/components/ui/ModeSelector';
 import { useAnalysis } from '@/hooks/useAnalysis';
+import { usePullComparison } from '@/hooks/usePullComparison';
 import { useReportAnalysis } from '@/hooks/useReportAnalysis';
 import { useReportMeta } from '@/hooks/useReportMeta';
 import { useRouteSync } from '@/hooks/useRouteSync';
@@ -51,8 +55,15 @@ export function HomeClient() {
     reset: resetReport,
   } = useReportAnalysis();
   const { meta: reportMeta, fetchedCode, loading: reportMetaLoading, fetchMeta } = useReportMeta();
+  const {
+    result: pullResult,
+    loading: pullLoading,
+    error: pullError,
+    start: startPullComparison,
+    reset: resetPullComparison,
+  } = usePullComparison();
 
-  const [mode, setMode] = useState<'character' | 'report' | 'raid' | null>(null);
+  const [mode, setMode] = useState<'character' | 'report' | 'raid' | 'pull' | null>(null);
   const [reportContext, setReportContext] = useState<ReportContext | null>(null);
 
   const {
@@ -219,6 +230,14 @@ export function HomeClient() {
     setMode(null);
   }
 
+  function handlePullSubmit(before: PullPointer, after: PullPointer, specId: number) {
+    void startPullComparison({ specId, before, after });
+  }
+
+  function handlePullReset() {
+    resetPullComparison();
+  }
+
   if (reportShellMeta && reportShellActorName && (reportResult || reportLoading)) {
     return (
       <ReportDashboard
@@ -294,6 +313,20 @@ export function HomeClient() {
       <ReportForm
         onSubmit={handleReportSubmit}
         loading={reportLoading}
+        onBack={() => setMode(null)}
+      />
+    );
+  }
+
+  if (mode === 'pull') {
+    if (pullResult) {
+      return <PullComparisonDashboard result={pullResult} onBack={handlePullReset} />;
+    }
+    return (
+      <PullComparisonForm
+        onSubmit={handlePullSubmit}
+        loading={pullLoading}
+        error={pullError}
         onBack={() => setMode(null)}
       />
     );

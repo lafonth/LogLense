@@ -74,9 +74,21 @@ function AbilityCard({ row, unit }: { row: AbilityComparison; unit: string }) {
   );
 }
 
-export function RotationCards({ character, topPlayers, characterDamage }: RotationCardsProps) {
-  const casts = compareCasts(character, topPlayers, characterDamage);
-  const uptimes = compareUptimes(character, topPlayers).filter((row) => row.mine > 0);
+interface RotationComparisonCardsProps {
+  casts: AbilityComparison[];
+  uptimes: AbilityComparison[];
+  /** Aucune référence disponible : le libellé et la note doivent le dire, pas juste se taire. */
+  showEmptyReferenceNote?: boolean;
+}
+
+/** La partie présentationnelle : reçoit des comparaisons déjà calculées, n'en calcule aucune.
+ *  Séparée de `RotationCards` pour que le mode pull-comparison, dont la référence unique vient
+ *  déjà de `comparePulls`, l'utilise sans repasser par `compareCasts`/`compareUptimes`. */
+export function RotationComparisonCards({
+  casts,
+  uptimes,
+  showEmptyReferenceNote,
+}: RotationComparisonCardsProps) {
   // Le libellé doit dire ce que l'ordre suit réellement : sans table de dégâts, la
   // pondération n'a pas eu lieu et annoncer un coût serait un mensonge.
   const weighted = casts.some((row) => (row.damageShare ?? 0) > 0);
@@ -85,14 +97,14 @@ export function RotationCards({ character, topPlayers, characterDamage }: Rotati
     <div className="flex flex-col gap-4">
       <Card
         header={
-          topPlayers.length === 0
+          showEmptyReferenceNote
             ? 'Rotation'
             : weighted
               ? 'Rotation · by cost'
               : 'Rotation · by deviation'
         }
       >
-        {topPlayers.length === 0 && (
+        {showEmptyReferenceNote && (
           <p className="text-2xs text-muted mb-3 font-sans">
             No comparable logs — showing your rotation only.
           </p>
@@ -114,5 +126,18 @@ export function RotationCards({ character, topPlayers, characterDamage }: Rotati
         </Card>
       )}
     </div>
+  );
+}
+
+export function RotationCards({ character, topPlayers, characterDamage }: RotationCardsProps) {
+  const casts = compareCasts(character, topPlayers, characterDamage);
+  const uptimes = compareUptimes(character, topPlayers).filter((row) => row.mine > 0);
+
+  return (
+    <RotationComparisonCards
+      casts={casts}
+      uptimes={uptimes}
+      showEmptyReferenceNote={topPlayers.length === 0}
+    />
   );
 }

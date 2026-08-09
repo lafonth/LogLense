@@ -8,7 +8,7 @@ const TITLE_CLASS = 'text-text font-mono text-sm tracking-wider uppercase';
 const DESC_CLASS = 'text-dim font-mono text-xs leading-relaxed';
 
 interface ModeSelectorProps {
-  onSelect: (mode: 'character' | 'report' | 'raid') => void;
+  onSelect: (mode: 'character' | 'report' | 'raid' | 'pull') => void;
 }
 
 export function ModeSelector({ onSelect }: ModeSelectorProps) {
@@ -37,6 +37,13 @@ export function ModeSelector({ onSelect }: ModeSelectorProps) {
           <div className={DESC_CLASS}>
             Paste a report code and pick a pull. Ranks the raid by how much room each player has
             left, and opens any of them into a full analysis.
+          </div>
+        </button>
+        <button onClick={() => onSelect('pull')} className={CARD_CLASS}>
+          <div className={TITLE_CLASS}>Compare Two Pulls</div>
+          <div className={DESC_CLASS}>
+            Pick two of your own pulls on the same boss. Splits the DPS difference between gear,
+            kill time, and everything else.
           </div>
         </button>
       </div>
