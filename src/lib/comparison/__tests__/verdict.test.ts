@@ -1,0 +1,122 @@
+import type { BossResult, Comparability, ReferenceSample, TopPlayer } from '@/types';
+import { describe, expect, it } from 'vitest';
+import { buildVerdict } from '../verdict';
+
+function sample(dps: number, qualified = true): ReferenceSample {
+  return {
+    name: `Ref${dps}`,
+    code: 'R1',
+    fightID: 1,
+    actorId: 1,
+    stats: { avgIlvl: 285 } as ReferenceSample['stats'],
+    dps,
+    killTimeMs: 300000,
+    qualified,
+    explored: false,
+  };
+}
+
+function topPlayer(dps: number): TopPlayer {
+  return { stats: { dps } } as TopPlayer;
+}
+
+function comparability(over: Partial<Comparability> = {}): Comparability {
+  return {
+    level: 'close',
+    referenceIlvl: 285,
+    myIlvl: 284,
+    referenceKillTimeMs: 305000,
+    myKillTimeMs: 300000,
+    candidatesConsidered: 942,
+    pagesFetched: 10,
+    disqualified: 0,
+    unverifiable: 0,
+    substituted: 0,
+    ...over,
+  };
+}
+
+function result(over: {
+  dps?: number;
+  sample?: ReferenceSample[];
+  topPlayers?: TopPlayer[];
+  comparability?: Partial<Comparability>;
+}): BossResult {
+  return {
+    character: { dps: over.dps ?? 100000 },
+    sample: over.sample ?? [sample(120000)],
+    topPlayers: over.topPlayers ?? [],
+    comparability: comparability(over.comparability),
+  } as BossResult;
+}
+
+describe('buildVerdict', () => {
+  it('chiffre la marge quand les références sont devant', () => {
+    const verdict = buildVerdict(
+      result({ dps: 100000, sample: [sample(115000), sample(120000), sample(130000)] })
+    );
+
+    expect(verdict).toMatchObject({ kind: 'gap', referenceDps: 120000, deltaDps: 20000 });
+  });
+
+  it("retourne la phrase quand c'est le joueur qui est devant", () => {
+    const verdict = buildVerdict({
+      ...result({ dps: 130000, sample: [sample(120000)] }),
+    });
+
+    expect(verdict).toMatchObject({ kind: 'ahead', deltaDps: 10000 });
+  });
+
+  it('écarte de la médiane les candidats disqualifiés, qui ont été plus aidés', () => {
+    const verdict = buildVerdict(
+      result({ sample: [sample(120000), sample(180000, false), sample(180000, false)] })
+    );
+
+    expect(verdict.referenceDps).toBe(120000);
+  });
+
+  it("retombe sur les topPlayers quand l'échantillon est vide", () => {
+    const verdict = buildVerdict({
+      ...result({ dps: 100000, sample: [], topPlayers: [topPlayer(110000)] }),
+    });
+
+    expect(verdict).toMatchObject({ kind: 'gap', referenceDps: 110000, deltaDps: 10000 });
+  });
+
+  it("n'annonce aucun écart quand la comparaison est trop lointaine", () => {
+    const verdict = buildVerdict(result({ comparability: { level: 'poor' } }));
+
+    expect(verdict.kind).toBe('unreliable');
+    expect(verdict.deltaDps).toBeNull();
+  });
+
+  it("n'annonce aucun écart quand le panel a été complété par des repêchés", () => {
+    // Le repli force déjà `level` à `poor` en amont ; le verdict ne s'y fie pas.
+    const verdict = buildVerdict(result({ comparability: { level: 'close', substituted: 1 } }));
+
+    expect(verdict.kind).toBe('unreliable');
+    expect(verdict.deltaDps).toBeNull();
+  });
+
+  it("dit qu'il n'y a rien à comparer plutôt que de comparer à rien", () => {
+    const verdict = buildVerdict(
+      result({ sample: [], topPlayers: [], comparability: { level: 'none', referenceIlvl: null } })
+    );
+
+    expect(verdict).toMatchObject({ kind: 'none', referenceDps: null, deltaDps: null });
+  });
+
+  it("signe l'écart d'ilvl vers le haut, et le garde à un décimal", () => {
+    const verdict = buildVerdict(
+      result({ comparability: { referenceIlvl: 292.14, myIlvl: 284.1, level: 'poor' } })
+    );
+
+    expect(verdict.ilvlGap).toBe(8);
+  });
+
+  it('porte sa réserve quand la comparabilité est approximative', () => {
+    const verdict = buildVerdict(result({ comparability: { level: 'approximate' } }));
+
+    expect(verdict).toMatchObject({ kind: 'gap', approximate: true });
+  });
+});

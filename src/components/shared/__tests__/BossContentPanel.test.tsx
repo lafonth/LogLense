@@ -29,11 +29,15 @@ function AIReportDouble({ activeBossResult }: { activeBossResult: BossResult | n
 function SidebarDouble({ activeIdx }: { activeIdx: number }) {
   return <div data-testid="sidebar">{String(activeIdx)}</div>;
 }
+function VerdictDouble({ result }: { result: BossResult }) {
+  return <div data-testid="verdict">{result.encounter}</div>;
+}
 
 vi.mock('@/components/results/OverviewTab', () => ({ OverviewTab: OverviewDouble }));
 vi.mock('@/components/results/ComparisonTab', () => ({ ComparisonTab: ComparisonDouble }));
 vi.mock('@/components/ai/AIReportTab', () => ({ AIReportTab: AIReportDouble }));
 vi.mock('@/components/results/BossSidebar', () => ({ BossSidebar: SidebarDouble }));
+vi.mock('@/components/results/VerdictBanner', () => ({ VerdictBanner: VerdictDouble }));
 
 const DRUID_BALANCE = 102;
 const SHADOW_PRIEST = 258;
@@ -90,6 +94,24 @@ describe('bossContentPanel', () => {
 
     expect(screen.getByTestId('overview')).toHaveTextContent('Fractillus');
     expect(screen.getByTestId('sidebar')).toHaveTextContent('1');
+  });
+
+  it('states the verdict on the boss in view, above the tabs', () => {
+    renderPanel({ activeBossIdx: 1 });
+
+    const verdict = screen.getByTestId('verdict');
+    expect(verdict).toHaveTextContent('Fractillus');
+    // Le verdict précède la barre d'onglets dans l'ordre du document : le lecteur n'a pas à
+    // choisir un onglet pour savoir s'il a quelque chose à apprendre.
+    expect(verdict.compareDocumentPosition(screen.getByRole('tab', { name: 'Overview' }))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+  });
+
+  it('says nothing while the boss is still loading', () => {
+    renderPanel({ bossStates: [{ status: 'loading' }, { status: 'loading' }] });
+
+    expect(screen.queryByTestId('verdict')).not.toBeInTheDocument();
   });
 
   it('falls back to the last encounter rather than rendering an empty panel', () => {

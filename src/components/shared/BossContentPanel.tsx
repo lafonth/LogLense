@@ -7,6 +7,7 @@ import { AIReportTab } from '@/components/ai/AIReportTab';
 import { BossSidebar } from '@/components/results/BossSidebar';
 import { ComparisonTab } from '@/components/results/ComparisonTab';
 import { OverviewTab } from '@/components/results/OverviewTab';
+import { VerdictBanner } from '@/components/results/VerdictBanner';
 import { Button } from '@/components/ui/Button';
 import { tabId, tabPanelId } from '@/components/ui/tab-ids';
 import { Tabs } from '@/components/ui/Tabs';
@@ -75,6 +76,14 @@ export function BossContentPanel({
 
   return (
     <>
+      {/* Au-dessus des onglets, donc sur les deux chemins d'analyse : le lecteur n'a pas à
+          choisir un onglet pour savoir s'il a quelque chose à apprendre. */}
+      {activeBossResult && (
+        <div className="mb-6">
+          <VerdictBanner result={activeBossResult} />
+        </div>
+      )}
+
       <div className="mb-6">
         <Tabs tabs={TABS} active={activeTab} onChange={(id) => setActiveTab(id as TabId)} />
       </div>
