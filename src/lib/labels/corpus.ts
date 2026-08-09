@@ -17,6 +17,20 @@ import { redisAppend, redisLlen } from '@/lib/redis';
  */
 export const CORPUS_MONTH_CAP = 50_000;
 
+/**
+ * Le plafond propre au vivier, distinct de celui des étiquettes.
+ *
+ * Une analyse écrit une ligne par candidat vérifié, soit une douzaine, là où les autres flux
+ * en écrivent une poignée : au plafond commun, une soirée de vivier fermerait le mois pour
+ * les verdicts humains, qui sont les plus chers à obtenir. Trois fois le plafond commun
+ * laisse une dizaine de milliers d'analyses par mois — largement au-dessus du trafic — tout
+ * en gardant la clé bornée, ce qui est la seule chose que le plafond doit garantir.
+ *
+ * Les lignes de vivier sont aussi plus courtes : pointeurs et scalaires, sans stats ni
+ * rotation. Le volume octet reste du même ordre que celui d'une clé d'étiquettes pleine.
+ */
+export const POOL_MONTH_CAP = 150_000;
+
 export type CorpusWrite = 'written' | 'full';
 
 /**
@@ -45,10 +59,13 @@ export async function appendToCorpus(key: string, value: string): Promise<Corpus
  * d'affilée, et un `LLEN` par exposition doublerait le nombre d'allers-retours pour
  * mesurer dix fois la même chose. Le lot peut donc dépasser le plafond de sa propre
  * taille — une dizaine d'enregistrements sur cinquante mille.
+ *
+ * `cap` est explicite parce que tous les flux ne partagent pas le même plafond : voir
+ * `POOL_MONTH_CAP`.
  */
-export async function hasCorpusRoom(key: string): Promise<boolean> {
+export async function hasCorpusRoom(key: string, cap: number = CORPUS_MONTH_CAP): Promise<boolean> {
   try {
-    return (await redisLlen(key)) < CORPUS_MONTH_CAP;
+    return (await redisLlen(key)) < cap;
   } catch {
     return true;
   }

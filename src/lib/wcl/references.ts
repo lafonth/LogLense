@@ -2,7 +2,9 @@ import type { CombatantEvent } from './combatant';
 import type { ScoredCandidate } from './comparability';
 import type { DisqualificationReason, EligibilityProfile } from './eligibility';
 import type { WCLTable } from './parsers';
+import type { PoolObservation } from '@/lib/labels/pool';
 import type { Comparability, ReferenceSample, TopPlayer } from '@/types';
+import { recordPool } from '@/lib/labels/record-pool';
 import { gql } from './client';
 import { findCombatantByName } from './combatant';
 import { comparabilityLevel, medianOf, selectClosest } from './comparability';
@@ -190,6 +192,54 @@ function sampleOf(verified: VerifiedCandidate[]): ReferenceSample[] {
   });
 }
 
+/** Le combat d'un candidat, la seule clé qui identifie une entrée du vivier de bout en bout. */
+function fightKey(candidate: WorldRanking): string {
+  return `${candidate.report.code}:${candidate.report.fightID}`;
+}
+
+/**
+ * Le vivier tel qu'il a été jugé : une observation par candidat **tenté**, pas par candidat
+ * retenu.
+ *
+ * C'est la seule fonction qui voie les trois populations à la fois — vérifiés, disqualifiés,
+ * non vérifiables — et le seul endroit d'où elles sortent ensemble. Le panel n'en garde que
+ * trois, `sample` que les vérifiés ; ce qui a été écarté avant l'affichage ne subsiste nulle
+ * part ailleurs, et c'est précisément la partie qui périme avec la saison.
+ */
+function observationsOf(
+  attempted: ScoredCandidate<WorldRanking>[],
+  verified: VerifiedCandidate[],
+  shown: Set<string>,
+  substituted: Set<string>
+): PoolObservation[] {
+  const verifiedByFight = new Map(verified.map((v) => [fightKey(v.scored.candidate), v]));
+
+  return attempted.map((scored) => {
+    const { candidate, distance } = scored;
+    const key = fightKey(candidate);
+    const v = verifiedByFight.get(key);
+
+    return {
+      code: candidate.report.code,
+      fightID: candidate.report.fightID,
+      // Sans vérification l'acteur n'a jamais été résolu : `null`, et pas un identifiant
+      // deviné à partir du nom, qui pointerait vers l'équipement d'un autre joueur.
+      actorId: v?.combatant.sourceID ?? null,
+      ilvl: candidate.bracketData ?? null,
+      killTimeMs: candidate.duration,
+      dps: Math.round(candidate.amount),
+      distance,
+      verified: v !== undefined,
+      tierPieces: v?.profile.tierPieces ?? null,
+      externalUptime: v?.profile.externalUptime ?? null,
+      disqualifiedBy: v ? v.disqualifiedBy : [],
+      explored: v?.explored ?? false,
+      shown: shown.has(key),
+      substitute: substituted.has(key),
+    };
+  });
+}
+
 async function buildTopPlayer(token: string, verified: VerifiedCandidate): Promise<TopPlayer> {
   const { scored, combatant, profile, disqualifiedBy, explored } = verified;
   const { candidate, distance } = scored;
@@ -269,11 +319,13 @@ export async function resolveReferences(
     myKillTimeMs: number;
     exclude: { code: string; fightID: number };
     mine: EligibilityProfile;
+    /** De quoi horodater et classer le vivier au corpus. Voir `recordPool`. */
+    context: { encounterId: number; difficulty: number; specId: number };
     /** Injecté pour que le tirage d'exploration soit testable. `Math.random` en production. */
     random?: () => number;
   }
 ): Promise<ResolvedReferences> {
-  const { myIlvl, myKillTimeMs, exclude, mine, random = Math.random } = args;
+  const { myIlvl, myKillTimeMs, exclude, mine, context, random = Math.random } = args;
 
   const filtered = pool.candidates.filter(
     (c) => !(c.report.code === exclude.code && c.report.fightID === exclude.fightID)
@@ -311,6 +363,26 @@ export async function resolveReferences(
   const references = [...chosen, ...substitutes, ...(explored ? [explored] : [])];
 
   const topPlayers = await Promise.all(references.map((v) => buildTopPlayer(token, v)));
+
+  // Le vivier est capturé ici et pas dans les pipelines, ni dans la route : c'est le seul
+  // point du code qui connaisse les écartés. Un pipeline ne reçoit que le panel et
+  // l'échantillon — faire remonter les écartés jusqu'à la route les mettrait au passage dans
+  // la réponse HTTP, donc les pointeurs de tiers dans le navigateur, pour rien.
+  //
+  // Attendue, pas mise en `void`, pour la raison de `writeCachedPool` : sur un runtime
+  // serverless une promesse non attendue part avec la fonction. `recordPool` ne jette jamais.
+  await recordPool(
+    observationsOf(
+      [...closest, ...(exploration ? [exploration] : [])],
+      verified,
+      new Set(references.map((v) => fightKey(v.scored.candidate))),
+      new Set(substitutes.map((v) => fightKey(v.scored.candidate)))
+    ),
+    {
+      ...context,
+      subject: { ...exclude, ilvl: myIlvl, killTimeMs: myKillTimeMs },
+    }
+  );
 
   const scored = references.map((v) => v.scored);
   const comparability: Comparability = {

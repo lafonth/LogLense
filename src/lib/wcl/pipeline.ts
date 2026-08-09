@@ -114,6 +114,7 @@ export async function analyzeBoss(
     myKillTimeMs: bestKillMs,
     exclude: { code: bestCode, fightID: bestFightId },
     mine: eligibility,
+    context: { encounterId, difficulty, specId: charEvent.specID },
   });
 
   return {

@@ -5,14 +5,19 @@ import { CANDIDATE_PAGES, TOP_N, VERIFICATION_WINDOW } from '../constants';
 import { POOL_TTL_SECONDS, poolCacheKey } from '../pool-cache';
 import { fetchCandidatePool, resolveReferences } from '../references';
 
-const { redisGet, redisSetEx } = vi.hoisted(() => ({
+const { redisGet, redisSetEx, recordPool } = vi.hoisted(() => ({
   redisGet: vi.fn(),
   redisSetEx: vi.fn(),
+  recordPool: vi.fn(),
 }));
 
 vi.mock('@/lib/redis', () => ({ redisGet, redisSetEx }));
+// La capture du vivier est écrite ici mais testée dans `labels/` : ce fichier vérifie ce qui
+// lui est passé, pas ce qui part chez Redis.
+vi.mock('@/lib/labels/record-pool', () => ({ recordPool }));
 
 const NO_EXCLUDE = { code: '__none__', fightID: -1 };
+const CONTEXT = { encounterId: 1, difficulty: 5, specId: 103 };
 
 const POOL_ARGS = { encounterId: 1, difficulty: 5, specName: 'Feral', className: 'Druid' };
 
@@ -277,6 +282,7 @@ describe('resolveReferences', () => {
         myKillTimeMs: MY_MS,
         exclude: NO_EXCLUDE,
         mine: MINE,
+        context: CONTEXT,
         // La fente d'exploration est neutralisée par défaut : un panel tiré au sort rendrait
         // les autres cas non déterministes, et ce n'est pas eux qu'elle doit exercer.
         random: () => 1,
@@ -308,6 +314,50 @@ describe('resolveReferences', () => {
     expect(topPlayers.map((p) => p.provenance.name)).toEqual(
       Array.from({ length: TOP_N }, (_, i) => `R${i}`)
     );
+  });
+
+  // Le vivier est écrit d'ici et de nulle part ailleurs : c'est le seul point qui connaisse
+  // les écartés. Les remonter jusqu'à la route mettrait des pointeurs tiers dans la réponse.
+  it('captures the whole pool, écartés included, with their motive', async () => {
+    mockFights();
+    recordPool.mockClear();
+
+    await resolve(Array.from({ length: TOP_N + 2 }, (_, i) => ranking(`R${i}`, MY_ILVL + i)));
+
+    expect(recordPool).toHaveBeenCalledTimes(1);
+    const [observations, context] = recordPool.mock.calls[0] as [
+      Array<{ code: string; shown: boolean; verified: boolean }>,
+      { encounterId: number; subject: { code: string; ilvl: number } },
+    ];
+
+    expect(observations.map((o) => o.code)).toEqual(
+      Array.from({ length: TOP_N + 2 }, (_, i) => `R${i}`)
+    );
+    expect(observations.filter((o) => o.shown)).toHaveLength(TOP_N);
+    expect(observations.every((o) => o.verified)).toBe(true);
+    expect(context).toMatchObject({
+      ...CONTEXT,
+      subject: { ...NO_EXCLUDE, ilvl: MY_ILVL, killTimeMs: MY_MS },
+    });
+  });
+
+  // Un candidat que la vérification n'a pas pu lire reste dans le vivier : son absence de
+  // profil est elle-même une observation, et la taire biaiserait le corpus vers le lisible.
+  it('captures the candidates the verification could not read', async () => {
+    mockFights((code) =>
+      code === 'ghost' ? { combatants: [], actors: [], buffs: NO_BUFFS } : plainFight(code)
+    );
+    recordPool.mockClear();
+
+    await resolve([ranking('ghost', 284), ranking('near', 285)]);
+
+    const [observations] = recordPool.mock.calls[0] as [
+      Array<{ code: string; verified: boolean; actorId: number | null }>,
+    ];
+    expect(observations.map((o) => [o.code, o.verified, o.actorId])).toEqual([
+      ['ghost', false, null],
+      ['near', true, 4],
+    ]);
   });
 
   // Un rapport privé retirait un candidat du panel sans laisser de trace : la bannière

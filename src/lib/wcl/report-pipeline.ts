@@ -134,6 +134,7 @@ export async function analyzeReportBoss(
     myKillTimeMs: fightMs,
     exclude: { code, fightID: fightId },
     mine: eligibility,
+    context: { encounterId, difficulty, specId: charEvent.specID },
   });
 
   const { parse: historical, trajectory } = await historyPromise;
