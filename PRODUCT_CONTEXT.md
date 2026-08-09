@@ -26,8 +26,11 @@ Deux contraintes non négociables, définies en amont du projet :
 1. **Contrainte communautaire** — la communauté WoW rejette historiquement les
    paywalls durs sur les outils utilitaires (précédents Details!, WeakAuras).
    Un gap fonctionnel sans modèle de revenu acceptable n'est pas exploitable.
-2. **Critère anti-gadget** — l'IA doit être le cœur du produit. Test :
-   *retire l'IA, si le produit tient encore debout, c'était un gadget.*
+2. **Critère anti-gadget** — l'IA doit créer une valeur marginale qu'aucun substitut bon
+   marché n'atteint. Test (reformulé le 2026-08-08, voir
+   [ia-ml-architecture.md](ia-ml-architecture.md) §6.1) : *remplace ton IA par le
+   substitut le moins cher qui rende le même service — table de correspondance, seuils
+   codés en dur, guide statique. L'utilisateur le remarque-t-il ? Part-il ?*
 
 ---
 
@@ -468,6 +471,20 @@ et `references.ts` portent désormais le traitement commun.
     comparabilité (**10a et 10d**, `v: 3`), les références affichées-non-contestées
     (**10b**), et un retour sur le rapport (**10c**). Voir « Cadrage de la capture
     manquante ». *(v1, avant 9)*
+11. **Vue roster** — **ouverte le 2026-08-08**, non commencée, **conditionnée à l'infra
+    v2**. C'est le seul axe payable identifié par la section 4, et il n'avait jusqu'ici ni
+    numéro ni périmètre : le séquencement « moteur individuel d'abord » a été suivi, mais
+    la chose désignée comme *le produit à vendre* n'était écrite nulle part. Contenu :
+    priorisation à l'échelle du roster — qui a le plus de marge, sur quel axe —, qui
+    progresse et qui stagne, comparaison inter-joueurs de même spec.
+
+    **Le blocage est la latence, pas le calcul.** Une analyse par personnage et par boss
+    coûte plusieurs secondes de requêtes WCL ; 25 joueurs × les boss d'un tier ne tient pas
+    dans une requête synchrone. La vue roster n'est donc pas « N fois le pipeline
+    individuel dans une boucle », elle suppose la base pré-calculée de la v2 (section 6).
+    Corollaire à ne pas perdre : **la monétisation ne dépend pas de plus de finition sur la
+    v1, elle dépend du pré-calcul.** L'ordre de cette liste laisse croire l'inverse.
+    *(v2)*
 
 ### Le ML sort de la v1 — décision du 2026-08-07
 
@@ -483,6 +500,13 @@ n° 2**, puisque `ia-ml-architecture.md` classe le rapport LLM comme gadget et f
 ce qui rend l'IA structurante. Le suivi dans le temps ne répare pas ça : c'est du calcul
 déterministe sur des parses publics, réplicable, pas de l'IA. **La v1 ne satisfait donc
 plus la contrainte n° 2**, et c'est un renoncement daté, pas un oubli.
+
+> **Révision du 2026-08-08.** Le verdict ci-dessus mesurait la contrainte n° 2 sous son
+> ancienne forme — nécessité fonctionnelle. La contrainte a été reformulée en test de
+> substitution (§1, et `ia-ml-architecture.md` §6.1/§6.7) : la question n'est plus si le
+> produit tient sans IA, mais si le rapport LLM fait mieux que le guide statique le moins
+> cher. Cette question reste ouverte — voir « Ce qui rend l'IA structurante en v1 » dans
+> les décisions ouvertes de `ia-ml-architecture.md` — et n'a pas encore été retranchée.
 
 Ce qui rend le renoncement réversible — et donc acceptable — est la capture, et elle
 seule. Le corollaire opérationnel joue exactement son rôle ici : le calcul repoussé se
@@ -738,7 +762,88 @@ RPGLogs.
 
 ---
 
-## 9. Règles de collaboration
+## 9. Positionnement et acquisition — ouvert le 2026-08-08
+
+Cette section manquait entièrement. Le cadrage traite l'attractivité (section 4) et la
+défendabilité (section 5), jamais **par où les utilisateurs arrivent**. Dix tâches
+ordonnées « par valeur », zéro ligne sur la distribution : un outil que personne ne trouve
+n'a pas un problème de valeur, il a un problème d'acquisition.
+
+### Le paysage
+
+| Acteur | Ce qu'il fait | Recouvrement |
+|---|---|---|
+| **Warcraft Logs** | Classements, brackets d'ilvl, comparaison 1-à-1 | Le socle. Donne un **état**, jamais une trajectoire |
+| **Archon** | Distributions de builds et de stats par spec sur une population de parses | **Frontal** — c'est la promesse « où se situe mon build dans la distribution » |
+| **WoWAnalyzer** | Analyse de rotation par spec, règles écrites à la main, gratuit, open source | **Frontal sur l'individuel**, et plus actionnable qu'un écart de distribution |
+| **Raidbots / Bloodmallet** | Sim, l'optimum théorique | Complémentaire — le théorique, pas le réel |
+
+Deux points à ne pas adoucir.
+
+**Archon appartient à RPGLogs.** La section 8 le note en fin de paragraphe CGU, comme une
+remarque sur le risque de révocation de clé. La portée est plus large : le concurrent le
+plus proche de la promesse produit **est** le licensor dont dépend l'approbation §2a. On ne
+demande pas une autorisation à un tiers neutre, mais à l'éditeur dont on attaque le produit
+avec ses données. Cela ne change pas la décision du 2026-08-07 (construire comme si
+l'approbation était acquise), cela chiffre son risque.
+
+**WoWAnalyzer est le concurrent d'attention sur l'individuel**, et il n'apparaît nulle part
+dans ce document. Il a exactement le défaut que `ia-ml-architecture.md` reproche à
+l'approche knowledge-driven — règles écrites à la main × 39 specs, vides en semaine 1 —
+mais du point de vue du joueur qui plafonne, « tu as perdu 4 % en downtime » bat un
+percentile dans une distribution.
+
+### Le wedge réel : la comparabilité éliminatoire
+
+Ce qui n'existe nulle part ailleurs n'est pas la distribution — Archon la fait — mais
+**le filtrage éliminatoire avant comparaison** : set bonus, externals, ilvl, kill time,
+et le fait de **dire quand le filtre échoue** (`ComparabilityBanner`, écarts signés,
+`substituted` en rouge). Archon agrège tous les joueurs d'une spec ; WCL compare au top
+mondial. LogLense compare à des joueurs comparables, et refuse de faire semblant sinon.
+
+Deux différenciateurs secondaires, tous deux dans le code : la **première divergence
+d'ouverture** dérivée des références et non d'une règle écrite à la main (tâche 7), et la
+**décomposition de la trajectoire** en part matériel / part kill time / reste (tâche 9) —
+WCL montre l'historique, il ne l'explique pas.
+
+**L'argument d'acquisition est déjà mesuré et n'est utilisé nulle part.** Section 7 : ilvl
+des références 292 → 284, écart de DPS présenté 55 k → 25 k, *« plus de la moitié de ce qui
+était présenté au joueur comme son retard venait de l'équipement des références »*. C'est
+un avant/après chiffré sur un cas réel — la démonstration du wedge en une image. Il est
+enterré dans un document interne.
+
+Conséquence sur l'écran : le seul message qu'un joueur ne peut obtenir ailleurs — *ton
+retard n'est pas où tu crois* — est calculé mais réparti sur des onglets qu'il faut
+explorer. Il devrait être ce qu'on lit en premier.
+
+### Le risque de la section 4 s'est réalisé
+
+La section 4 énonce : *« si le gratuit individuel est excellent, il devient* le *produit
+dans la perception, et la couche payante ressemble à une rançon »*. Les dix tâches livrées
+sont toutes du gratuit individuel, et la vue roster n'avait ni tâche ni périmètre. La phase
+de validation qualité est devenue le produit entier par accumulation, sans décision.
+
+Corollaire à tenir séparé : **« attirer des utilisateurs » et « attirer des payeurs » n'ont
+pas la même réponse**, et le cadrage les traite comme une seule question. Attirer : oui,
+sur une niche étroite — le joueur confirmé qui plafonne, sur le couple comparabilité +
+trajectoire. Monétiser : rien de ce qui est construit n'est payable, par construction,
+puisque c'est le gratuit du découpage de la section 5. La tâche 11 ouvre le manque.
+
+### Ce qui reste sans réponse
+
+- **Un canal d'acquisition**, aucun n'est choisi. Le wedge est démontrable en une image ;
+  sans canal, aucune quantité de qualité de moteur ne produit un premier utilisateur.
+- **Le chiffre du consentement à payer** (combien sur 25) — déjà listé en points ouverts,
+  et c'est la mesure la moins chère du projet.
+- **Ce qui rend l'IA structurante en v1**, question ouverte de `ia-ml-architecture.md`
+  depuis la sortie du ML. Rien n'est facturable tant qu'elle n'a pas de réponse.
+
+Ce qui n'est **pas** recommandé : davantage de travail de comparabilité. Il est bon, il est
+clos, et il est invisible pour quelqu'un qui n'a jamais ouvert l'outil.
+
+---
+
+## 10. Règles de collaboration
 
 - Nommer un défaut de raisonnement immédiatement et précisément. Pas de validation
   de complaisance, pas de contradiction gratuite.

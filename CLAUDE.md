@@ -15,8 +15,11 @@ Elles précèdent toute décision de conception. Une proposition qui les enfrein
 1. **Contrainte communautaire** — la communauté WoW rejette les paywalls durs sur les
    outils utilitaires (précédents Details!, WeakAuras). Un gap fonctionnel sans modèle
    de revenu acceptable n'est pas exploitable.
-2. **Critère anti-gadget** — l'IA doit être le cœur du produit. Test : retire l'IA, si
-   le produit tient encore debout, c'était un gadget.
+2. **Critère anti-gadget** — l'IA doit créer une valeur marginale qu'aucun substitut bon
+   marché n'atteint. Test (reformulé le 2026-08-08, voir `ia-ml-architecture.md` §6.1) :
+   remplace ton IA par le substitut le moins cher qui rende le même service — table de
+   correspondance, seuils codés en dur, guide statique. L'utilisateur le remarque-t-il ?
+   Part-il ?
 
 Corollaire opérationnel : **repousser le calcul est acceptable, repousser la capture de
 données ne l'est pas.** Le calcul se rattrape ; les données non capturées sont perdues.
