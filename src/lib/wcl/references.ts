@@ -12,8 +12,9 @@ import { CANDIDATE_PAGES, EXPLORATION_RATE, TOP_N, VERIFICATION_WINDOW } from '.
 import { disqualify, eligibilityOf } from './eligibility';
 import { fetchFightData } from './fight-data';
 import { fmtMs, parseStats } from './parsers';
+import { resolveSeasonPartitions } from './partitions';
 import { poolCacheKey, readCachedPool, writeCachedPool } from './pool-cache';
-import { Q_BUFFS, Q_WORLD_RANKINGS } from './queries';
+import { Q_BUFFS, Q_WORLD_RANKINGS, Q_WORLD_RANKINGS_PARTITION } from './queries';
 
 export interface WorldRanking {
   name: string;
@@ -26,6 +27,7 @@ export interface WorldRanking {
 export interface CandidatePool {
   candidates: WorldRanking[];
   pagesFetched: number;
+  pagesExpected: number;
 }
 
 interface RankingsResponse {
@@ -33,17 +35,22 @@ interface RankingsResponse {
 }
 
 /**
- * Builds the candidate pool by fetching CANDIDATE_PAGES pages in parallel.
+ * Builds the candidate pool by fetching CANDIDATE_PAGES pages per partition of the
+ * opening season of the tier, in parallel.
+ *
+ * WCL's default partition is the tier's own next season — on the current tier that means
+ * five logs instead of several thousand, because a season that just opened has barely been
+ * farmed. Querying the season's own partitions explicitly is what makes the pool populous.
  *
  * One page is 100 entries and the world rankings are ordered by damage, so the
  * players comparable to an under-geared character sit several pages deep — a
  * single page contains only the best-equipped. A page that fails is skipped
  * rather than failing the analysis, and pagesFetched reports what was obtained.
  *
- * Ces dix pages sont le gros de la facture Warcraft Logs d'une analyse, et elles ne
- * dépendent pas du joueur analysé : d'où le cache, à durée de vie explicite, partagé par
- * tous les joueurs d'une même spec sur un même boss. Voir `pool-cache.ts` pour le TTL et ce
- * qu'il garantit vis-à-vis des CGU.
+ * Ces pages sont le gros de la facture Warcraft Logs d'une analyse, et elles ne dépendent
+ * pas du joueur analysé : d'où le cache, à durée de vie explicite, partagé par tous les
+ * joueurs d'une même spec sur un même boss. Voir `pool-cache.ts` pour le TTL et ce qu'il
+ * garantit vis-à-vis des CGU.
  */
 export async function fetchCandidatePool(
   token: string,
@@ -53,17 +60,30 @@ export async function fetchCandidatePool(
   const cached = await readCachedPool(cacheKey);
   if (cached) return cached;
 
+  // Résolu avant l'éclatement, pas dedans : les dix pages d'une partition partagent la même
+  // liste, et la redemander par page paierait dix fois la même réponse.
+  const partitions = await resolveSeasonPartitions(token, args.encounterId);
+
+  const requests = partitions.length > 0 ? partitions : [null];
+
   const pages = await Promise.all(
-    Array.from({ length: CANDIDATE_PAGES }, (_, i) =>
-      gql<RankingsResponse>(token, Q_WORLD_RANKINGS, {
-        encounterID: args.encounterId,
-        difficulty: args.difficulty,
-        specName: args.specName,
-        className: args.className,
-        page: i + 1,
-      })
-        .then((data) => data.worldData.encounter.characterRankings.rankings ?? [])
-        .catch(() => null)
+    requests.flatMap((partition) =>
+      Array.from({ length: CANDIDATE_PAGES }, (_, i) =>
+        gql<RankingsResponse>(
+          token,
+          partition === null ? Q_WORLD_RANKINGS : Q_WORLD_RANKINGS_PARTITION,
+          {
+            encounterID: args.encounterId,
+            difficulty: args.difficulty,
+            specName: args.specName,
+            className: args.className,
+            page: i + 1,
+            ...(partition === null ? {} : { partition }),
+          }
+        )
+          .then((data) => data.worldData.encounter.characterRankings.rankings ?? [])
+          .catch(() => null)
+      )
     )
   );
 
@@ -82,7 +102,7 @@ export async function fetchCandidatePool(
     }
   }
 
-  const pool = { candidates, pagesFetched };
+  const pool = { candidates, pagesFetched, pagesExpected: requests.length * CANDIDATE_PAGES };
 
   // Attendue, pas mise en `void` : sur un runtime serverless une promesse non attendue part
   // avec la fonction, et le cache ne se remplirait jamais. L'appel n'échoue pas.

@@ -30,6 +30,19 @@ export const ILVL_TOLERANCE = 4;
 export const CANDIDATE_PAGES = 10;
 
 /**
+ * Partitions d'une même saison interrogées au plus pour un vivier.
+ *
+ * Chaque partition coûte `CANDIDATE_PAGES` requêtes. Une saison en compte trois
+ * aujourd'hui, mais rien n'empêche un palier d'en accumuler davantage, et le coût est
+ * multiplicatif. On garde les plus récentes : ce sont celles dont l'équipement ressemble
+ * le plus à celui du joueur.
+ */
+export const MAX_SEASON_PARTITIONS = 4;
+
+/** Durée de vie du cache de partitions. Une liste de partitions bouge quelques fois par palier. */
+export const PARTITION_TTL_SECONDS = 24 * 60 * 60;
+
+/**
  * How many of the closest candidates are verified against the eliminatory criteria.
  *
  * Set bonus and externals are only visible once a candidate's fight is fetched, so the

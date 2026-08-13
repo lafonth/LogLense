@@ -1,6 +1,5 @@
 import type { CandidatePool } from './references';
 import { redisGet, redisSetEx } from '@/lib/redis';
-import { CANDIDATE_PAGES } from './constants';
 
 /**
  * Durée de vie du vivier mis en cache.
@@ -19,14 +18,14 @@ export const POOL_TTL_SECONDS = 6 * 60 * 60;
  * Version du format sérialisé. La changer périme tout le cache d'un coup : une entrée écrite
  * par une version antérieure serait relue avec les champs d'aujourd'hui.
  */
-const POOL_CACHE_VERSION = 'v1';
+const POOL_CACHE_VERSION = 'v2';
 
 /**
- * Plafond de ce qu'on accepte d'écrire. Dix pages de cent entrées tiennent largement en
- * dessous ; au-delà, le corps dépasserait ce qu'Upstash accepte en REST, et l'écriture
- * échouerait à chaque analyse au lieu de servir une seule fois.
+ * Plafond de ce qu'on accepte d'écrire. Trois partitions de dix pages de cent entrées, c'est
+ * trois fois le volume d'avant ; au-delà, le corps dépasserait ce qu'Upstash accepte en REST,
+ * et l'écriture échouerait à chaque analyse au lieu de servir une seule fois.
  */
-const MAX_CACHED_BYTES = 400_000;
+const MAX_CACHED_BYTES = 1_200_000;
 
 /**
  * Le vivier ne dépend que du boss, de la difficulté et de la spec — jamais du joueur qui
@@ -57,7 +56,11 @@ export async function readCachedPool(key: string): Promise<CandidatePool | null>
     if (typeof raw !== 'string' || raw.length === 0) return null;
 
     const parsed = JSON.parse(raw) as CandidatePool;
-    if (!Array.isArray(parsed?.candidates) || typeof parsed?.pagesFetched !== 'number') {
+    if (
+      !Array.isArray(parsed?.candidates) ||
+      typeof parsed?.pagesFetched !== 'number' ||
+      typeof parsed?.pagesExpected !== 'number'
+    ) {
       return null;
     }
     return parsed;
@@ -75,7 +78,7 @@ export async function readCachedPool(key: string): Promise<CandidatePool | null>
  * tout de suite est justement ce que le cache empêcherait.
  */
 export async function writeCachedPool(key: string, pool: CandidatePool): Promise<void> {
-  if (pool.pagesFetched < CANDIDATE_PAGES) return;
+  if (pool.pagesFetched < pool.pagesExpected) return;
 
   const body = JSON.stringify(pool);
   if (body.length > MAX_CACHED_BYTES) return;

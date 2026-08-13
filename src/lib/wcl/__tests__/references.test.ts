@@ -1,4 +1,5 @@
 import type { EligibilityProfile } from '../eligibility';
+import type { Partition } from '../partitions';
 import type { WorldRanking } from '../references';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CANDIDATE_PAGES, TOP_N, VERIFICATION_WINDOW } from '../constants';
@@ -28,17 +29,29 @@ describe('fetchCandidatePool', () => {
     redisSetEx.mockResolvedValue(undefined);
   });
 
-  function page(n: number, entries: number) {
+  /** Deux partitions d'une même saison : le vivier s'éclate sur les deux. */
+  const SEASON: Partition[] = [
+    { id: 1, name: '12.0', default: false },
+    { id: 2, name: '12.0.5', default: true },
+  ];
+  const SEASON_PAGES = SEASON.length * CANDIDATE_PAGES;
+
+  /**
+   * Une page de classement. La clé porte la partition autant que le rang de page : deux
+   * partitions qui rendraient les mêmes entrées se feraient dédoublonner, et l'éclatement
+   * passerait inaperçu.
+   */
+  function page(key: string | number, entries: number) {
     return {
       worldData: {
         encounter: {
           characterRankings: {
             rankings: Array.from({ length: entries }, (_, i) => ({
-              name: `p${n}-${i}`,
+              name: `p${key}-${i}`,
               amount: 100,
               duration: 300000,
               bracketData: 290,
-              report: { code: `c${n}-${i}`, fightID: 1 },
+              report: { code: `c${key}-${i}`, fightID: 1 },
             })),
           },
         },
@@ -51,69 +64,85 @@ describe('fetchCandidatePool', () => {
     return { ok: false, status: 500, headers: { get: () => null } } as unknown as Response;
   }
 
-  it('fetches every page and concatenates them', async () => {
+  const ok = (data: unknown) => ({ ok: true, json: async () => ({ data }) }) as Response;
+
+  /**
+   * Aiguille sur le nom de la requête, pas sur ses variables : la résolution des partitions
+   * n'a pas de `page`, et la traiter comme une page de classement rendrait vert un mock qui
+   * ne répond pas à ce qu'on lui demande.
+   */
+  function mockWcl(
+    rankings: (vars: { page: number; partition?: number }) => Response | Promise<Response>,
+    partitions: Partition[] | null = SEASON
+  ) {
     globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
       const body = JSON.parse(String(init.body));
-      return {
-        ok: true,
-        json: async () => ({ data: page(body.variables.page, 2) }),
-      } as Response;
+      if (String(body.query).includes('EncounterPartitions')) {
+        if (partitions === null) return failedPage();
+        return ok({ worldData: { encounter: { zone: { id: 46, partitions } } } });
+      }
+      return rankings(body.variables);
     });
+  }
 
-    const pool = await fetchCandidatePool('token', {
-      encounterId: 1,
-      difficulty: 5,
-      specName: 'Feral',
-      className: 'Druid',
-    });
+  it('fetches every page of every partition of the season', async () => {
+    mockWcl(({ page: n, partition }) => ok(page(`${partition}-${n}`, 2)));
 
+    const pool = await fetchCandidatePool('token', POOL_ARGS);
+
+    expect(pool.pagesExpected).toBe(SEASON_PAGES);
+    expect(pool.pagesFetched).toBe(SEASON_PAGES);
+    expect(pool.candidates).toHaveLength(SEASON_PAGES * 2);
+  });
+
+  // Le repli : l'analyse aboutit sur le vivier par défaut plutôt que d'échouer, même s'il est
+  // pauvre. C'est la seule voie qui reste à `Q_WORLD_RANKINGS`.
+  it('queries without a partition when the season cannot be resolved', async () => {
+    mockWcl(({ page: n }) => ok(page(n, 2)), null);
+
+    const pool = await fetchCandidatePool('token', POOL_ARGS);
+
+    expect(pool.pagesExpected).toBe(CANDIDATE_PAGES);
     expect(pool.pagesFetched).toBe(CANDIDATE_PAGES);
-    expect(pool.candidates).toHaveLength(CANDIDATE_PAGES * 2);
+
+    const sent = vi
+      .mocked(globalThis.fetch)
+      .mock.calls.map(([, init]) => JSON.parse(String((init as RequestInit).body)));
+    const rankingCalls = sent.filter((b) => !String(b.query).includes('EncounterPartitions'));
+    expect(rankingCalls).toHaveLength(CANDIDATE_PAGES);
+    expect(rankingCalls.every((b) => b.variables.partition === undefined)).toBe(true);
   });
 
   it('drops duplicates that appear on more than one page', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ data: page(0, 2) }),
-    } as Response);
+    mockWcl(() => ok(page(0, 2)));
 
-    const pool = await fetchCandidatePool('token', {
-      encounterId: 1,
-      difficulty: 5,
-      specName: 'Feral',
-      className: 'Druid',
-    });
+    const pool = await fetchCandidatePool('token', POOL_ARGS);
 
-    // Every page returns the same two entries, so only two survive.
+    // Toutes les pages de toutes les partitions rendent les deux mêmes entrées.
     expect(pool.candidates).toHaveLength(2);
   });
 
   it('keeps the pages that succeeded when one fails', async () => {
-    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
-      const { page: n } = JSON.parse(String(init.body)).variables;
+    mockWcl(({ page: n, partition }) => {
       // La panne suit la page, pas le rang de l'appel : `gql` reprend, et une page qui
       // n'échouerait qu'une fois reviendrait à la tentative suivante — le scénario testé
       // ici, celui d'une page réellement perdue, ne se produirait jamais.
-      if (n === 3) return failedPage();
-      return { ok: true, json: async () => ({ data: page(n, 1) }) } as Response;
+      if (partition === 1 && n === 3) return failedPage();
+      return ok(page(`${partition}-${n}`, 1));
     });
 
-    const pool = await fetchCandidatePool('token', {
-      encounterId: 1,
-      difficulty: 5,
-      specName: 'Feral',
-      className: 'Druid',
-    });
+    const pool = await fetchCandidatePool('token', POOL_ARGS);
 
-    expect(pool.pagesFetched).toBe(CANDIDATE_PAGES - 1);
-    expect(pool.candidates).toHaveLength(CANDIDATE_PAGES - 1);
+    expect(pool.pagesFetched).toBe(SEASON_PAGES - 1);
+    expect(pool.candidates).toHaveLength(SEASON_PAGES - 1);
   });
 
-  // La raison d'être du cache : dix pages, c'est le gros de la facture WCL d'une analyse.
+  // La raison d'être du cache : ces pages sont le gros de la facture WCL d'une analyse.
   it('serves a cached pool without touching Warcraft Logs', async () => {
     const cached = {
       candidates: [{ name: 'p', report: { code: 'x', fightID: 1 } }],
       pagesFetched: 4,
+      pagesExpected: 4,
     };
     redisGet.mockResolvedValue(JSON.stringify(cached));
     globalThis.fetch = vi.fn();
@@ -128,10 +157,7 @@ describe('fetchCandidatePool', () => {
   // Le TTL est la garantie vis-à-vis du §5d : une copie sans expiration serait la base de
   // données permanente que les CGU refusent. Il est donc vérifié, pas seulement documenté.
   it('writes a complete pool with an explicit expiry', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ data: page(0, 2) }),
-    } as Response);
+    mockWcl(({ page: n, partition }) => ok(page(`${partition}-${n}`, 2)));
 
     await fetchCandidatePool('token', POOL_ARGS);
 
@@ -142,17 +168,25 @@ describe('fetchCandidatePool', () => {
     );
   });
 
-  // Une page perdue est un incident réseau ; l'écrire la figerait six heures pour toute la spec.
-  it('does not cache a pool that is missing a page', async () => {
-    globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
-      const { page: n } = JSON.parse(String(init.body)).variables;
-      if (n === 3) return failedPage();
-      return { ok: true, json: async () => ({ data: page(n, 1) }) } as Response;
+  // Une page perdue est un incident réseau ; l'écrire la figerait six heures pour toute la
+  // spec. La complétude se juge maintenant sur `pagesExpected`, qui dépend du nombre de
+  // partitions — une constante ne pourrait plus la décrire.
+  it('does not cache a pool that lost a page of one partition', async () => {
+    mockWcl(({ page: n, partition }) => {
+      if (partition === 2 && n === 3) return failedPage();
+      return ok(page(`${partition}-${n}`, 1));
     });
 
-    await fetchCandidatePool('token', POOL_ARGS);
+    const pool = await fetchCandidatePool('token', POOL_ARGS);
 
-    expect(redisSetEx).not.toHaveBeenCalled();
+    expect(pool.pagesFetched).toBeLessThan(pool.pagesExpected);
+    // Nommer la clé, et pas seulement le spy : la résolution des partitions écrit son propre
+    // cache par le même `redisSetEx`, et un `not.toHaveBeenCalled` nu confondrait les deux.
+    expect(redisSetEx).not.toHaveBeenCalledWith(
+      poolCacheKey(POOL_ARGS),
+      expect.anything(),
+      expect.anything()
+    );
   });
 
   // Échoue ouvert, à l'inverse du quota : un cache muet coûte des requêtes, il ne doit pas
@@ -160,14 +194,11 @@ describe('fetchCandidatePool', () => {
   it('falls back to a live fetch when Redis is down', async () => {
     redisGet.mockRejectedValue(new Error('upstash down'));
     redisSetEx.mockRejectedValue(new Error('upstash down'));
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ data: page(0, 2) }),
-    } as Response);
+    mockWcl(() => ok(page(0, 2)));
 
     const pool = await fetchCandidatePool('token', POOL_ARGS);
 
-    expect(pool.pagesFetched).toBe(CANDIDATE_PAGES);
+    expect(pool.pagesFetched).toBe(SEASON_PAGES);
     expect(pool.candidates).toHaveLength(2);
   });
 
@@ -276,7 +307,7 @@ describe('resolveReferences', () => {
   ) {
     return resolveReferences(
       'token',
-      { candidates, pagesFetched: 1 },
+      { candidates, pagesFetched: 1, pagesExpected: 1 },
       {
         myIlvl: MY_ILVL,
         myKillTimeMs: MY_MS,

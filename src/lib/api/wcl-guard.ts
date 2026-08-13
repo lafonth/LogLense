@@ -8,10 +8,12 @@ import { consumeWclQuota } from '@/lib/labels/rate-limit';
  * Coût nominal d'une analyse de boss, en appels Warcraft Logs.
  *
  * Mesuré sur le pipeline : le vivier de candidats, la vérification de chacun, puis les
- * dégâts et la rotation du joueur et des références. Le chiffre est un ordre de grandeur
- * volontairement haut — un plafond sous-estimé ne plafonne rien.
+ * dégâts et la rotation du joueur et des références. Le vivier vaut au pire
+ * `MAX_SEASON_PARTITIONS × CANDIDATE_PAGES` requêtes, plus une pour résoudre les partitions
+ * — le reste du pipeline ne change pas. Le chiffre est un ordre de grandeur volontairement
+ * haut — un plafond sous-estimé ne plafonne rien.
  */
-export const BOSS_ANALYSIS_UNITS = 50;
+export const BOSS_ANALYSIS_UNITS = 90;
 
 /** Une requête, une unité : liste de zones, métadonnées d'un rapport, recherche de royaume. */
 export const METADATA_UNITS = 1;

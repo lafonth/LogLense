@@ -111,6 +111,50 @@ export const Q_WORLD_RANKINGS = `
   }
 `;
 
+/**
+ * Les partitions du palier auquel appartient une rencontre.
+ *
+ * Passe par `encounter.zone` plutôt que par la liste complète des zones : la réponse tient
+ * en un objet au lieu d'un catalogue entier, pour la seule information utile.
+ */
+export const Q_ENCOUNTER_PARTITIONS = `
+  query EncounterPartitions($encounterID: Int!) {
+    worldData {
+      encounter(id: $encounterID) {
+        zone {
+          id
+          partitions { id name default }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * Le classement mondial restreint à une partition explicite.
+ *
+ * Jumelle de `Q_WORLD_RANKINGS`, qui reste la voie de repli quand la résolution des
+ * partitions échoue. Deux constantes plutôt qu'un `$partition: Int` nullable : passer
+ * `null` à un argument optionnel n'équivaut pas à l'omettre côté GraphQL, et WCL ne
+ * documente pas ce qu'il en fait.
+ */
+export const Q_WORLD_RANKINGS_PARTITION = `
+  query WorldRankingsPartition(
+    $encounterID: Int!, $difficulty: Int!,
+    $specName: String!, $className: String!, $page: Int!, $partition: Int!
+  ) {
+    worldData {
+      encounter(id: $encounterID) {
+        characterRankings(
+          specName: $specName, className: $className,
+          metric: dps, difficulty: $difficulty, leaderboard: LogsOnly,
+          page: $page, partition: $partition
+        )
+      }
+    }
+  }
+`;
+
 export const Q_COMBATANT = `
   query Combatant($code: String!, $fightIDs: [Int]!) {
     reportData {
