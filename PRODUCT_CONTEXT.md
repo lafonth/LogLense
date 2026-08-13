@@ -454,12 +454,13 @@ et `references.ts` portent désormais le traitement commun.
    séquence, `src/lib/comparison/opening-diff.ts` la confronte à la majorité des
    références, et `OpeningChain` comme la section `### Opening` du prompt n'énoncent
    que la **première** divergence. Voir « Constats clos » ci-dessous.
-8. **ML** — **sorti de la v1 le 2026-08-07**, voir « Le ML sort de la v1 » ci-dessous.
-   Reste en v2, sans date, conditionné au volume d'étiquettes. Deux sous-tâches sont
-   faites parce qu'elles relèvent de la capture, pas du calcul : **8a**, le chemin de
-   lecture du corpus (`scripts/export-corpus.ts`), et **8b**, la fente d'exploration.
-   **8c à 8e — features, entraînement, remplacement de l'heuristique — restent bloquées
-   sur le volume**, voir « Tâche 8 : 10b ne suffisait pas » ci-dessous. *(v2)*
+8. **ML** — **sorti de la v1 le 2026-08-07**, puis **abandonné le 2026-08-13**. Deux
+   sous-tâches restent faites et actives parce qu'elles relèvent de la capture, pas du
+   calcul : **8a**, le chemin de lecture du corpus (`scripts/export-corpus.ts`), et **8b**,
+   la fente d'exploration. **8c à 8e — features, entraînement, remplacement de l'heuristique
+   — quittent l'ordre des travaux** : le gain est réel mais invisible à l'écran, et le coût
+   inclut une migration de persistance. Voir « 8c-8e sortent du plan » ci-dessous pour la
+   démonstration et pour le seul signal qui rouvrirait le dossier. *(abandonné)*
 9. ~~**Suivi dans le temps**~~ — **fait le 2026-08-07.** `encounterRankings` portait déjà
     tous les kills classés ; les deux chemins n'en gardaient qu'un. `src/lib/wcl/trajectory.ts`
     les sort, `src/lib/comparison/trend.ts`
@@ -557,6 +558,56 @@ maintenant serait un chiffre inventé. Ce qui est acquis, c'est que le compteur 
 plus mentir — `scripts/export-corpus.ts` sort les trois états sans jamais en deviner un,
 et compte à part les verdicts `v: 1`/`v: 2` qui n'ont pas de `renderId` et ne se joignent
 à rien.
+
+### 8c-8e sortent du plan — décision du 2026-08-13
+
+**Le ML n'est plus un chantier prévu.** 8c, 8d et 8e ne sont pas repoussés à une date, ils
+quittent l'ordre des travaux. La capture — 8a, 8b, `EXPLORATION_RATE` — reste intégralement
+en place et continue de tourner.
+
+**Ce que 8e remplacerait, à l'échelle réelle.** La sélection est aujourd'hui une distance à
+deux termes ([comparability.ts:43-48](src/lib/wcl/comparability.ts#L43-L48)) : écart d'ilvl
+sur `ILVL_TOLERANCE`, écart de kill time sur `KILL_TIME_TOLERANCE`, combinés en euclidien.
+Un modèle produirait la même chose — un score par candidat, un tri, `TOP_N` retenus. Les
+deux sont data-driven ; **la seule différence est que les constantes `4` et `0.2` viennent
+d'un postulat au lieu d'une mesure.** Il n'y a pas d'un côté des règles rigides et de
+l'autre un jugement.
+
+Les trois gains réels, et ils sont réels :
+
+1. Le taux de change entre ilvl et kill time n'a jamais été vérifié.
+2. Aucune interaction n'est exprimable — l'ilvl coûte pareil pour toutes les specs, ce qui
+   est faux.
+3. Set bonus et externals sont binaires et appliqués après coup ; un modèle les pondérerait
+   en continu.
+
+**Pourquoi ça ne suffit pas.** Le test de substitution du §6.1 de
+[ia-ml-architecture.md](ia-ml-architecture.md) échoue franchement : remplacé par la distance
+existante, l'utilisateur ne remarque rien, parce qu'il **ne voit pas la sélection**. Il voit
+trois noms, trois ilvl, une médiane. Le vivier de mille candidats et leurs scores ne sont
+jamais rendus. La sortie est le même écran avant et après.
+
+En face, le coût est lourd et mal proportionné : 8d exige une base hors du Redis
+append-only, donc une migration de persistance — la seule qui existe est
+[redis.ts](src/lib/redis.ts) — plus le feature engineering et un protocole d'évaluation
+honnête. On paierait une infrastructure pour corriger une imprécision **dont rien ne prouve
+qu'elle gêne quelqu'un**.
+
+Trois passages du §6, écrits contre la thèse pro-ML du même document, convergent : §6.2 —
+la défendabilité par modèle propriétaire suppose un attaquant qui n'existe pas à cette
+échelle ; §6.4 — le moteur déterministe et auditable est un avantage sur un public qui
+vérifie les chiffres, pas un pis-aller ; §6.5 — WoWAnalyzer, sans une ligne de ML, est
+l'outil d'analyse individuelle le plus utilisé du domaine.
+
+**Ce qui rouvrirait le dossier**, et rien d'autre : que les utilisateurs **contestent les
+références qu'on leur montre**. C'est le seul signal qui prouverait que l'imprécision de la
+distance est un problème vécu et pas une élégance manquante. Le §6.6 fixe par ailleurs le
+volume utile — ~1 000 étiquettes exploitables, ~10 000 confortables, soit une centaine
+d'utilisateurs actifs. Les deux conditions se mesurent en beta, pas en conception.
+
+**Ce qui ne change pas.** Le corollaire opérationnel continue de s'appliquer sans réserve :
+on abandonne le calcul, jamais la capture. Les étiquettes non prises sont perdues, un
+modèle non entraîné ne l'est pas.
 
 ### Le suivi dans le temps remplace le rapport isolé — décision du 2026-08-07
 
