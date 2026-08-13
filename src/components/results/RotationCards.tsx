@@ -1,6 +1,8 @@
+import type { AbilityGroup } from '@/lib/comparison/ability-groups';
 import type { AbilityComparison } from '@/lib/comparison/rotation-stats';
 import type { DamageEntry, RotationSummary, TopPlayer } from '@/types';
 import { Card } from '@/components/ui/Card';
+import { groupCasts, groupUptimes } from '@/lib/comparison/ability-groups';
 import { compareCasts, compareUptimes } from '@/lib/comparison/rotation-stats';
 
 interface RotationCardsProps {
@@ -74,6 +76,26 @@ function AbilityCard({ row, unit }: { row: AbilityComparison; unit: string }) {
   );
 }
 
+/** Les blocs d'une carte. La grille reste *à l'intérieur* d'un groupe : sur deux colonnes,
+ *  une grille partagée laisserait la fin d'un groupe et le début du suivant sur la même
+ *  ligne, et l'en-tête ne dirait plus de quoi il est le titre. */
+function GroupedAbilities({ groups, unit }: { groups: AbilityGroup[]; unit: string }) {
+  return (
+    <div className="flex flex-col gap-3">
+      {groups.map((group) => (
+        <div key={group.label} className="flex flex-col gap-2">
+          {group.label !== '' && <h3 className="text-2xs text-muted font-sans">{group.label}</h3>}
+          <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            {group.rows.map((row) => (
+              <AbilityCard key={row.name} row={row} unit={unit} />
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 interface RotationComparisonCardsProps {
   casts: AbilityComparison[];
   uptimes: AbilityComparison[];
@@ -92,6 +114,10 @@ export function RotationComparisonCards({
   // Le libellé doit dire ce que l'ordre suit réellement : sans table de dégâts, la
   // pondération n'a pas eu lieu et annoncer un coût serait un mensonge.
   const weighted = casts.some((row) => (row.damageShare ?? 0) > 0);
+  // `casts` porte déjà l'union des noms de tous les côtés — `compare` unionne mes clés et
+  // celles des références. Le référentiel se déduit donc sur place, sans prop supplémentaire,
+  // et vaut aussi pour la comparaison de pulls, qui passe par les mêmes fonctions.
+  const castNames = new Set(casts.map((row) => row.name));
 
   return (
     <div className="flex flex-col gap-4">
@@ -109,20 +135,12 @@ export function RotationComparisonCards({
             No comparable logs — showing your rotation only.
           </p>
         )}
-        <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
-          {casts.map((row) => (
-            <AbilityCard key={row.name} row={row} unit="/min" />
-          ))}
-        </ul>
+        <GroupedAbilities groups={groupCasts(casts)} unit="/min" />
       </Card>
 
       {uptimes.length > 0 && (
         <Card header="Uptime">
-          <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            {uptimes.map((row) => (
-              <AbilityCard key={row.name} row={row} unit="%" />
-            ))}
-          </ul>
+          <GroupedAbilities groups={groupUptimes(uptimes, castNames)} unit="%" />
         </Card>
       )}
     </div>

@@ -161,6 +161,53 @@ describe('rotationCards', () => {
     expect(screen.getByText("Tiger's Fury")).toBeInTheDocument();
   });
 
+  // Le regroupement ne prétend pas séparer défensifs et utilitaires — aucune donnée WCL ne
+  // porte cette distinction. Il dit seulement ce qui est mesuré : porter des dégâts ou non.
+  it('groups the casts by whether they deal damage', () => {
+    const mine: RotationSummary = {
+      ...MINE,
+      casts: {
+        ...MINE.casts,
+        Barkskin: { guid: 22812, casts: 2, perMin: 0.5 },
+      },
+    };
+
+    render(
+      <RotationCards
+        character={mine}
+        topPlayers={REFERENCES}
+        characterDamage={[{ guid: 22568, name: 'Ferocious Bite', total: 1000 }]}
+      />
+    );
+
+    expect(screen.getByText('Damaging')).toBeInTheDocument();
+    expect(screen.getByText('Non-damaging')).toBeInTheDocument();
+  });
+
+  it('leaves the casts ungrouped when no damage table drove the ordering', () => {
+    render(<RotationCards character={MINE} topPlayers={REFERENCES} characterDamage={[]} />);
+
+    expect(screen.queryByText('Damaging')).not.toBeInTheDocument();
+    expect(screen.queryByText('Non-damaging')).not.toBeInTheDocument();
+  });
+
+  it('splits uptimes between cast auras and procs', () => {
+    const mine: RotationSummary = {
+      ...MINE,
+      buffs: { Rip: 88.2, Bloodtalons: 74.1 },
+      casts: { ...MINE.casts, Rip: { guid: 1079, casts: 4, perMin: 0.9 } },
+    };
+    const references = REFERENCES.map((player) => ({
+      ...player,
+      rotation: { ...player.rotation, buffs: { Rip: 91.0, Bloodtalons: 80.3 } },
+    }));
+
+    render(<RotationCards character={mine} topPlayers={references} characterDamage={[]} />);
+
+    expect(screen.getByText('From your casts')).toBeInTheDocument();
+    expect(screen.getByText('Procs and passives')).toBeInTheDocument();
+  });
+
   it('shows no uptime card when the player has no buffs with non-zero uptime', () => {
     render(<RotationCards character={MINE} topPlayers={REFERENCES} characterDamage={[]} />);
 
