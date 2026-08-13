@@ -46,8 +46,16 @@ export function HomeClient() {
     error: zonesError,
     retry: retryZones,
   } = useZones(sessionStatus === 'authenticated');
-  const { bossStates, currentDifficulty, isAnyLoading, input, start, switchBossSpec, reset } =
-    useAnalysis();
+  const {
+    bossStates,
+    currentDifficulty,
+    isAnyLoading,
+    input,
+    start,
+    switchBossSpec,
+    switchBossFight,
+    reset,
+  } = useAnalysis();
   const {
     result: reportResult,
     loading: reportLoading,
@@ -269,6 +277,7 @@ export function HomeClient() {
         onReset={handleReset}
         onSwitchCharacter={session ? handleSwitchCharacter : undefined}
         onSwitchBossSpec={switchBossSpec}
+        onSwitchBossFight={switchBossFight}
       />
     );
   }

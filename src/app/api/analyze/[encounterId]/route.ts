@@ -16,6 +16,7 @@ interface AnalyzeBody {
   encounterName: string;
   specId: number;
   specIdOverride?: number;
+  fightOverride?: { code: string; fightID: number };
 }
 
 const REGIONS: readonly AnalysisInput['region'][] = ['US', 'EU', 'KR', 'TW', 'CN'];
@@ -32,14 +33,26 @@ const DIFFICULTIES: readonly AnalysisInput['difficulty'][] = [3, 4, 5];
 function parseAnalyzeBody(input: unknown): AnalyzeBody | null {
   if (!isRecord(input)) return null;
 
-  const { characterName, serverSlug, region, difficulty, encounterName, specId, specIdOverride } =
-    input;
+  const {
+    characterName,
+    serverSlug,
+    region,
+    difficulty,
+    encounterName,
+    specId,
+    specIdOverride,
+    fightOverride,
+  } = input;
 
   if (!isStr(characterName) || !isStr(serverSlug) || !isStr(encounterName)) return null;
   if (!isOneOf(region, REGIONS) || !isOneOf(difficulty, DIFFICULTIES)) return null;
   if (!isNum(specId)) return null;
   // Absent est légitime — c'est une surcharge. Présent et non numérique ne l'est pas.
   if (specIdOverride !== undefined && !isNum(specIdOverride)) return null;
+  if (fightOverride !== undefined) {
+    if (!isRecord(fightOverride)) return null;
+    if (!isStr(fightOverride.code) || !isNum(fightOverride.fightID)) return null;
+  }
 
   return {
     characterName,
@@ -49,6 +62,7 @@ function parseAnalyzeBody(input: unknown): AnalyzeBody | null {
     encounterName,
     specId,
     specIdOverride,
+    fightOverride: fightOverride as { code: string; fightID: number } | undefined,
   };
 }
 
@@ -96,7 +110,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
       input,
       encounterIdNum,
       body.encounterName,
-      body.specIdOverride
+      body.specIdOverride,
+      body.fightOverride
     );
 
     // Attendue, pas mise en `void` : sur un runtime serverless, une promesse non attendue

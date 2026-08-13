@@ -145,6 +145,59 @@ export function useAnalysis() {
     }
   }, []);
 
+  const switchBossFight = useCallback(
+    async (bossIdx: number, fight: { code: string; fightID: number }) => {
+      if (!inputRef.current) return;
+      const currentInput = inputRef.current;
+      const enc = currentInput.encounters[bossIdx];
+      if (!enc) return;
+
+      const diff = currentInput.difficulty;
+      const cached = cacheRef.current[diff];
+      if (cached) {
+        cached[bossIdx] = { status: 'loading' };
+        if (activeDiffRef.current === diff) setBossStates([...cached]);
+      }
+
+      let state: BossState;
+      try {
+        const res = await fetch(`/api/analyze/${enc.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            characterName: currentInput.characterName,
+            serverSlug: currentInput.serverSlug,
+            region: currentInput.region,
+            difficulty: diff,
+            encounterName: enc.name,
+            specId: currentInput.specId,
+            fightOverride: fight,
+          }),
+        });
+
+        if (!res.ok) {
+          const body = (await res.json()) as { error?: string };
+          state = { status: 'error', message: body.error ?? 'Request failed' };
+        } else {
+          const result = (await res.json()) as BossResult | null;
+          state = { status: 'success', result };
+        }
+      } catch (err) {
+        state = {
+          status: 'error',
+          message: err instanceof Error ? err.message : 'Network error',
+        };
+      }
+
+      const latestCached = cacheRef.current[diff];
+      if (latestCached) {
+        latestCached[bossIdx] = state;
+        if (activeDiffRef.current === diff) setBossStates([...latestCached]);
+      }
+    },
+    []
+  );
+
   const reset = useCallback(() => {
     cacheRef.current = {};
     activeDiffRef.current = null;
@@ -165,6 +218,7 @@ export function useAnalysis() {
     start,
     changeDifficulty,
     switchBossSpec,
+    switchBossFight,
     reset,
   };
 }

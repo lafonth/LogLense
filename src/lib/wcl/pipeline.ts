@@ -41,7 +41,8 @@ export async function analyzeBoss(
   input: AnalysisInput,
   encounterId: number,
   encounterName: string,
-  specIdOverride?: number
+  specIdOverride?: number,
+  fightOverride?: { code: string; fightID: number }
 ): Promise<BossResult | null> {
   const { characterName: name, serverSlug: slug, region, difficulty, specId } = input;
 
@@ -73,7 +74,14 @@ export async function analyzeBoss(
   const bossParses = char.boss?.ranks ?? [];
   if (dpsParses.length === 0) return null;
 
-  const best = dpsParses.reduce((a, b) => (a.amount > b.amount ? a : b));
+  // La surcharge doit exister dans le pool reçu — un pool a pu bouger entre deux requêtes.
+  // À défaut, on retombe sur le meilleur parse plutôt que d'échouer silencieusement.
+  const overridden = fightOverride
+    ? dpsParses.find(
+        (p) => p.report.code === fightOverride.code && p.report.fightID === fightOverride.fightID
+      )
+    : null;
+  const best = overridden ?? dpsParses.reduce((a, b) => (a.amount > b.amount ? a : b));
   const bestDps = Math.round(best.amount);
   const bestKillMs = best.duration;
   const bestCode = best.report.code;

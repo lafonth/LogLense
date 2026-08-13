@@ -9,9 +9,18 @@ import { ComparisonTab } from '@/components/results/ComparisonTab';
 import { OverviewTab } from '@/components/results/OverviewTab';
 import { VerdictBanner } from '@/components/results/VerdictBanner';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { tabId, tabPanelId } from '@/components/ui/tab-ids';
 import { Tabs } from '@/components/ui/Tabs';
 import { getDpsSpecsForClass, getSpecInfo } from '@/lib/specs';
+
+function fightKey(fight: { code: string; fightID: number }): string {
+  return `${fight.code}#${fight.fightID}`;
+}
+
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 type TabId = 'overview' | 'comparison' | 'ai-report';
 
@@ -28,6 +37,7 @@ interface BossContentPanelProps {
   onBossChange: (idx: number) => void;
   analysisResult: { input: AnalysisInput; bosses: (BossResult | null)[]; generatedAt: string };
   onSwitchBossSpec?: (bossIdx: number, specId: number) => void;
+  onSwitchBossFight?: (bossIdx: number, fight: { code: string; fightID: number }) => void;
 }
 
 export function BossContentPanel({
@@ -37,6 +47,7 @@ export function BossContentPanel({
   onBossChange,
   analysisResult,
   onSwitchBossSpec,
+  onSwitchBossFight,
 }: BossContentPanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [talentNodes, setTalentNodes] = useState<TalentNode[]>([]);
@@ -128,6 +139,37 @@ export function BossContentPanel({
               ))}
             </div>
           )}
+
+          {/* Fight picker — character mode only, lets the user override which kill is analysed
+              instead of always taking the all-time-highest parse. Sorted by dps, not date: the
+              user is choosing a log to inspect, not browsing a timeline. */}
+          {onSwitchBossFight &&
+            activeBossResult &&
+            activeBossResult.character.trajectory.length > 1 && (
+              <div className="mb-4 max-w-xs">
+                <Select
+                  label="Fight"
+                  disabled={activeBossState.status === 'loading'}
+                  value={fightKey(activeBossResult.character.source)}
+                  onChange={(e) => {
+                    const point = activeBossResult.character.trajectory.find(
+                      (p) => fightKey(p) === e.target.value
+                    );
+                    if (point)
+                      onSwitchBossFight(safeIdx, { code: point.code, fightID: point.fightID });
+                  }}
+                >
+                  {[...activeBossResult.character.trajectory]
+                    .sort((a, b) => b.dps - a.dps)
+                    .map((point) => (
+                      <option key={fightKey(point)} value={fightKey(point)}>
+                        {point.dps.toLocaleString('en-US')} dps · {shortDate(point.at)}
+                        {point.bracket ? ` · ${point.bracket} ilvl` : ''}
+                      </option>
+                    ))}
+                </Select>
+              </div>
+            )}
 
           {activeTab === 'overview' && activeEnc && (
             <OverviewTab encounter={activeEnc} bossState={activeBossState} specName={specName} />
