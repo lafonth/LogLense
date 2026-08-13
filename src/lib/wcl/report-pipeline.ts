@@ -89,6 +89,19 @@ export async function analyzeReportBoss(
     className,
   });
 
+  // Le DPS du sujet doit sortir de la même mesure que celui des références — le montant des
+  // classements WCL — sinon l'écart affiché soustrait deux mesures différentes. D'où
+  // l'attente ici, avant les données de combat : la requête est en vol depuis le début de la
+  // fonction, et `dps` ne sert pas qu'à l'affichage, il traverse `summarizeRotation`. Le
+  // corriger après coup laisserait la rotation sur l'autre mesure.
+  const dpsRankingsRaw = await dpsRankingsPromise;
+  const myDpsRank = findInRankings(dpsRankingsRaw.reportData.report.rankings, actorName);
+
+  // `undefined` et non `0` : c'est ce qui rend la main à la dérivation depuis la table de
+  // dégâts quand le classement n'a rien sur ce joueur. Le repli est moins comparable, il
+  // reste préférable à un DPS nul, et `dpsSource` le déclare.
+  const rankingDps = myDpsRank ? Math.round(myDpsRank.amount) : undefined;
+
   const { stats, rotation, damageEntries, fightTargets, dps, eligibility, context } =
     await fetchFightData(token, {
       code,
@@ -96,17 +109,12 @@ export async function analyzeReportBoss(
       combatant: charEvent,
       name: actorName,
       fightMs,
+      dps: rankingDps,
       context: { encounterId, difficulty },
     });
 
-  const [pool, dpsRankingsRaw, bossRankingsRaw] = await Promise.all([
-    poolPromise,
-    dpsRankingsPromise,
-    bossRankingsPromise,
-  ]);
+  const [pool, bossRankingsRaw] = await Promise.all([poolPromise, bossRankingsPromise]);
 
-  // Extract per-player parse data from the report's own rankings
-  const myDpsRank = findInRankings(dpsRankingsRaw.reportData.report.rankings, actorName);
   const myBossRank = findInRankings(bossRankingsRaw.reportData.report.rankings, actorName);
 
   // Le percentile verrouillé n'existe pas dans `report.rankings` : il faut le demander au
@@ -151,6 +159,7 @@ export async function analyzeReportBoss(
       rotation,
       damageTable: { entries: damageEntries },
       dps,
+      dpsSource: rankingDps === undefined ? 'damage-table' : 'ranking',
       bossDps: myBossRank ? Math.round(myBossRank.amount) : null,
       killTime: fmtMs(fightMs),
       overallPct: historical

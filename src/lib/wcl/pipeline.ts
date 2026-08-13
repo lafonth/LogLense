@@ -137,6 +137,8 @@ export async function analyzeBoss(
       rotation,
       damageTable: { entries: damageEntries },
       dps: bestDps,
+      // `bestDps` sort de `encounterRankings` : même mesure que les références, toujours.
+      dpsSource: 'ranking',
       bossDps: bossMatch ? Math.round(bossMatch.amount) : null,
       killTime: fmtMs(bestKillMs),
       overallPct: Math.round(best.rankPercent * 10) / 10,

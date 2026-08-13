@@ -54,6 +54,7 @@ const mockBossResult: BossResult = {
     },
     damageTable: { entries: [] },
     dps: 250000,
+    dpsSource: 'ranking',
     bossDps: null,
     killTime: '3:00',
     overallPct: null,
@@ -159,7 +160,7 @@ describe('report analyze route', () => {
     const body = await res.json();
 
     expect(recordExposure).toHaveBeenCalledTimes(1);
-    expect(recordExposure).toHaveBeenCalledWith([mockBossResult], { dpsSource: 'damage-table' });
+    expect(recordExposure).toHaveBeenCalledWith([mockBossResult]);
     // La réponse est inchangée par la capture.
     expect(body.bosses[0].renderId).toBe('render-1');
   });
@@ -171,7 +172,7 @@ describe('report analyze route', () => {
 
     await POST(makeRequest(validBody()));
 
-    expect(recordExposure).toHaveBeenCalledWith([null], { dpsSource: 'damage-table' });
+    expect(recordExposure).toHaveBeenCalledWith([null]);
   });
 
   it('still renders the analysis if the capture were to reject', async () => {

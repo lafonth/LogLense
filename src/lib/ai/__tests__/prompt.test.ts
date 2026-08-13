@@ -76,6 +76,7 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
         ],
       },
       dps: 250000,
+      dpsSource: 'ranking',
       bossDps: null,
       killTime: '3:00',
       overallPct: 95.5,

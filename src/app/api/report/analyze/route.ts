@@ -107,10 +107,11 @@ export async function POST(req: NextRequest) {
   // il ne sait pas rattraper une spec affirmée à tort.
   const resolvedSpecId = specId || getDpsSpecsForClass(actorClass)[0]?.specId || 0;
 
-  // Attendue avant la réponse, pour la même raison que sur l'autre route. Ici le DPS du
-  // sujet sort de la table de dégâts calculée par `fetchFightData`, pas d'un classement.
+  // Attendue avant la réponse, pour la même raison que sur l'autre route. La provenance du
+  // DPS est lue sur chaque résultat, pas affirmée ici : ce chemin retombe sur la table de
+  // dégâts pour le seul joueur absent des classements du rapport.
   // Le `catch` double celui de `recordExposure` : cette route n'en a aucun autre.
-  await recordExposure(bosses, { dpsSource: 'damage-table' }).catch(() => {});
+  await recordExposure(bosses).catch(() => {});
 
   return NextResponse.json({
     input: {

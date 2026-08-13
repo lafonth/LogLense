@@ -2,6 +2,17 @@ import type { ComparabilityLevel } from '@/lib/wcl/comparability';
 import type { DisqualificationReason, EligibilityProfile } from '@/lib/wcl/eligibility';
 import type { FightContext } from '@/lib/wcl/fight-context';
 import type { TrajectoryPoint } from '@/lib/wcl/trajectory';
+
+/**
+ * D'où sort `character.dps`.
+ *
+ * Déclaré ici et non dans `labels/exposure`, qui le ré-exporte : la provenance est une
+ * propriété du résultat d'analyse, et la capture ne fait que la recopier. Un enregistrement
+ * dont la provenance serait affirmée par la route plutôt que par le pipeline se contredirait
+ * dès que le pipeline change d'avis.
+ */
+export type SubjectDpsSource = 'ranking' | 'damage-table';
+
 export interface WowCharacter {
   id: number;
   name: string;
@@ -210,6 +221,13 @@ export interface BossResult {
     rotation: RotationSummary;
     damageTable: { entries: DamageEntry[] };
     dps: number;
+    /**
+     * Ce que `dps` mesure. Les références portent toujours le montant des classements WCL
+     * (`references.ts`), et l'écart affiché est une soustraction entre les deux : une
+     * provenance différente de `ranking` dit que cette soustraction porte sur deux mesures
+     * qui ne se recouvrent pas exactement.
+     */
+    dpsSource: SubjectDpsSource;
     bossDps: number | null;
     killTime: string;
     overallPct: number | null;

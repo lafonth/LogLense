@@ -45,6 +45,7 @@ function boss(renderId: string): BossResult {
       },
       damageTable: { entries: [] },
       dps: 105538,
+      dpsSource: 'ranking',
       bossDps: null,
       killTime: '5:26',
       overallPct: null,
@@ -93,7 +94,7 @@ describe('recordExposure', () => {
   });
 
   it('writes one record per analysed boss, into the month list', async () => {
-    await recordExposure([boss('r1'), boss('r2')], { dpsSource: 'ranking' });
+    await recordExposure([boss('r1'), boss('r2')]);
 
     expect(redisAppend).toHaveBeenCalledTimes(2);
     expect(written().map((r) => r.renderId)).toEqual(['r1', 'r2']);
@@ -105,26 +106,38 @@ describe('recordExposure', () => {
     });
   });
 
+  // La provenance était affirmée par la route, pour tout le lot. Elle vient maintenant de
+  // chaque résultat : deux boss d'une même requête peuvent ne pas l'avoir mesurée pareil,
+  // et un corpus qui l'uniformiserait deviendrait inanalysable.
+  it('reads the dps provenance from each result rather than from the caller', async () => {
+    const derived = boss('r2');
+    derived.character.dpsSource = 'damage-table';
+
+    await recordExposure([boss('r1'), derived]);
+
+    expect(written().map((r) => r.subject.dpsSource)).toEqual(['ranking', 'damage-table']);
+  });
+
   // Un mois plein arrête le lot avant la première écriture : le plafond existe pour qu'une
   // instance saturée ne fasse pas perdre les verdicts humains, qui sont d'un autre flux.
   it('writes nothing once the month has reached its cap', async () => {
     redisLlen.mockResolvedValue(CORPUS_MONTH_CAP);
 
-    await recordExposure([boss('r1'), boss('r2')], { dpsSource: 'ranking' });
+    await recordExposure([boss('r1'), boss('r2')]);
 
     expect(redisAppend).not.toHaveBeenCalled();
   });
 
   // Un boss sans données n'a rien exposé : il n'y a pas de positif faible à en tirer.
   it('ignores the bosses that produced no result', async () => {
-    await recordExposure([null, boss('r1'), null], { dpsSource: 'damage-table' });
+    await recordExposure([null, boss('r1'), null]);
 
     expect(redisAppend).toHaveBeenCalledTimes(1);
     expect(written()[0].renderId).toBe('r1');
   });
 
   it('identifies the account by its salted hash, never by its address', async () => {
-    await recordExposure([boss('r1')], { dpsSource: 'ranking' });
+    await recordExposure([boss('r1')]);
 
     const record = written()[0];
     expect(record.by).toMatch(/^[0-9a-f]{32}$/);
@@ -134,7 +147,7 @@ describe('recordExposure', () => {
   it('records an unauthenticated render as anonymous', async () => {
     getServerSession.mockResolvedValue(null);
 
-    await recordExposure([boss('r1')], { dpsSource: 'ranking' });
+    await recordExposure([boss('r1')]);
 
     expect(written()[0].by).toBeNull();
   });
@@ -144,7 +157,7 @@ describe('recordExposure', () => {
   it('writes nothing when the salt is missing and a session exists', async () => {
     delete process.env.LABEL_SALT;
 
-    await recordExposure([boss('r1')], { dpsSource: 'ranking' });
+    await recordExposure([boss('r1')]);
 
     expect(redisAppend).not.toHaveBeenCalled();
   });
@@ -152,7 +165,7 @@ describe('recordExposure', () => {
   it('stops writing once the account has exhausted its hourly quota', async () => {
     redisIncrBy.mockResolvedValue(EXPOSURE_LIMIT + 1);
 
-    await recordExposure([boss('r1')], { dpsSource: 'ranking' });
+    await recordExposure([boss('r1')]);
 
     expect(redisAppend).not.toHaveBeenCalled();
   });
@@ -161,13 +174,13 @@ describe('recordExposure', () => {
   it('never throws when the write fails', async () => {
     redisAppend.mockRejectedValue(new Error('upstash down'));
 
-    await expect(recordExposure([boss('r1')], { dpsSource: 'ranking' })).resolves.toBeUndefined();
+    await expect(recordExposure([boss('r1')])).resolves.toBeUndefined();
   });
 
   it('never throws when the session cannot be read', async () => {
     getServerSession.mockRejectedValue(new Error('auth down'));
 
-    await expect(recordExposure([boss('r1')], { dpsSource: 'ranking' })).resolves.toBeUndefined();
+    await expect(recordExposure([boss('r1')])).resolves.toBeUndefined();
     expect(redisAppend).not.toHaveBeenCalled();
   });
 });

@@ -96,6 +96,7 @@ function result(over: Partial<BossResult> = {}): BossResult {
       },
       damageTable: { entries: [] },
       dps: 105538,
+      dpsSource: 'ranking',
       bossDps: null,
       killTime: '5:26',
       overallPct: 95.5,
@@ -126,7 +127,7 @@ function result(over: Partial<BossResult> = {}): BossResult {
   };
 }
 
-const ARGS = { by: 'hash', at: '2026-08-07T09:14:22.000Z', dpsSource: 'ranking' as const };
+const ARGS = { by: 'hash', at: '2026-08-07T09:14:22.000Z' };
 
 describe('buildExposure', () => {
   it('writes the whole verified window, not only the panel', () => {
@@ -225,7 +226,11 @@ describe('buildExposure', () => {
   });
 
   it('names the render, the subject and how its dps was measured', () => {
-    const record = buildExposure(result(), { ...ARGS, dpsSource: 'damage-table' });
+    // La provenance est recopiée du résultat, pas fournie par l'appelant : c'est le pipeline
+    // qui sait quelle mesure il a utilisée.
+    const r = result();
+    r.character.dpsSource = 'damage-table';
+    const record = buildExposure(r, ARGS);
 
     expect(record.v).toBe(4);
     expect(record.kind).toBe('exposure');

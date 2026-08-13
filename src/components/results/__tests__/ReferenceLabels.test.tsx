@@ -73,6 +73,7 @@ function result(): BossResult {
       },
       damageTable: { entries: [] },
       dps: 105538,
+      dpsSource: 'ranking',
       bossDps: null,
       killTime: '5:26',
       overallPct: null,

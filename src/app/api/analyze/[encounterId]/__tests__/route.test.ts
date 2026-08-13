@@ -53,6 +53,7 @@ const mockBossResult: BossResult = {
     },
     damageTable: { entries: [] },
     dps: 250000,
+    dpsSource: 'ranking',
     bossDps: null,
     killTime: '3:00',
     overallPct: 95.5,
@@ -250,7 +251,7 @@ describe('analyze route', () => {
     const body = await res.json();
 
     expect(recordExposure).toHaveBeenCalledTimes(1);
-    expect(recordExposure).toHaveBeenCalledWith([mockBossResult], { dpsSource: 'ranking' });
+    expect(recordExposure).toHaveBeenCalledWith([mockBossResult]);
     // La réponse ne change pas : la capture s'ajoute au rendu, elle ne le reformule pas.
     expect(body.encounter).toBe('Chimaerus');
   });
@@ -269,7 +270,7 @@ describe('analyze route', () => {
 
     await POST(req, { params: Promise.resolve({ encounterId: '3306' }) });
 
-    expect(recordExposure).toHaveBeenCalledWith([], { dpsSource: 'ranking' });
+    expect(recordExposure).toHaveBeenCalledWith([]);
   });
 
   // `recordExposure` avale ses propres échecs ; si l'un lui échappait quand même, il ne doit

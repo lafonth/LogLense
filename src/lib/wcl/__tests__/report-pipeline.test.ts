@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { gql } from '../client';
 import { findCombatantByActorId } from '../combatant';
+import { fetchFightData } from '../fight-data';
 import { fetchCharacterHistory } from '../historical-parse';
 import { analyzeReportBoss } from '../report-pipeline';
 
@@ -145,6 +146,29 @@ describe('analyzeReportBoss', () => {
 
     expect(historyMock).not.toHaveBeenCalled();
     expect(result?.character.overallPct).toBe(91.3);
+  });
+
+  // L'invariant du produit : l'écart affiché est une soustraction entre le DPS du sujet et
+  // celui des références, et `references.ts` prend toujours le montant des classements WCL.
+  // Ce chemin dérivait le sien de la table de dégâts — deux mesures, une soustraction.
+  it('measures the subject’s dps with the same ruler as the references', async () => {
+    stubGql(rankings('dps', [rankChar()]));
+
+    const result = await run();
+
+    expect(vi.mocked(fetchFightData).mock.calls[0]?.[1]).toMatchObject({ dps: 250000 });
+    expect(result?.character.dpsSource).toBe('ranking');
+  });
+
+  // Le repli reste la dérivation depuis la table de dégâts : moins comparable, mais un DPS.
+  // Il doit se déclarer, sans quoi le corpus mélange les deux mesures sans le dire.
+  it('declares the fallback when the rankings hold nothing on the player', async () => {
+    stubGql(rankings('dps', [rankChar({ name: 'Quelqun' })]));
+
+    const result = await run();
+
+    expect(vi.mocked(fetchFightData).mock.calls[0]?.[1]).toMatchObject({ dps: undefined });
+    expect(result?.character.dpsSource).toBe('damage-table');
   });
 
   it('rounds the boss damage and carries the source of the fight', async () => {

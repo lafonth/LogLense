@@ -44,6 +44,7 @@ function boss(): BossResult {
       },
       damageTable: { entries: [{ guid: 5221, name: 'Shred', total: 5000000 }] },
       dps: 105538,
+      dpsSource: 'ranking',
       bossDps: null,
       killTime: '5:26',
       overallPct: null,

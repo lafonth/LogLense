@@ -115,12 +115,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
     );
 
     // Attendue, pas mise en `void` : sur un runtime serverless, une promesse non attendue
-    // part avec la fonction, et c'est toute la classe positive qui disparaît. Le chemin
-    // personnage mesure le DPS par `ranks[].amount` — d'où `'ranking'`.
+    // part avec la fonction, et c'est toute la classe positive qui disparaît. La provenance
+    // du DPS vient du résultat ; ce chemin la fixe à `'ranking'` dans `pipeline.ts`.
     //
     // `recordExposure` avale déjà ses échecs ; le `catch` d'ici est la seconde barrière, à
     // l'intérieur du `try` qui rend un 500. La capture ne doit jamais coûter l'analyse.
-    await recordExposure(result ? [result] : [], { dpsSource: 'ranking' }).catch(() => {});
+    await recordExposure(result ? [result] : []).catch(() => {});
 
     return NextResponse.json(result);
   } catch (error) {

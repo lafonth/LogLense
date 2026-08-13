@@ -1,4 +1,3 @@
-import type { SubjectDpsSource } from './exposure';
 import type { BossResult } from '@/types';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -21,10 +20,7 @@ import { consumeExposureQuota } from './rate-limit';
  * n'écrit rien : se replier sur `by: null` affirmerait un anonymat faux et mélangerait dans
  * le corpus des identités salées et non salées, ce qui est irréversible.
  */
-export async function recordExposure(
-  bosses: (BossResult | null)[],
-  args: { dpsSource: SubjectDpsSource }
-): Promise<void> {
+export async function recordExposure(bosses: (BossResult | null)[]): Promise<void> {
   try {
     const session = await getServerSession(authOptions);
     const userId = session?.user?.email ?? session?.user?.name ?? '';
@@ -54,10 +50,10 @@ export async function recordExposure(
         if (!quota.allowed) return;
       }
 
-      await redisAppend(
-        key,
-        JSON.stringify(buildExposure(boss, { by, at, dpsSource: args.dpsSource }))
-      );
+      // La provenance du DPS n'est pas passée ici : elle est portée par le résultat lui-même
+      // (`character.dpsSource`). Une route qui l'affirmerait mentirait dès que le pipeline
+      // change de source, ce qui est exactement ce qui est arrivé au chemin rapport.
+      await redisAppend(key, JSON.stringify(buildExposure(boss, { by, at })));
     }
   } catch {
     // Avalé volontairement : voir l'en-tête.

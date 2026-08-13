@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fetchFightData } from '../fight-data';
 import { analyzeBoss } from '../pipeline';
 import { analyzeReportBoss } from '../report-pipeline';
 
@@ -134,5 +135,21 @@ describe('renderId', () => {
     const report = await reportBoss();
 
     expect(character?.renderId).not.toBe(report?.renderId);
+  });
+});
+
+// L'écart affiché soustrait le DPS du sujet à celui des références, et `references.ts` prend
+// toujours le montant des classements WCL. Les deux chemins doivent donc mesurer le sujet à la
+// même règle — c'est l'invariant qui manquait, et que le chemin rapport enfreignait.
+describe('dps provenance', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('measures the character path with the rankings amount, never the damage table', async () => {
+    const result = await analyzeBoss('token', INPUT, 3306, 'Chimaerus');
+
+    expect(vi.mocked(fetchFightData).mock.calls[0]?.[1]).toMatchObject({ dps: 250000 });
+    expect(result?.character.dpsSource).toBe('ranking');
   });
 });

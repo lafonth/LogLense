@@ -1,6 +1,6 @@
 import type { DisqualificationReason, EligibilityProfile } from '@/lib/wcl/eligibility';
 import type { FightContext } from '@/lib/wcl/fight-context';
-import type { BossResult, Comparability } from '@/types';
+import type { BossResult, Comparability, SubjectDpsSource } from '@/types';
 
 /**
  * L'enregistrement d'exposition : ce que l'écran a montré, au moment où il l'a montré.
@@ -17,8 +17,11 @@ import type { BossResult, Comparability } from '@/types';
  * Rien ici ne vient du navigateur : l'écriture est serveur, donc pas de `parse*`.
  */
 
-/** Quelle mesure `character.dps` désigne. Les deux chemins ne mesurent pas la même chose. */
-export type SubjectDpsSource = 'ranking' | 'damage-table';
+/**
+ * Quelle mesure `character.dps` désigne. Déclarée avec le résultat d'analyse, pas ici : la
+ * provenance est ce que le pipeline a fait, la capture ne fait que la recopier.
+ */
+export type { SubjectDpsSource };
 
 export interface ExposedReference {
   code: string;
@@ -80,7 +83,6 @@ export interface ExposureRecord {
 export interface ExposureArgs {
   by: string | null;
   at: string;
-  dpsSource: SubjectDpsSource;
 }
 
 /** Le pointeur d'un combat, sans son acteur : ce qui identifie une entrée du panel. */
@@ -139,7 +141,7 @@ export function buildExposure(result: BossResult, args: ExposureArgs): ExposureR
       code: result.character.source.code,
       fightID: result.character.source.fightID,
       actorId: result.character.source.actorId,
-      dpsSource: args.dpsSource,
+      dpsSource: result.character.dpsSource,
       eligibility: {
         ...result.character.eligibility,
         externals: [...result.character.eligibility.externals],
