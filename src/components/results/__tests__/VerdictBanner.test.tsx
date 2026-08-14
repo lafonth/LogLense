@@ -7,15 +7,33 @@ function sample(dps: number): ReferenceSample {
   return { dps, qualified: true } as ReferenceSample;
 }
 
+const casts = (perMin: Record<string, number>) =>
+  Object.fromEntries(
+    Object.entries(perMin).map(([name, v]) => [
+      name,
+      { guid: 0, casts: Math.round(v * 4), perMin: v },
+    ])
+  );
+
 function result(over: {
   dps?: number;
   sample?: ReferenceSample[];
   comparability?: Partial<Comparability>;
+  /** Les lancers par minute du sujet, et ceux de chaque référence — voir `leadingGap`. */
+  mine?: Record<string, number>;
+  references?: Record<string, number>[];
 }): BossResult {
   return {
-    character: { dps: over.dps ?? 100000 },
+    character: {
+      dps: over.dps ?? 100000,
+      rotation: { casts: casts(over.mine ?? {}) },
+      damageTable: { entries: [] },
+    },
     sample: over.sample ?? [sample(120000)],
-    topPlayers: [],
+    topPlayers: (over.references ?? []).map((perMin) => ({
+      rotation: { casts: casts(perMin) },
+      damageTable: { entries: [] },
+    })),
     comparability: {
       level: 'close',
       referenceIlvl: 285,
@@ -29,7 +47,7 @@ function result(over: {
       substituted: 0,
       ...over.comparability,
     },
-    // Le composant ne lit que ces trois branches : le reste du `BossResult` n'a pas à être
+    // Le composant ne lit que ces branches : le reste du `BossResult` n'a pas à être
     // fabriqué pour que le verdict soit lisible.
   } as unknown as BossResult;
 }
@@ -72,6 +90,32 @@ describe('verdictBanner', () => {
     expect(screen.getByText(/No log close enough to yours qualified/)).toBeInTheDocument();
     expect(screen.getByText('+8')).toBeInTheDocument();
     expect(screen.queryByText('20,000')).not.toBeInTheDocument();
+  });
+
+  // Le retard était déjà calculé, mais rangé dans l'onglet Comparison — que le lecteur
+  // n'ouvre pas. La valeur ajoutée est la hiérarchisation, pas le calcul.
+  it('dit où l’écart se lit, sans qu’un onglet soit ouvert', () => {
+    render(<VerdictBanner result={result({ mine: { Rip: 2 }, references: [{ Rip: 4 }] })} />);
+
+    expect(screen.getByText(/It reads first on/)).toBeInTheDocument();
+    expect(screen.getByText('Rip')).toBeInTheDocument();
+    expect(screen.getByText('4')).toHaveClass('font-mono');
+  });
+
+  // Même règle que le delta de DPS : un panel illégitime ne chiffre rien, et nommer un sort
+  // responsable dirait par la bande ce que la phrase du dessus refuse de dire.
+  it('ne nomme aucun sort quand le verdict ne chiffre pas l’écart', () => {
+    render(
+      <VerdictBanner
+        result={result({
+          mine: { Rip: 2 },
+          references: [{ Rip: 4 }],
+          comparability: { level: 'poor' },
+        })}
+      />
+    );
+
+    expect(screen.queryByText(/reads first on/)).not.toBeInTheDocument();
   });
 
   it('le dit au lieu de comparer à rien', () => {

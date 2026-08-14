@@ -1,5 +1,6 @@
 import type { BossResult } from '@/types';
 import { Card } from '@/components/ui/Card';
+import { leadingGap } from '@/lib/comparison/leading-gap';
 import { buildVerdict } from '@/lib/comparison/verdict';
 
 interface VerdictBannerProps {
@@ -22,10 +23,16 @@ function Figure({ children }: { children: number | string }) {
  * une position dans une distribution n'est pas une faute, et le rouge doit rester
  * disponible pour ce qu'il signale seul — une comparaison illégitime, cas `unreliable`
  * ci-dessous, où précisément aucun écart n'est chiffré.
+ *
+ * La seconde ligne dit *où* l'écart se lit. Elle tient dans la même carte parce qu'elle
+ * n'est pas un second message : c'est la fin de la phrase du dessus, celle que le lecteur
+ * allait chercher dans l'onglet Comparison — et n'ouvrait pas. Elle se tait d'elle-même
+ * quand le verdict ne chiffre rien ; voir {@link leadingGap}.
  */
 export function VerdictBanner({ result }: VerdictBannerProps) {
   const verdict = buildVerdict(result);
   const { referenceDps, myDps, deltaDps, ilvlGap, myIlvl, approximate } = verdict;
+  const lead = leadingGap(result);
 
   const reserve = approximate ? (
     <span className="text-muted">
@@ -66,6 +73,17 @@ export function VerdictBanner({ result }: VerdictBannerProps) {
           )}
           . What separates you from them is not something you can play for — read the tabs as
           context, not as a gap.
+        </p>
+      )}
+
+      {lead && (
+        <p className="text-muted mt-3 font-sans text-sm">
+          {verdict.kind === 'gap'
+            ? 'It reads first on '
+            : 'The widest gap in your rotation is still '}
+          <span className="text-text">{lead.ability}</span>: you land <Figure>{lead.mine}</Figure> a
+          minute against <Figure>{lead.reference}</Figure> across{' '}
+          <Figure>{lead.referenceTotal}</Figure> references.
         </p>
       )}
 
