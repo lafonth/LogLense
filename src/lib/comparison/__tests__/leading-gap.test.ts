@@ -5,11 +5,14 @@ import { leadingGap } from '../leading-gap';
 const GUIDS: Record<string, number> = { Shred: 5221, Rip: 1079, Barkskin: 22812 };
 const guidOf = (name: string) => GUIDS[name] ?? 0;
 
+/** Toutes les pulls du fichier durent quatre minutes — d'où le `× 4` des comptes absolus. */
+const FIGHT_MINUTES = 4;
+
 const casts = (perMin: Record<string, number>) =>
   Object.fromEntries(
     Object.entries(perMin).map(([name, v]) => [
       name,
-      { guid: guidOf(name), casts: Math.round(v * 4), perMin: v },
+      { guid: guidOf(name), casts: Math.round(v * FIGHT_MINUTES), perMin: v },
     ])
   );
 
@@ -23,22 +26,26 @@ interface Over {
   references?: Record<string, number>[];
   referenceDamage?: Record<string, number>;
   comparability?: Partial<Comparability>;
+  fightMinutes?: number;
 }
 
 /**
  * `leadingGap` ne lit du résultat que ce que `buildVerdict` et `compareCasts` lisent : le
- * dps du sujet, la comparabilité, l'échantillon, et les deux tables de rotation. Fabriquer
- * un `BossResult` entier n'apprendrait rien de plus au test.
+ * dps du sujet, la comparabilité, l'échantillon, et les deux tables de rotation — plus la
+ * durée de la pull, qui convertit une cadence en nombre de lancers.
  */
 function result(over: Over = {}): BossResult {
   return {
     character: {
       dps: over.dps ?? 100000,
-      rotation: { casts: casts(over.mine ?? { Shred: 10 }) },
+      rotation: {
+        casts: casts(over.mine ?? { Shred: 10 }),
+        fightDurationMs: (over.fightMinutes ?? FIGHT_MINUTES) * 60_000,
+      },
       damageTable: { entries: damage(over.myDamage ?? {}) },
     },
     sample: [{ dps: 120000, qualified: true }],
-    topPlayers: (over.references ?? [{ Shred: 10 }]).map((perMin) => ({
+    topPlayers: (over.references ?? [{ Shred: 10 }, { Shred: 10 }]).map((perMin) => ({
       rotation: { casts: casts(perMin) },
       damageTable: { entries: damage(over.referenceDamage ?? {}) },
     })),
@@ -79,7 +86,10 @@ describe('leadingGap', () => {
       result({
         mine: { Shred: 8, Barkskin: 3 },
         myDamage: { Shred: 1_000_000 },
-        references: [{ Shred: 10, Barkskin: 1 }],
+        references: [
+          { Shred: 10, Barkskin: 1 },
+          { Shred: 10, Barkskin: 1 },
+        ],
         referenceDamage: { Shred: 1_000_000 },
       })
     );
@@ -87,16 +97,40 @@ describe('leadingGap', () => {
     expect(lead?.ability).toBe('Shred');
   });
 
-  // Sur trois minutes, un sort lancé une fois de plus produit déjà quelques pourcents. Les
-  // nommer comme *l'*endroit du retard serait affirmer plus que les données ne portent.
-  it('says nothing when the leading gap is within the noise of one pull', () => {
-    expect(leadingGap(result({ mine: { Shred: 10 }, references: [{ Shred: 10.5 }] }))).toBeNull();
+  // Le plancher mesuré : quand les références se dispersent entre elles plus que je ne
+  // m'écarte d'elles, la donnée ne me sépare pas d'elles. Aucun seuil à régler à la main.
+  it('says nothing when the player sits inside the spread of the references', () => {
+    expect(
+      leadingGap(result({ mine: { Shred: 10 }, references: [{ Shred: 9.4 }, { Shred: 10.6 }] }))
+    ).toBeNull();
+  });
+
+  // Des références serrées ne suffisent pas : encore faut-il que l'écart pèse. À 0,2 lancer
+  // par minute sur quatre minutes, c'est moins d'un cast — exactement ce qu'une pull produit
+  // sans qu'on ait rien joué de différent.
+  it('says nothing when the gap amounts to less than two casts over the pull', () => {
+    expect(
+      leadingGap(result({ mine: { Shred: 10 }, references: [{ Shred: 10.2 }, { Shred: 10.2 }] }))
+    ).toBeNull();
+  });
+
+  // Le même écart de cadence, sur une pull assez longue pour qu'il fasse des lancers.
+  it('names it once the same cadence gap has produced enough casts', () => {
+    const over = { mine: { Shred: 10 }, references: [{ Shred: 10.2 }, { Shred: 10.2 }] };
+
+    expect(leadingGap(result({ ...over, fightMinutes: 12 }))?.ability).toBe('Shred');
+  });
+
+  // Nommer *le* sort où l'écart se lit est un superlatif sur une distribution : avec une
+  // seule référence, min, max et médiane sont le même point et il n'y a pas de distribution.
+  it('says nothing when a single reference survived', () => {
+    expect(leadingGap(result({ mine: { Shred: 4 }, references: [{ Shred: 10 }] }))).toBeNull();
   });
 
   // Même règle que le delta de DPS un cran plus haut : un panel illégitime ne chiffre rien,
   // et désigner un sort responsable dirait par la bande ce que le verdict refuse de dire.
   it('names nothing when the verdict itself refuses to state a gap', () => {
-    const over = { mine: { Shred: 4 }, references: [{ Shred: 10 }] };
+    const over = { mine: { Shred: 4 }, references: [{ Shred: 10 }, { Shred: 10 }] };
 
     expect(leadingGap(result({ ...over, comparability: { level: 'poor' } }))).toBeNull();
     expect(leadingGap(result({ ...over, comparability: { substituted: 2 } }))).toBeNull();
@@ -110,11 +144,23 @@ describe('leadingGap', () => {
   // L'écart se lit aussi quand le joueur est devant : il n'est simplement plus un retard.
   it('still names the ability when the player leads the references', () => {
     const lead = leadingGap(
-      result({ dps: 130000, mine: { Shred: 14 }, references: [{ Shred: 10 }] })
+      result({ dps: 130000, mine: { Shred: 14 }, references: [{ Shred: 10 }, { Shred: 10 }] })
     );
 
     expect(lead?.ability).toBe('Shred');
     expect(lead?.deviationPct).toBe(40);
+  });
+
+  // Le signe du sort de tête est libre : celui dont l'écart coûte le plus peut parfaitement
+  // être un sort qu'on lance *plus* que les références, dans un verdict où l'on est derrière.
+  // C'est pourquoi la bannière n'affirme aucune direction — elle montre les deux cadences.
+  it('names a spell the player over-casts even when the verdict is a gap', () => {
+    const lead = leadingGap(
+      result({ dps: 100000, mine: { Shred: 14 }, references: [{ Shred: 10 }, { Shred: 10 }] })
+    );
+
+    expect(lead?.ability).toBe('Shred');
+    expect(lead?.deviationPct).toBeGreaterThan(0);
   });
 
   // Une médiane sur une seule référence se lit comme une médiane sur trois : c'est la leçon

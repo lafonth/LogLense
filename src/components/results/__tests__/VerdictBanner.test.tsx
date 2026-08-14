@@ -26,7 +26,9 @@ function result(over: {
   return {
     character: {
       dps: over.dps ?? 100000,
-      rotation: { casts: casts(over.mine ?? {}) },
+      // Quatre minutes, comme le `× 4` du helper ci-dessus : `leadingGap` convertit une
+      // cadence en nombre de lancers avant de décider qu'il y a quelque chose à dire.
+      rotation: { casts: casts(over.mine ?? {}), fightDurationMs: 240_000 },
       damageTable: { entries: [] },
     },
     sample: over.sample ?? [sample(120000)],
@@ -95,11 +97,35 @@ describe('verdictBanner', () => {
   // Le retard était déjà calculé, mais rangé dans l'onglet Comparison — que le lecteur
   // n'ouvre pas. La valeur ajoutée est la hiérarchisation, pas le calcul.
   it('dit où l’écart se lit, sans qu’un onglet soit ouvert', () => {
-    render(<VerdictBanner result={result({ mine: { Rip: 2 }, references: [{ Rip: 4 }] })} />);
+    render(
+      <VerdictBanner result={result({ mine: { Rip: 2 }, references: [{ Rip: 4 }, { Rip: 4 }] })} />
+    );
 
-    expect(screen.getByText(/It reads first on/)).toBeInTheDocument();
+    expect(screen.getByText(/Your rotation diverges most on/)).toBeInTheDocument();
     expect(screen.getByText('Rip')).toBeInTheDocument();
     expect(screen.getByText('4')).toHaveClass('font-mono');
+    expect(screen.getByText(/across/)).toHaveTextContent('across 2 references.');
+  });
+
+  // Le sort de tête est celui dont l'écart coûte le plus, et son signe est libre : on peut
+  // être derrière au DPS sur un sort qu'on lance *plus*. Une amorce qui affirmerait un manque
+  // ferait alors lire l'inverse de la donnée.
+  it('n’affirme pas un manque sur un sort lancé plus que les références', () => {
+    render(
+      <VerdictBanner result={result({ mine: { Rip: 6 }, references: [{ Rip: 4 }, { Rip: 4 }] })} />
+    );
+
+    expect(screen.getByText(/Your rotation diverges most on/)).toBeInTheDocument();
+    expect(screen.getByText('6')).toHaveClass('font-mono');
+  });
+
+  // Un effectif de un se lit « 1 reference », et une cadence arrondie tombe sur l'unité.
+  it('accorde le singulier sur une cadence d’un lancer', () => {
+    render(
+      <VerdictBanner result={result({ mine: { Rip: 1 }, references: [{ Rip: 4 }, { Rip: 4 }] })} />
+    );
+
+    expect(screen.getByText(/diverges most on/)).toHaveTextContent('1 cast a minute');
   });
 
   // Même règle que le delta de DPS : un panel illégitime ne chiffre rien, et nommer un sort
@@ -109,13 +135,13 @@ describe('verdictBanner', () => {
       <VerdictBanner
         result={result({
           mine: { Rip: 2 },
-          references: [{ Rip: 4 }],
+          references: [{ Rip: 4 }, { Rip: 4 }],
           comparability: { level: 'poor' },
         })}
       />
     );
 
-    expect(screen.queryByText(/reads first on/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/diverges most on/)).not.toBeInTheDocument();
   });
 
   it('le dit au lieu de comparer à rien', () => {

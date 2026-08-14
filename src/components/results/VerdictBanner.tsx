@@ -17,6 +17,14 @@ function Figure({ children }: { children: number | string }) {
 }
 
 /**
+ * « 1 casts a minute » se rencontre : une cadence arrondie au dixième tombe sur l'unité, et
+ * un effectif de références n'est pas garanti pluriel par le type qui le porte.
+ */
+function plural(count: number, word: string): string {
+  return count === 1 ? word : `${word}s`;
+}
+
+/**
  * Le verdict, au-dessus des onglets.
  *
  * Une phrase, ses nombres enveloppés un à un. L'écart s'affiche en `text-deviation` :
@@ -28,6 +36,12 @@ function Figure({ children }: { children: number | string }) {
  * n'est pas un second message : c'est la fin de la phrase du dessus, celle que le lecteur
  * allait chercher dans l'onglet Comparison — et n'ouvrait pas. Elle se tait d'elle-même
  * quand le verdict ne chiffre rien ; voir {@link leadingGap}.
+ *
+ * Elle ne se branche pas sur `gap` / `ahead`, et le verbe est neutre en direction, pour une
+ * raison de fond : le sort de tête est celui dont l'écart *coûte* le plus, et son signe est
+ * libre. On peut parfaitement être en retard de DPS sur un sort qu'on lance **plus** que les
+ * références. Une amorce qui affirme un manque ferait alors lire l'inverse de la donnée ;
+ * les deux cadences, elles, disent la direction sans se tromper.
  */
 export function VerdictBanner({ result }: VerdictBannerProps) {
   const verdict = buildVerdict(result);
@@ -78,12 +92,10 @@ export function VerdictBanner({ result }: VerdictBannerProps) {
 
       {lead && (
         <p className="text-muted mt-3 font-sans text-sm">
-          {verdict.kind === 'gap'
-            ? 'It reads first on '
-            : 'The widest gap in your rotation is still '}
-          <span className="text-text">{lead.ability}</span>: you land <Figure>{lead.mine}</Figure> a
-          minute against <Figure>{lead.reference}</Figure> across{' '}
-          <Figure>{lead.referenceTotal}</Figure> references.
+          Your rotation diverges most on <span className="text-text">{lead.ability}</span>:{' '}
+          <Figure>{lead.mine}</Figure> {plural(lead.mine, 'cast')} a minute against{' '}
+          <Figure>{lead.reference}</Figure>, across <Figure>{lead.referenceTotal}</Figure>{' '}
+          {plural(lead.referenceTotal, 'reference')}.
         </p>
       )}
 
