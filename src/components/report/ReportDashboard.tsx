@@ -1,10 +1,13 @@
 'use client';
 
 import type { BossState } from '@/hooks/useAnalysis';
+import type { PullStatus } from '@/hooks/useReportAnalysis';
+import type { EncounterKill } from '@/lib/report-kills';
 import type { AnalysisInput, AnalysisResult, ReportActor, ReportMeta } from '@/types';
 import { useMemo } from 'react';
 import { BossContentPanel } from '@/components/shared/BossContentPanel';
 import { DashboardHeader, LoadingProgress } from '@/components/shared/DashboardHeader';
+import { groupKillsByEncounter } from '@/lib/report-kills';
 import { CharacterSwitcher } from './CharacterSwitcher';
 
 interface ReportDashboardProps {
@@ -16,9 +19,12 @@ interface ReportDashboardProps {
   activeBossIdx: number;
   result: AnalysisResult | null;
   loading: boolean;
+  pullSelection: Record<number, number>;
+  pullStatus: Record<number, PullStatus>;
   onSwitchActor: (actor: ReportActor) => void;
   onDifficultyChange: (diff: number) => void;
   onBossChange: (idx: number) => void;
+  onSelectPull: (encounterId: number, fightId: number) => void;
   onReset: () => void;
 }
 
@@ -31,9 +37,12 @@ export function ReportDashboard({
   activeBossIdx,
   result,
   loading,
+  pullSelection,
+  pullStatus,
   onSwitchActor,
   onDifficultyChange,
   onBossChange,
+  onSelectPull,
   onReset,
 }: ReportDashboardProps) {
   const availableDifficulties = useMemo(() => {
@@ -44,22 +53,30 @@ export function ReportDashboard({
     return set;
   }, [meta.fights]);
 
-  const encounters = useMemo(() => {
-    const seen = new Set<number>();
-    const list: { id: number; name: string }[] = [];
-    for (const f of meta.fights) {
-      if (f.kill && f.difficulty === difficulty && f.encounterID > 0 && !seen.has(f.encounterID)) {
-        seen.add(f.encounterID);
-        list.push({ id: f.encounterID, name: f.name });
-      }
-    }
-    return list;
-  }, [meta.fights, difficulty]);
+  // Le même groupement que celui qui a construit la requête : la liste des boss et l'ordre
+  // des `bosses` rendus par le serveur ne peuvent pas diverger s'ils sortent d'ici.
+  const groups = useMemo(
+    () => groupKillsByEncounter(meta.fights, difficulty),
+    [meta.fights, difficulty]
+  );
+
+  const encounters = useMemo(() => groups.map((g) => ({ id: g.id, name: g.name })), [groups]);
+
+  const pullsByEncounter = useMemo(() => {
+    const map: Record<number, EncounterKill[]> = {};
+    for (const g of groups) map[g.id] = g.kills;
+    return map;
+  }, [groups]);
 
   const resultIsStale = result !== null && result.input.characterName !== actorName;
 
   const bossStates: BossState[] = encounters.map((enc) => {
     if (loading || !result || resultIsStale) return { status: 'loading' };
+    // Une ré-analyse de pull ne concerne qu'un boss : les autres restent lisibles pendant
+    // qu'elle tourne, et son échec ne vide pas l'écran.
+    const pull = pullStatus[enc.id];
+    if (pull?.status === 'loading') return { status: 'loading' };
+    if (pull?.status === 'error') return { status: 'error', message: pull.message };
     const bossResult = result.bosses.find((b) => b?.encounterId === enc.id) ?? null;
     return { status: 'success', result: bossResult };
   });
@@ -108,6 +125,9 @@ export function ReportDashboard({
           activeBossIdx={activeBossIdx}
           onBossChange={onBossChange}
           analysisResult={analysisResult}
+          pulls={pullsByEncounter}
+          selectedPull={pullSelection}
+          onSelectPull={onSelectPull}
         />
       </div>
     </div>

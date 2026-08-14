@@ -1,6 +1,7 @@
 'use client';
 
 import type { BossState } from '@/hooks/useAnalysis';
+import type { EncounterKill } from '@/lib/report-kills';
 import type { AnalysisInput, BossResult, TalentNode } from '@/types';
 import { useEffect, useState } from 'react';
 import { AIReportTab } from '@/components/ai/AIReportTab';
@@ -13,6 +14,7 @@ import { Select } from '@/components/ui/Select';
 import { tabId, tabPanelId } from '@/components/ui/tab-ids';
 import { Tabs } from '@/components/ui/Tabs';
 import { getDpsSpecsForClass, getSpecInfo } from '@/lib/specs';
+import { fmtMs } from '@/lib/wcl/parsers';
 
 function fightKey(fight: { code: string; fightID: number }): string {
   return `${fight.code}#${fight.fightID}`;
@@ -38,6 +40,11 @@ interface BossContentPanelProps {
   analysisResult: { input: AnalysisInput; bosses: (BossResult | null)[]; generatedAt: string };
   onSwitchBossSpec?: (bossIdx: number, specId: number) => void;
   onSwitchBossFight?: (bossIdx: number, fight: { code: string; fightID: number }) => void;
+  /** Chemin rapport : les kills du rapport ouvert, par rencontre. */
+  pulls?: Record<number, EncounterKill[]>;
+  /** Chemin rapport : la pull retenue par rencontre. Absente = le dernier kill. */
+  selectedPull?: Record<number, number>;
+  onSelectPull?: (encounterId: number, fightId: number) => void;
 }
 
 export function BossContentPanel({
@@ -48,6 +55,9 @@ export function BossContentPanel({
   analysisResult,
   onSwitchBossSpec,
   onSwitchBossFight,
+  pulls,
+  selectedPull,
+  onSelectPull,
 }: BossContentPanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [talentNodes, setTalentNodes] = useState<TalentNode[]>([]);
@@ -70,6 +80,19 @@ export function BossContentPanel({
   const activeEnc = encounters[safeIdx];
   const activeBossState: BossState = bossStates[safeIdx] ?? { status: 'loading' };
   const activeBossResult = activeBossState.status === 'success' ? activeBossState.result : null;
+
+  // Les kills du boss affiché, la plus récente en tête — c'est celle qui est analysée par
+  // défaut, donc celle que le lecteur s'attend à lire en haut de la liste.
+  const activePulls = (activeEnc ? pulls?.[activeEnc.id] : undefined) ?? [];
+  const pullOptions = activePulls
+    .map((kill, i) => ({
+      ...kill,
+      label: `Kill ${i + 1} of ${activePulls.length} · ${fmtMs(kill.fightMs)}`,
+    }))
+    .reverse();
+  const currentPullId =
+    (activeEnc ? selectedPull?.[activeEnc.id] : undefined) ??
+    activePulls[activePulls.length - 1]?.fightId;
 
   const currentSpecId = bossSpecIds[safeIdx];
   const currentSpecInfo = currentSpecId ? getSpecInfo(currentSpecId) : null;
@@ -170,6 +193,26 @@ export function BossContentPanel({
                 </Select>
               </div>
             )}
+
+          {/* Pull picker — report mode only. Le dernier kill de la soirée est souvent le farm
+              de fin, pas la pull qui mérite d'être lue. Aucun dps n'est connu avant analyse :
+              les pulls se distinguent par leur rang et leur durée, pas par leur résultat. */}
+          {onSelectPull && activeEnc && pullOptions.length > 1 && (
+            <div className="mb-4 max-w-xs">
+              <Select
+                label="Pull"
+                disabled={activeBossState.status === 'loading'}
+                value={String(currentPullId)}
+                onChange={(e) => onSelectPull(activeEnc.id, Number(e.target.value))}
+              >
+                {pullOptions.map((pull) => (
+                  <option key={pull.fightId} value={pull.fightId}>
+                    {pull.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
 
           {activeTab === 'overview' && activeEnc && (
             <OverviewTab encounter={activeEnc} bossState={activeBossState} specName={specName} />

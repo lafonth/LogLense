@@ -214,4 +214,57 @@ describe('bossContentPanel', () => {
     expect(feral).toBeInTheDocument();
     expect(feral).toBeDisabled();
   });
+
+  describe('pull picker', () => {
+    const pulls = {
+      1: [
+        { fightId: 11, fightMs: 200000 },
+        { fightId: 12, fightMs: 160000 },
+      ],
+      2: [{ fightId: 21, fightMs: 180000 }],
+    };
+
+    it('offers the pull picker only where a re-analysis is possible', () => {
+      // Sans `onSelectPull` — le chemin personnage — rechoisir une pull n'a personne à appeler.
+      renderPanel({ pulls, onSelectPull: undefined });
+
+      expect(screen.queryByLabelText('Pull')).not.toBeInTheDocument();
+    });
+
+    it('says nothing on an encounter killed once', () => {
+      renderPanel({ pulls, onSelectPull: vi.fn(), activeBossIdx: 1 });
+
+      expect(screen.queryByLabelText('Pull')).not.toBeInTheDocument();
+    });
+
+    it('ranks the pulls by their place in the evening, the most recent first', () => {
+      // Aucun dps n'est connu avant analyse : le rang et la durée sont les seuls repères.
+      renderPanel({ pulls, onSelectPull: vi.fn() });
+
+      const options = screen.getAllByRole('option').map((o) => o.textContent);
+      expect(options).toEqual(['Kill 2 of 2 · 2:40', 'Kill 1 of 2 · 3:20']);
+    });
+
+    it('shows the last kill as selected, which is the one analysed by default', () => {
+      renderPanel({ pulls, onSelectPull: vi.fn() });
+
+      expect(screen.getByLabelText('Pull')).toHaveValue('12');
+    });
+
+    it('shows the pull retained once another one has been chosen', () => {
+      renderPanel({ pulls, selectedPull: { 1: 11 }, onSelectPull: vi.fn() });
+
+      expect(screen.getByLabelText('Pull')).toHaveValue('11');
+    });
+
+    it('names the encounter it belongs to, not the index of the panel', async () => {
+      const user = userEvent.setup();
+      const onSelectPull = vi.fn();
+      renderPanel({ pulls, onSelectPull });
+
+      await user.selectOptions(screen.getByLabelText('Pull'), '11');
+
+      expect(onSelectPull).toHaveBeenCalledWith(1, 11);
+    });
+  });
 });

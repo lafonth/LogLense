@@ -201,6 +201,7 @@ const reportResultDouble = { bosses: [], input: { specId: 102 } };
 
 const start = vi.fn();
 const startReport = vi.fn();
+const switchReportPull = vi.fn();
 const reset = vi.fn();
 const resetReport = vi.fn();
 const fetchMeta = vi.fn();
@@ -238,7 +239,10 @@ function mockHooks({
     result: reportResult,
     loading: reportLoading,
     error: null,
+    pullSelection: {},
+    pullStatus: {},
     start: startReport,
+    switchPull: switchReportPull,
     reset: resetReport,
   } as unknown as ReturnType<typeof useReportAnalysis>);
   vi.mocked(useReportMeta).mockReturnValue({

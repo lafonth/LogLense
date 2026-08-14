@@ -23,6 +23,7 @@ import { useReportAnalysis } from '@/hooks/useReportAnalysis';
 import { useReportMeta } from '@/hooks/useReportMeta';
 import { useRouteSync } from '@/hooks/useRouteSync';
 import { useZones } from '@/hooks/useZones';
+import { groupKillsByEncounter } from '@/lib/report-kills';
 
 interface ReportContext {
   code: string;
@@ -59,7 +60,10 @@ export function HomeClient() {
   const {
     result: reportResult,
     loading: reportLoading,
+    pullSelection: reportPullSelection,
+    pullStatus: reportPullStatus,
     start: startReport,
+    switchPull: switchReportPull,
     reset: resetReport,
   } = useReportAnalysis();
   const { meta: reportMeta, fetchedCode, loading: reportMetaLoading, fetchMeta } = useReportMeta();
@@ -119,13 +123,9 @@ export function HomeClient() {
     bossParam && reportShellMeta
       ? Math.max(
           0,
-          reportShellMeta.fights
-            .filter((f) => f.kill && f.difficulty === reportDifficulty && f.encounterID > 0)
-            .reduce<number[]>(
-              (acc, f) => (acc.includes(f.encounterID) ? acc : [...acc, f.encounterID]),
-              []
-            )
-            .indexOf(bossParam)
+          groupKillsByEncounter(reportShellMeta.fights, reportDifficulty).findIndex(
+            (g) => g.id === bossParam
+          )
         )
       : 0;
 
@@ -218,12 +218,7 @@ export function HomeClient() {
 
   function handleReportBossChange(idx: number) {
     if (!reportShellMeta) return;
-    const uniqueEncIds = reportShellMeta.fights
-      .filter((f) => f.kill && f.difficulty === reportDifficulty && f.encounterID > 0)
-      .reduce<
-        number[]
-      >((acc, f) => (acc.includes(f.encounterID) ? acc : [...acc, f.encounterID]), []);
-    const encId = uniqueEncIds[idx];
+    const encId = groupKillsByEncounter(reportShellMeta.fights, reportDifficulty)[idx]?.id;
     if (!encId) return;
     const params = new URLSearchParams(searchParams.toString());
     params.set('boss', String(encId));
@@ -257,9 +252,12 @@ export function HomeClient() {
         activeBossIdx={reportActiveBossIdx}
         result={reportResult}
         loading={reportLoading}
+        pullSelection={reportPullSelection}
+        pullStatus={reportPullStatus}
         onSwitchActor={handleSwitchActor}
         onDifficultyChange={handleReportDifficultyChange}
         onBossChange={handleReportBossChange}
+        onSelectPull={(encounterId, fightId) => void switchReportPull(encounterId, fightId)}
         onReset={handleReportReset}
       />
     );

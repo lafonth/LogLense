@@ -32,9 +32,18 @@ function mockFetchOk(body: unknown) {
   return vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(body) } as Response);
 }
 
-/** Le corps de la dernière requête POST, tel que le serveur le recevra. */
-function sentBody(): Record<string, unknown> {
-  const call = vi.mocked(fetch).mock.calls[0];
+/** Une réponse différente par appel : l'analyse d'abord, la ré-analyse de pull ensuite. */
+function mockFetchSequence(...bodies: unknown[]) {
+  const fn = vi.fn();
+  for (const body of bodies) {
+    fn.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(body) } as Response);
+  }
+  return fn;
+}
+
+/** Le corps de la n-ième requête POST, tel que le serveur le recevra. */
+function sentBody(callIdx = 0): Record<string, unknown> {
+  const call = vi.mocked(fetch).mock.calls[callIdx];
   return JSON.parse((call[1] as RequestInit).body as string) as Record<string, unknown>;
 }
 
@@ -212,5 +221,162 @@ describe('useReportAnalysis', () => {
 
     expect(result.current.result).toBeNull();
     expect(result.current.error).toBeNull();
+  });
+});
+
+describe('useReportAnalysis · switchPull', () => {
+  const fights = [
+    fight({ id: 1, startTime: 0, endTime: 200000 }),
+    fight({ id: 2, startTime: 500000, endTime: 660000 }),
+    fight({ id: 9, encounterID: 3307, name: 'Fractillus', startTime: 700000, endTime: 790000 }),
+  ];
+
+  const analysed = {
+    input: { specId: 258 },
+    bosses: [
+      { encounterId: 3306, encounter: 'Chimaerus', dps: 100 },
+      { encounterId: 3307, encounter: 'Fractillus', dps: 200 },
+    ],
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** Une première analyse aboutie, l'état depuis lequel une pull peut être rechoisie. */
+  async function analysedHook(...after: unknown[]) {
+    vi.stubGlobal('fetch', mockFetchSequence(analysed, ...after));
+    const { result } = renderHook(() => useReportAnalysis());
+    await act(async () => {
+      await result.current.start(params(fights));
+    });
+    return result;
+  }
+
+  it('re-analyses the chosen pull alone, not the whole report', async () => {
+    const result = await analysedHook({ bosses: [] });
+
+    await act(async () => {
+      await result.current.switchPull(3306, 1);
+    });
+
+    expect(sentBody(1)).toMatchObject({
+      code: 'abc123',
+      actorId: 63,
+      difficulty: 5,
+      encounters: [{ id: 3306, name: 'Chimaerus', fightId: 1, fightMs: 200000 }],
+    });
+  });
+
+  it('asks for the spec the server resolved, not the one the caller guessed', async () => {
+    // La première analyse a pu partir d'un 0 que le serveur a tranché sur la classe.
+    vi.stubGlobal(
+      'fetch',
+      mockFetchSequence({ ...analysed, input: { specId: 260 } }, { bosses: [] })
+    );
+    const { result } = renderHook(() => useReportAnalysis());
+    await act(async () => {
+      await result.current.start({ ...params(fights), specId: 0 });
+    });
+
+    await act(async () => {
+      await result.current.switchPull(3306, 1);
+    });
+
+    expect(sentBody(1).specId).toBe(260);
+  });
+
+  it('replaces that encounter and leaves the others as they were read', async () => {
+    const result = await analysedHook({
+      bosses: [{ encounterId: 3306, encounter: 'Chimaerus', dps: 555 }],
+    });
+
+    await act(async () => {
+      await result.current.switchPull(3306, 1);
+    });
+
+    expect(result.current.result?.bosses).toMatchObject([
+      { encounterId: 3306, dps: 555 },
+      { encounterId: 3307, dps: 200 },
+    ]);
+  });
+
+  it('records the pull retained, so the picker shows what is displayed', async () => {
+    const result = await analysedHook({ bosses: [] });
+
+    await act(async () => {
+      await result.current.switchPull(3306, 1);
+    });
+
+    expect(result.current.pullSelection).toEqual({ 3306: 1 });
+    expect(result.current.pullStatus).toEqual({});
+  });
+
+  it('marks only that encounter as loading while it reloads', async () => {
+    vi.stubGlobal('fetch', mockFetchSequence(analysed));
+    const { result } = renderHook(() => useReportAnalysis());
+    await act(async () => {
+      await result.current.start(params(fights));
+    });
+
+    let release: (value: Response) => void = () => {};
+    vi.mocked(fetch).mockReturnValueOnce(
+      new Promise<Response>((resolve) => {
+        release = resolve;
+      })
+    );
+
+    let pending: Promise<void> = Promise.resolve();
+    act(() => {
+      pending = result.current.switchPull(3306, 1);
+    });
+    expect(result.current.pullStatus).toEqual({ 3306: { status: 'loading' } });
+
+    await act(async () => {
+      release({ ok: true, json: () => Promise.resolve({ bosses: [] }) } as Response);
+      await pending;
+    });
+    expect(result.current.pullStatus).toEqual({});
+  });
+
+  it('keeps a failed reload on its own boss instead of blanking the screen', async () => {
+    vi.stubGlobal('fetch', mockFetchSequence(analysed));
+    const { result } = renderHook(() => useReportAnalysis());
+    await act(async () => {
+      await result.current.start(params(fights));
+    });
+    vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'));
+
+    await act(async () => {
+      await result.current.switchPull(3306, 1);
+    });
+
+    expect(result.current.pullStatus).toEqual({
+      3306: { status: 'error', message: 'Network error' },
+    });
+    // L'erreur globale viderait tout l'écran pour une rencontre sur deux.
+    expect(result.current.error).toBeNull();
+    expect(result.current.result?.bosses).toHaveLength(2);
+  });
+
+  it('spends nothing on a pull that is not a kill of that encounter', async () => {
+    const result = await analysedHook({ bosses: [] });
+
+    await act(async () => {
+      await result.current.switchPull(3306, 9);
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('spends nothing before a first analysis has landed', async () => {
+    vi.stubGlobal('fetch', mockFetchOk({ bosses: [] }));
+    const { result } = renderHook(() => useReportAnalysis());
+
+    await act(async () => {
+      await result.current.switchPull(3306, 1);
+    });
+
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
