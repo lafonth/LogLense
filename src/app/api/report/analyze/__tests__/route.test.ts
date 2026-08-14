@@ -73,6 +73,7 @@ const mockBossResult: BossResult = {
   comparability: {
     level: 'close',
     referenceIlvl: 636,
+    referenceIlvlCount: 3,
     myIlvl: 635,
     referenceKillTimeMs: 178000,
     myKillTimeMs: 180000,

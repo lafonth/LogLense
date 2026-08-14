@@ -49,6 +49,7 @@ const mockBossResult: BossResult = {
   comparability: {
     level: 'close',
     referenceIlvl: 636,
+    referenceIlvlCount: 3,
     myIlvl: 635,
     referenceKillTimeMs: 178000,
     myKillTimeMs: 180000,
@@ -222,6 +223,110 @@ describe('useAnalysis', () => {
     });
     expect(fetchMock.mock.calls.length).toBe(callCountAfterFirst); // no new fetch
     expect(result.current.bossStates[0].status).toBe('success');
+  });
+
+  it('spends nothing to come back to a spec already analysed', async () => {
+    const { result } = renderHook(() => useAnalysis());
+    await act(async () => {
+      await result.current.start(baseInput);
+    });
+
+    await act(async () => {
+      await result.current.switchBossSpec(0, 102);
+    });
+    await act(async () => {
+      await result.current.switchBossSpec(0, 105);
+    });
+    const spent = vi.mocked(fetch).mock.calls.length;
+
+    await act(async () => {
+      await result.current.switchBossSpec(0, 102);
+    });
+
+    // Le retour en arrière valait ~40 requêtes WCL pour un résultat déjà payé.
+    expect(vi.mocked(fetch).mock.calls.length).toBe(spent);
+    expect(result.current.bossStates[0].status).toBe('success');
+  });
+
+  it('spends nothing to come back to a pull already analysed', async () => {
+    const { result } = renderHook(() => useAnalysis());
+    await act(async () => {
+      await result.current.start(baseInput);
+    });
+
+    await act(async () => {
+      await result.current.switchBossFight(0, { code: 'abc', fightID: 17 });
+    });
+    await act(async () => {
+      await result.current.switchBossFight(0, { code: 'abc', fightID: 21 });
+    });
+    const spent = vi.mocked(fetch).mock.calls.length;
+
+    await act(async () => {
+      await result.current.switchBossFight(0, { code: 'abc', fightID: 17 });
+    });
+
+    expect(vi.mocked(fetch).mock.calls.length).toBe(spent);
+  });
+
+  it('does not confuse a spec with the pull it was read on', async () => {
+    const { result } = renderHook(() => useAnalysis());
+    await act(async () => {
+      await result.current.start(baseInput);
+    });
+
+    await act(async () => {
+      await result.current.switchBossSpec(0, 102);
+    });
+    const spent = vi.mocked(fetch).mock.calls.length;
+
+    await act(async () => {
+      await result.current.switchBossFight(0, { code: 'abc', fightID: 17 });
+    });
+
+    expect(vi.mocked(fetch).mock.calls.length).toBe(spent + 1);
+  });
+
+  it('retries a variant that failed instead of caching the failure', async () => {
+    vi.stubGlobal('fetch', mockFetchOk(mockBossResult));
+    const { result } = renderHook(() => useAnalysis());
+    await act(async () => {
+      await result.current.start(baseInput);
+    });
+    vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'));
+
+    await act(async () => {
+      await result.current.switchBossSpec(0, 102);
+    });
+    expect(result.current.bossStates[0].status).toBe('error');
+
+    await act(async () => {
+      await result.current.switchBossSpec(0, 102);
+    });
+
+    expect(result.current.bossStates[0].status).toBe('success');
+  });
+
+  it('drops the cached variants when the character changes', async () => {
+    const { result } = renderHook(() => useAnalysis());
+    await act(async () => {
+      await result.current.start(baseInput);
+    });
+    await act(async () => {
+      await result.current.switchBossSpec(0, 102);
+    });
+
+    await act(async () => {
+      await result.current.start({ ...baseInput, characterName: 'Someone' });
+    });
+    const spent = vi.mocked(fetch).mock.calls.length;
+
+    await act(async () => {
+      await result.current.switchBossSpec(0, 102);
+    });
+
+    // Une analyse d'un autre personnage porte le même numéro de boss et la même spec.
+    expect(vi.mocked(fetch).mock.calls.length).toBe(spent + 1);
   });
 
   it('reset() clears all state', async () => {

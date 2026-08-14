@@ -184,6 +184,11 @@ export interface Comparability {
   level: ComparabilityLevel;
   /** Median of the chosen references; null when there are none. */
   referenceIlvl: number | null;
+  /**
+   * Combien de références portaient un ilvl. Une médiane sur une seule se lisait comme une
+   * médiane sur trois : l'effectif est ce qui dit si le chiffre engage le panel entier.
+   */
+  referenceIlvlCount: number;
   myIlvl: number;
   referenceKillTimeMs: number | null;
   myKillTimeMs: number;

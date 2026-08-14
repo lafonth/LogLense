@@ -8,6 +8,7 @@ function comparability(over: Partial<Comparability> = {}): Comparability {
   return {
     level: 'close',
     referenceIlvl: 285,
+    referenceIlvlCount: 3,
     myIlvl: 284,
     referenceKillTimeMs: 305000,
     myKillTimeMs: 300000,
@@ -88,6 +89,15 @@ describe('comparabilityBanner', () => {
 
     // (270000 - 300000) / 300000 * 100 = -10.0
     expect(screen.getByText(/−10%/)).toBeInTheDocument();
+  });
+
+  // Une médiane sur une seule référence se lisait comme une médiane sur trois : sans
+  // l'effectif, rien à l'écran ne distingue un panel plein d'un panel réduit à un log.
+  it('says on how many references the item level was taken', () => {
+    render(<ComparabilityBanner comparability={comparability({ referenceIlvlCount: 1 })} />);
+
+    expect(screen.getByText(/a median of/)).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
   });
 
   it('reports how wide a net was cast', () => {

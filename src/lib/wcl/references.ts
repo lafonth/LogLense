@@ -405,13 +405,15 @@ export async function resolveReferences(
   );
 
   const scored = references.map((v) => v.scored);
+  const referenceIlvls = scored
+    .map((s) => s.candidate.bracketData)
+    .filter((v): v is number => v !== undefined);
   const comparability: Comparability = {
     // A substituted panel is not comparable, whatever the distances say: the criterion
     // that eliminated the substitute is eliminatory, and the distance never saw it.
     level: substitutes.length > 0 ? 'poor' : comparabilityLevel(scored),
-    referenceIlvl: medianOf(
-      scored.map((s) => s.candidate.bracketData).filter((v): v is number => v !== undefined)
-    ),
+    referenceIlvl: medianOf(referenceIlvls),
+    referenceIlvlCount: referenceIlvls.length,
     myIlvl,
     referenceKillTimeMs: medianOf(scored.map((s) => s.candidate.duration)),
     myKillTimeMs,

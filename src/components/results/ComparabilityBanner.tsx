@@ -30,7 +30,8 @@ function round1(value: number): number {
 }
 
 export function ComparabilityBanner({ comparability }: ComparabilityBannerProps) {
-  const { level, referenceIlvl, myIlvl, referenceKillTimeMs, myKillTimeMs } = comparability;
+  const { level, referenceIlvl, referenceIlvlCount, myIlvl, referenceKillTimeMs, myKillTimeMs } =
+    comparability;
   const tone = LEVEL_TONE[level];
 
   const ilvlGap = referenceIlvl === null ? null : round1(referenceIlvl - myIlvl);
@@ -45,7 +46,8 @@ export function ComparabilityBanner({ comparability }: ComparabilityBannerProps)
 
       {ilvlGap !== null && killTimeGapPct !== null && (
         <p className="text-muted mt-2 font-sans text-xs">
-          References sit at <span className="font-mono">{referenceIlvl}</span> item level,{' '}
+          References sit at <span className="font-mono">{referenceIlvl}</span> item level, a median
+          of <span className="font-mono">{referenceIlvlCount}</span>,{' '}
           <span className="font-mono">{signed(ilvlGap)}</span> against your{' '}
           <span className="font-mono">{myIlvl}</span>, and their kills run{' '}
           <span className="font-mono">{signed(killTimeGapPct)}%</span> against yours.

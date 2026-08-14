@@ -9,9 +9,58 @@ export type BossState =
   | { status: 'success'; result: BossResult | null }
   | { status: 'error'; message: string };
 
+/** Ce qui distingue deux analyses d'un même boss : la spec demandée et la pull demandée. */
+interface Variant {
+  specIdOverride?: number;
+  fightOverride?: { code: string; fightID: number };
+}
+
+function variantKey(difficulty: number, bossIdx: number, variant: Variant): string {
+  const fight = variant.fightOverride
+    ? `${variant.fightOverride.code}#${variant.fightOverride.fightID}`
+    : 'best';
+  return `${difficulty}:${bossIdx}:${variant.specIdOverride ?? 'base'}:${fight}`;
+}
+
+async function fetchBoss(
+  input: AnalysisInput,
+  encounter: { id: number; name: string },
+  difficulty: number,
+  variant: Variant
+): Promise<BossState> {
+  try {
+    const res = await fetch(`/api/analyze/${encounter.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        characterName: input.characterName,
+        serverSlug: input.serverSlug,
+        region: input.region,
+        difficulty,
+        encounterName: encounter.name,
+        specId: input.specId,
+        ...variant,
+      }),
+    });
+
+    if (!res.ok) {
+      const body = (await res.json()) as { error?: string };
+      return { status: 'error', message: body.error ?? 'Request failed' };
+    }
+    const result = (await res.json()) as BossResult | null;
+    return { status: 'success', result };
+  } catch (err) {
+    return { status: 'error', message: err instanceof Error ? err.message : 'Network error' };
+  }
+}
+
 export function useAnalysis() {
   // Keyed by difficulty — survives difficulty switches within the same character
   const cacheRef = useRef<Partial<Record<number, BossState[]>>>({});
+  // Keyed by difficulty:boss:spec:fight — revenir à une spec ou une pull déjà payée ne
+  // relance pas les ~40 requêtes WCL de l'analyse. Seuls les succès y entrent : une erreur
+  // réseau doit rester réessayable.
+  const variantsRef = useRef(new Map<string, BossState>());
   const activeDiffRef = useRef<number | null>(null);
   const inputRef = useRef<AnalysisInput | null>(null);
 
@@ -19,73 +68,70 @@ export function useAnalysis() {
   const [currentDifficulty, setCurrentDifficulty] = useState<number | null>(null);
   const [input, setInput] = useState<AnalysisInput | null>(null);
 
-  const start = useCallback(async (analysisInput: AnalysisInput) => {
-    const diff = analysisInput.difficulty;
-    activeDiffRef.current = diff;
-    setCurrentDifficulty(diff);
-
-    // Bust cache when character or server changes
-    const prev = inputRef.current;
-    if (
-      prev?.characterName !== analysisInput.characterName ||
-      prev?.serverSlug !== analysisInput.serverSlug
-    ) {
-      cacheRef.current = {};
-    }
-    inputRef.current = analysisInput;
-    setInput(analysisInput);
-
-    // Cache hit — instant display
-    if (cacheRef.current[diff]) {
-      setBossStates([...cacheRef.current[diff]!]);
-      return;
-    }
-
-    const initial: BossState[] = analysisInput.encounters.map(() => ({ status: 'loading' }));
-    cacheRef.current[diff] = [...initial];
-    setBossStates([...initial]);
-
-    await Promise.all(
-      analysisInput.encounters.map(async (enc, i) => {
-        let state: BossState;
-        try {
-          const res = await fetch(`/api/analyze/${enc.id}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              characterName: analysisInput.characterName,
-              serverSlug: analysisInput.serverSlug,
-              region: analysisInput.region,
-              difficulty: diff,
-              encounterName: enc.name,
-              specId: analysisInput.specId,
-            }),
-          });
-
-          if (!res.ok) {
-            const body = (await res.json()) as { error?: string };
-            state = { status: 'error', message: body.error ?? 'Request failed' };
-          } else {
-            const result = (await res.json()) as BossResult | null;
-            state = { status: 'success', result };
-          }
-        } catch (err) {
-          state = {
-            status: 'error',
-            message: err instanceof Error ? err.message : 'Network error',
-          };
-        }
-
-        const cached = cacheRef.current[diff];
-        if (cached) {
-          cached[i] = state;
-          if (activeDiffRef.current === diff) {
-            setBossStates([...cached]);
-          }
-        }
-      })
-    );
+  /** Écrit l'état d'un boss dans le cache de sa difficulté, et à l'écran si elle est vue. */
+  const commit = useCallback((difficulty: number, bossIdx: number, state: BossState) => {
+    const cached = cacheRef.current[difficulty];
+    if (!cached) return;
+    cached[bossIdx] = state;
+    if (activeDiffRef.current === difficulty) setBossStates([...cached]);
   }, []);
+
+  const runBoss = useCallback(
+    async (bossIdx: number, variant: Variant) => {
+      const currentInput = inputRef.current;
+      if (!currentInput) return;
+      const enc = currentInput.encounters[bossIdx];
+      if (!enc) return;
+
+      const difficulty = currentInput.difficulty;
+      const key = variantKey(difficulty, bossIdx, variant);
+
+      const known = variantsRef.current.get(key);
+      if (known) {
+        commit(difficulty, bossIdx, known);
+        return;
+      }
+
+      commit(difficulty, bossIdx, { status: 'loading' });
+      const state = await fetchBoss(currentInput, enc, difficulty, variant);
+      if (state.status === 'success') variantsRef.current.set(key, state);
+      commit(difficulty, bossIdx, state);
+    },
+    [commit]
+  );
+
+  const start = useCallback(
+    async (analysisInput: AnalysisInput) => {
+      const diff = analysisInput.difficulty;
+      activeDiffRef.current = diff;
+      setCurrentDifficulty(diff);
+
+      // Bust cache when character or server changes
+      const prev = inputRef.current;
+      if (
+        prev?.characterName !== analysisInput.characterName ||
+        prev?.serverSlug !== analysisInput.serverSlug
+      ) {
+        cacheRef.current = {};
+        variantsRef.current.clear();
+      }
+      inputRef.current = analysisInput;
+      setInput(analysisInput);
+
+      // Cache hit — instant display
+      if (cacheRef.current[diff]) {
+        setBossStates([...cacheRef.current[diff]!]);
+        return;
+      }
+
+      const initial: BossState[] = analysisInput.encounters.map(() => ({ status: 'loading' }));
+      cacheRef.current[diff] = [...initial];
+      setBossStates([...initial]);
+
+      await Promise.all(analysisInput.encounters.map((_, i) => runBoss(i, {})));
+    },
+    [runBoss]
+  );
 
   const changeDifficulty = useCallback(
     (difficulty: AnalysisInput['difficulty']) => {
@@ -95,111 +141,23 @@ export function useAnalysis() {
     [input, start]
   );
 
-  const switchBossSpec = useCallback(async (bossIdx: number, specId: number) => {
-    if (!inputRef.current) return;
-    const currentInput = inputRef.current;
-    const enc = currentInput.encounters[bossIdx];
-    if (!enc) return;
-
-    const diff = currentInput.difficulty;
-    const cached = cacheRef.current[diff];
-    if (cached) {
-      cached[bossIdx] = { status: 'loading' };
-      if (activeDiffRef.current === diff) setBossStates([...cached]);
-    }
-
-    let state: BossState;
-    try {
-      const res = await fetch(`/api/analyze/${enc.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          characterName: currentInput.characterName,
-          serverSlug: currentInput.serverSlug,
-          region: currentInput.region,
-          difficulty: diff,
-          encounterName: enc.name,
-          specId: currentInput.specId,
-          specIdOverride: specId,
-        }),
-      });
-
-      if (!res.ok) {
-        const body = (await res.json()) as { error?: string };
-        state = { status: 'error', message: body.error ?? 'Request failed' };
-      } else {
-        const result = (await res.json()) as BossResult | null;
-        state = { status: 'success', result };
-      }
-    } catch (err) {
-      state = {
-        status: 'error',
-        message: err instanceof Error ? err.message : 'Network error',
-      };
-    }
-
-    const latestCached = cacheRef.current[diff];
-    if (latestCached) {
-      latestCached[bossIdx] = state;
-      if (activeDiffRef.current === diff) setBossStates([...latestCached]);
-    }
-  }, []);
+  const switchBossSpec = useCallback(
+    async (bossIdx: number, specId: number) => {
+      await runBoss(bossIdx, { specIdOverride: specId });
+    },
+    [runBoss]
+  );
 
   const switchBossFight = useCallback(
     async (bossIdx: number, fight: { code: string; fightID: number }) => {
-      if (!inputRef.current) return;
-      const currentInput = inputRef.current;
-      const enc = currentInput.encounters[bossIdx];
-      if (!enc) return;
-
-      const diff = currentInput.difficulty;
-      const cached = cacheRef.current[diff];
-      if (cached) {
-        cached[bossIdx] = { status: 'loading' };
-        if (activeDiffRef.current === diff) setBossStates([...cached]);
-      }
-
-      let state: BossState;
-      try {
-        const res = await fetch(`/api/analyze/${enc.id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            characterName: currentInput.characterName,
-            serverSlug: currentInput.serverSlug,
-            region: currentInput.region,
-            difficulty: diff,
-            encounterName: enc.name,
-            specId: currentInput.specId,
-            fightOverride: fight,
-          }),
-        });
-
-        if (!res.ok) {
-          const body = (await res.json()) as { error?: string };
-          state = { status: 'error', message: body.error ?? 'Request failed' };
-        } else {
-          const result = (await res.json()) as BossResult | null;
-          state = { status: 'success', result };
-        }
-      } catch (err) {
-        state = {
-          status: 'error',
-          message: err instanceof Error ? err.message : 'Network error',
-        };
-      }
-
-      const latestCached = cacheRef.current[diff];
-      if (latestCached) {
-        latestCached[bossIdx] = state;
-        if (activeDiffRef.current === diff) setBossStates([...latestCached]);
-      }
+      await runBoss(bossIdx, { fightOverride: fight });
     },
-    []
+    [runBoss]
   );
 
   const reset = useCallback(() => {
     cacheRef.current = {};
+    variantsRef.current.clear();
     activeDiffRef.current = null;
     setBossStates([]);
     setCurrentDifficulty(null);

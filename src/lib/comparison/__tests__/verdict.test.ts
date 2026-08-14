@@ -24,6 +24,7 @@ function comparability(over: Partial<Comparability> = {}): Comparability {
   return {
     level: 'close',
     referenceIlvl: 285,
+    referenceIlvlCount: 3,
     myIlvl: 284,
     referenceKillTimeMs: 305000,
     myKillTimeMs: 300000,

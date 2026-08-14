@@ -63,6 +63,7 @@ function boss(renderId: string): BossResult {
     comparability: {
       level: 'close',
       referenceIlvl: 285,
+      referenceIlvlCount: 3,
       myIlvl: 284.1,
       referenceKillTimeMs: 317924,
       myKillTimeMs: 326876,
