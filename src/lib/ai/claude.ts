@@ -1,7 +1,7 @@
 import type { AIProvider, AIStreamChunk } from './provider';
 import Anthropic from '@anthropic-ai/sdk';
 
-const CLAUDE_MODEL = 'claude-sonnet-4-6';
+const CLAUDE_MODEL = 'claude-sonnet-5';
 const CLAUDE_CONTEXT_WINDOW = 200000;
 
 export class ClaudeProvider implements AIProvider {

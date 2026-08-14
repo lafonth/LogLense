@@ -68,9 +68,10 @@ export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTab
   });
   const [groqModel, setGroqModel] = useState<GroqModelId>(() => {
     if (typeof window === 'undefined') return DEFAULT_GROQ_MODEL;
-    return (
-      (localStorage.getItem('loglense_groq_model') as GroqModelId | null) ?? DEFAULT_GROQ_MODEL
-    );
+    // Un modèle choisi lors d'une visite précédente peut avoir été retiré de chez Groq depuis :
+    // le relire sans le confronter à la table le renvoie tel quel, et la route le refuse en 400.
+    const stored = localStorage.getItem('loglense_groq_model');
+    return GROQ_MODELS.some((m) => m.id === stored) ? (stored as GroqModelId) : DEFAULT_GROQ_MODEL;
   });
   const { text, usage, loading, error, start, reset } = useAIReport();
 

@@ -16,12 +16,14 @@ interface GeminiErrorBody {
   error?: { message?: string; status?: string };
 }
 
-const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash-lite';
+const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
+// Toute la gamme servie aujourd'hui partage la même fenêtre, donc la table vaut le défaut
+// partout : elle reste la couture par laquelle un modèle à fenêtre différente s'ajoute.
 const GEMINI_CONTEXT_WINDOWS: Record<string, number> = {
-  'gemini-2.0-flash-lite': 1048576,
-  'gemini-2.0-flash': 1048576,
-  'gemini-1.5-flash': 1048576,
-  'gemini-1.5-pro': 2097152,
+  'gemini-3.5-flash-lite': 1048576,
+  'gemini-3.5-flash': 1048576,
+  'gemini-2.5-flash-lite': 1048576,
+  'gemini-2.5-flash': 1048576,
 };
 
 function extractGeminiError(body: string): string {

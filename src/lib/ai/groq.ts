@@ -8,24 +8,24 @@ interface OpenAIChunk {
 
 export const GROQ_MODELS = [
   {
-    id: 'llama-3.3-70b-versatile',
-    label: 'Llama 3.3 70B — best quality (1k req/day)',
+    id: 'openai/gpt-oss-120b',
+    label: 'GPT-OSS 120B — best quality (1k req/day)',
     contextWindow: 131072,
   },
   {
-    id: 'llama-4-scout-17b-16e-instruct',
-    label: 'Llama 4 Scout 17B — balanced (1k req/day)',
+    id: 'llama-3.3-70b-versatile',
+    label: 'Llama 3.3 70B — balanced (1k req/day)',
     contextWindow: 131072,
   },
   {
     id: 'llama-3.1-8b-instant',
-    label: 'Llama 3.1 8B — unlimited (14k req/day)',
+    label: 'Llama 3.1 8B — fastest (14.4k req/day)',
     contextWindow: 131072,
   },
 ] as const;
 
 export type GroqModelId = (typeof GROQ_MODELS)[number]['id'];
-export const DEFAULT_GROQ_MODEL: GroqModelId = 'llama-3.3-70b-versatile';
+export const DEFAULT_GROQ_MODEL: GroqModelId = 'openai/gpt-oss-120b';
 
 function contextWindowForModel(model: string): number {
   return GROQ_MODELS.find((m) => m.id === model)?.contextWindow ?? 131072;

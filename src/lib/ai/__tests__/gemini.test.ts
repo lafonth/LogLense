@@ -26,15 +26,17 @@ describe('gemini provider', () => {
 
   // Le défaut que ce test épingle : la fenêtre était indexée sur le modèle demandé alors que
   // le nom rendu était celui servi — la jauge de contexte annonçait la fenêtre d'un autre.
-  it('reports the served model with the context window of that same model', async () => {
-    process.env.GEMINI_MODEL = 'gemini-2.0-flash-lite';
+  // La gamme servie aujourd'hui partage une seule fenêtre, donc c'est le nom rendu qui porte
+  // l'assertion ; le repli de la table est couvert par le test suivant.
+  it('reports the model Gemini served, not the one that was asked for', async () => {
+    process.env.GEMINI_MODEL = 'gemini-3.5-flash-lite';
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
         sseResponse([
           part('hi'),
           `data: ${JSON.stringify({
-            modelVersion: 'gemini-1.5-pro',
+            modelVersion: 'gemini-2.5-flash',
             usageMetadata: { promptTokenCount: 40, candidatesTokenCount: 8, totalTokenCount: 48 },
           })}\n`,
         ])
@@ -47,8 +49,8 @@ describe('gemini provider', () => {
       promptTokens: 40,
       completionTokens: 8,
       totalTokens: 48,
-      model: 'gemini-1.5-pro',
-      contextWindow: 2097152,
+      model: 'gemini-2.5-flash',
+      contextWindow: 1048576,
     });
   });
 

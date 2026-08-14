@@ -28,9 +28,8 @@ cp .env.example .env.local
 | `WCL_CLIENT_ID` | **Yes** | Warcraft Logs API client ID |
 | `WCL_CLIENT_SECRET` | **Yes** | Warcraft Logs API client secret |
 | `GROQ_API_KEY` | No | Server-side Groq key — users can paste their own in the UI instead |
-| `GROQ_MODEL` | No | Override Groq model (default: `llama-3.3-70b-versatile`) |
 | `GEMINI_API_KEY` | No | Server-side Gemini key — users can paste their own in the UI |
-| `GEMINI_MODEL` | No | Override Gemini model (default: `gemini-2.0-flash-lite`) |
+| `GEMINI_MODEL` | No | Override Gemini model (default: `gemini-3.5-flash-lite`) |
 | `ANTHROPIC_API_KEY` | No | Server-side Claude key — users can paste their own in the UI |
 
 If no server-side AI key is set for a provider, the user is prompted to paste their own key in the AI Report tab.

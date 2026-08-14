@@ -36,7 +36,7 @@ vi.mock('@/lib/ai/claude', () => ({
               promptTokens: 100,
               completionTokens: 20,
               totalTokens: 120,
-              model: 'claude-sonnet-4-6',
+              model: 'claude-sonnet-5',
               contextWindow: 200000,
             },
           });
