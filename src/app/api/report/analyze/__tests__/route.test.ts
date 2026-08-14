@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import type { BossResult } from '@/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { recordExposure } from '@/lib/labels/record-exposure';
+import { getWCLToken } from '@/lib/wcl/auth';
 import { analyzeReportBoss } from '@/lib/wcl/report-pipeline';
 import { POST } from '../route';
 
@@ -108,6 +109,8 @@ describe('report analyze route', () => {
   beforeEach(() => {
     vi.mocked(analyzeReportBoss).mockResolvedValue(mockBossResult);
     vi.mocked(recordExposure).mockReset().mockResolvedValue(undefined);
+    vi.mocked(getWCLToken).mockReset().mockResolvedValue('mock-token');
+    guardWclSpend.mockClear();
     process.env.WCL_CLIENT_ID = 'test-id';
     process.env.WCL_CLIENT_SECRET = 'test-secret';
   });
@@ -145,12 +148,53 @@ describe('report analyze route', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns 500 when WCL credentials are missing', async () => {
+  it('returns 400 rather than 500 on a body that is not JSON', async () => {
+    const req = new Request('http://localhost/api/report/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{ not json',
+    }) as unknown as NextRequest;
+
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+
+  // Le contrôle passe avant le garde : une clé absente ne rend aucune analyse, donc facturer
+  // le quota de l'appelant pour un 500 certain lui prendrait des unités jamais dépensées.
+  it('returns 500 on missing WCL credentials without touching the quota', async () => {
     delete process.env.WCL_CLIENT_ID;
     delete process.env.WCL_CLIENT_SECRET;
 
     const res = await POST(makeRequest(validBody()));
+    const body = await res.json();
+
     expect(res.status).toBe(500);
+    expect(body.error).toBe('WCL credentials not configured');
+    expect(guardWclSpend).not.toHaveBeenCalled();
+  });
+
+  // Sans le `try/catch`, l'échec du jeton partait en exception non rattrapée : le client
+  // lisait un 500 sans corps, là où l'autre route nomme la panne.
+  it('returns 500 with the message when the token fetch throws', async () => {
+    vi.mocked(getWCLToken).mockRejectedValue(new Error('WCL rate limit'));
+
+    const res = await POST(makeRequest(validBody()));
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error).toBe('WCL rate limit');
+  });
+
+  // Une rencontre qui échoue est déjà rattrapée en `null` par le `Promise.all` : le lot part
+  // en 200, le `try/catch` ne doit pas requalifier un boss manquant en panne de route.
+  it('keeps a 200 when a single encounter fails', async () => {
+    vi.mocked(analyzeReportBoss).mockRejectedValue(new Error('boss unavailable'));
+
+    const res = await POST(makeRequest(validBody()));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.bosses).toEqual([null]);
   });
 
   // Le chemin rapport ne mesure pas le DPS comme le chemin personnage : il le calcule depuis
