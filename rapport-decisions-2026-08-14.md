@@ -136,12 +136,8 @@ nommer un Barkskin à +200 % qui ne coûte rien — un test le fige explicitemen
 
 ## 4. Points de vigilance pour la relecture
 
-1. **`NOISE_FLOOR_PCT = 10`** (`src/lib/comparison/leading-gap.ts`) — seuil posé au jugement,
-   non mesuré. Le premier candidat au réglage.
-2. **Formulation anglaise de la ligne F1** — « It reads first on X » / « The widest gap in
-   your rotation is still X ». Le second cas (joueur devant) est le plus fragile : il doit
-   dire « tu es devant, et voilà quand même où ta rotation diverge » sans sonner comme un
-   reproche.
+1. ~~**`NOISE_FLOOR_PCT = 10`**~~ — **relu et remplacé**, voir §6.
+2. ~~**Formulation anglaise de la ligne F1**~~ — **relue et réécrite**, voir §6.
 3. **Corpus d'exposition** — le schéma reste en `v4`, mais les enregistrements écrits avant
    `502b6a7` portent une provenance **affirmée par la route**, pas mesurée. Ils restent
    lisibles ; leur `dpsSource` est moins fiable que celui des enregistrements postérieurs, et
@@ -158,3 +154,52 @@ Aucun des sept items n'a introduit d'IA, et F1 est le cas intéressant : le subs
 marché prescrit par la contrainte 2 — « le sort au plus grand écart normalisé » — **gagne**
 contre n'importe quel modèle. La valeur ajoutée est de la hiérarchisation, pas du calcul.
 Le plan le formulait déjà ainsi : « c'est la bonne nouvelle, pas un obstacle ».
+
+---
+
+## 6. Suites données à la relecture (2026-08-14, après revue)
+
+Les deux premiers points de vigilance ont été repris. Le reste du §4 tient toujours.
+
+### Le seuil de bruit ne mesurait pas ce que son propre commentaire défendait
+
+`NOISE_FLOOR_PCT = 10` argumentait en **lancers** (« un sort lancé une fois de plus sur
+trois minutes ») et filtrait en **pourcentage** — ce qui inverse l'intention : à 0,7 contre
+1,0 lancer par minute, un cast d'écart fait +43 % et passait ; à 40 contre 44, douze casts
+d'écart ne font que +10 % et étaient réduits au silence. Second défaut, plus discret : le
+tri de `compareCasts` classe par écart **pondéré par la part de dégâts**, et le filtre
+lisait le `deviationPct` nu — il taisait donc le sort principal que la pondération venait
+de promouvoir.
+
+Le seuil unique est remplacé par trois conditions, dont deux sortent de la donnée :
+
+- **hors de `[referenceMin, referenceMax]`** — le plancher est la dispersion des références
+  entre elles. Il s'adapte par sort et par panel, ne se règle pas à la main, et il est déjà
+  dessiné à l'écran par `RotationCards` : la règle se relit dans l'onglet.
+- **au moins `MIN_CAST_DELTA = 2` lancers** sur la durée réelle de la pull, via
+  `fightDurationMs`. Le seuil subsiste, mais dans l'unité de son propre argument — une
+  quantité que le lecteur peut compter dans son log.
+- **au moins `MIN_REFERENCES = 2` références.** Nommer *le* sort où l'écart se lit est un
+  superlatif sur une distribution ; sur une seule référence, min, max et médiane sont le
+  même point. Ce n'est **pas** le masquage refusé en C5 : là, la donnée portait la valeur et
+  seul son effectif manquait ; ici la donnée ne porte pas la comparaison qu'on lui ferait
+  dire.
+
+Quand la tête du tri est réduite au silence, la ligne se tait — on ne retombe pas sur le
+sort suivant, qui coûte par construction moins cher.
+
+### La formulation affirmait une direction que la donnée ne porte pas
+
+Le sort de tête est celui dont l'écart **coûte** le plus, et son signe est libre : on peut
+être en retard de DPS sur un sort qu'on lance *plus* que les références. « It reads first on
+X » dans un verdict `gap` faisait donc lire l'inverse des chiffres affichés juste en dessous.
+Le branchement `gap` / `ahead` est supprimé : une seule phrase, neutre en direction, et ce
+sont les deux cadences qui disent le sens.
+
+> Your rotation diverges most on **Rip**: `2` casts a minute against `4`, across `2`
+> references.
+
+Deux corrections au passage : « land » n'est plus employé deux fois pour deux choses dans la
+même carte, et le pluriel de `reference` n'est plus écrit en dur — « across 1 references »
+était rendu tel quel, et le test existant ne l'attrapait pas parce qu'il n'assertait que sur
+l'amorce de la phrase.
