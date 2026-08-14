@@ -1,15 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BOSS_ANALYSIS_UNITS, guardWclSpend, quotaSubject } from '../wcl-guard';
 
-const { getServerSession, consumeWclQuota, recordDemand } = vi.hoisted(() => ({
+const { getServerSession, consumeWclQuota, settleWclQuota, recordDemand } = vi.hoisted(() => ({
   getServerSession: vi.fn(),
   consumeWclQuota: vi.fn(),
+  settleWclQuota: vi.fn(),
   recordDemand: vi.fn(),
 }));
 
 vi.mock('next-auth/next', () => ({ getServerSession }));
 vi.mock('@/lib/auth', () => ({ authOptions: {} }));
-vi.mock('@/lib/labels/rate-limit', () => ({ consumeWclQuota }));
+vi.mock('@/lib/labels/rate-limit', () => ({ consumeWclQuota, settleWclQuota }));
 vi.mock('@/lib/labels/record-demand', () => ({ recordDemand }));
 
 const ALLOWED = { allowed: true, retryAfterSeconds: 0, unavailable: false, consumed: 90 };

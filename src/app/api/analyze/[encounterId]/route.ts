@@ -1,7 +1,7 @@
 import type { AnalysisInput } from '@/types';
 import { NextResponse } from 'next/server';
 import { isNum, isOneOf, isRecord, isStr, readJson } from '@/lib/api/parse';
-import { BOSS_ANALYSIS_UNITS, guardWclSpend } from '@/lib/api/wcl-guard';
+import { BOSS_ANALYSIS_UNITS, guardMeteredWclSpend } from '@/lib/api/wcl-guard';
 import { recordExposure } from '@/lib/labels/record-exposure';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { analyzeBoss } from '@/lib/wcl/pipeline';
@@ -90,41 +90,44 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
   // Après validation, avant la première requête WCL : c'est la seule position où le quota
   // borne quelque chose. Un boss vaut une cinquantaine d'appels chez un tiers dont la
   // sanction porte sur la clé du produit entier.
-  const refusal = await guardWclSpend('analyze', BOSS_ANALYSIS_UNITS);
-  if (refusal) return refusal;
+  //
+  // Le forfait est réservé, pas facturé : l'analyse tourne à l'intérieur du garde, qui règle
+  // ensuite l'écart avec ce qui est réellement parti. Servi par les caches de référence, un
+  // boss coûte une poignée d'appels — c'est ici que l'économie revient à l'utilisateur.
+  return guardMeteredWclSpend('analyze', BOSS_ANALYSIS_UNITS, async () => {
+    try {
+      const token = await getWCLToken(clientId, clientSecret);
 
-  try {
-    const token = await getWCLToken(clientId, clientSecret);
+      const input: AnalysisInput = {
+        characterName: body.characterName,
+        serverSlug: body.serverSlug,
+        region: body.region,
+        difficulty: body.difficulty,
+        encounters: [{ id: encounterIdNum, name: body.encounterName }],
+        specId: body.specId,
+      };
 
-    const input: AnalysisInput = {
-      characterName: body.characterName,
-      serverSlug: body.serverSlug,
-      region: body.region,
-      difficulty: body.difficulty,
-      encounters: [{ id: encounterIdNum, name: body.encounterName }],
-      specId: body.specId,
-    };
+      const result = await analyzeBoss(
+        token,
+        input,
+        encounterIdNum,
+        body.encounterName,
+        body.specIdOverride,
+        body.fightOverride
+      );
 
-    const result = await analyzeBoss(
-      token,
-      input,
-      encounterIdNum,
-      body.encounterName,
-      body.specIdOverride,
-      body.fightOverride
-    );
+      // Attendue, pas mise en `void` : sur un runtime serverless, une promesse non attendue
+      // part avec la fonction, et c'est toute la classe positive qui disparaît. La provenance
+      // du DPS vient du résultat ; ce chemin la fixe à `'ranking'` dans `pipeline.ts`.
+      //
+      // `recordExposure` avale déjà ses échecs ; le `catch` d'ici est la seconde barrière, à
+      // l'intérieur du `try` qui rend un 500. La capture ne doit jamais coûter l'analyse.
+      await recordExposure(result ? [result] : []).catch(() => {});
 
-    // Attendue, pas mise en `void` : sur un runtime serverless, une promesse non attendue
-    // part avec la fonction, et c'est toute la classe positive qui disparaît. La provenance
-    // du DPS vient du résultat ; ce chemin la fixe à `'ranking'` dans `pipeline.ts`.
-    //
-    // `recordExposure` avale déjà ses échecs ; le `catch` d'ici est la seconde barrière, à
-    // l'intérieur du `try` qui rend un 500. La capture ne doit jamais coûter l'analyse.
-    await recordExposure(result ? [result] : []).catch(() => {});
-
-    return NextResponse.json(result);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Analysis failed';
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+      return NextResponse.json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Analysis failed';
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  });
 }

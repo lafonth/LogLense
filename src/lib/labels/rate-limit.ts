@@ -186,3 +186,35 @@ export function consumeAiQuota(by: string, atMs: number): Promise<StrictVerdict>
 export function consumeWclQuota(by: string, atMs: number, units: number): Promise<StrictVerdict> {
   return consumeStrictQuota(WCL_PREFIX, WCL_UNIT_LIMIT, by, atMs, units);
 }
+
+/**
+ * Corrige après coup ce qu'une requête a réellement dépensé chez Warcraft Logs.
+ *
+ * `consumeWclQuota` réserve un forfait avant la première requête — il le doit, c'est le seul
+ * instant où le plafond borne quelque chose. Mais une analyse servie par les caches de
+ * référence coûte une poignée d'appels au lieu de quatre-vingt-dix : sans règlement, le
+ * quota de l'utilisateur fondrait au tarif plein pour une dépense qui n'a pas eu lieu, et
+ * l'économie du cache n'irait qu'à la facture WCL, jamais au produit.
+ *
+ * `delta` est signé. Négatif, il rend le trop-réservé ; positif, il facture le dépassement —
+ * sans quoi un plafond cesserait d'être un plafond dès qu'une analyse déborde son forfait.
+ * Le compteur ne peut pas passer sous zéro pour autant : chaque requête ne retire que ce
+ * qu'elle a elle-même ajouté.
+ *
+ * `atMs` est l'instant de la **réservation**, pas celui du règlement. La clé porte l'index
+ * de sa fenêtre : régler avec l'heure courante créditerait la fenêtre suivante d'un
+ * remboursement que seule la précédente a payé.
+ *
+ * Ne jette jamais, et ne pose pas d'`EXPIRE` : la clé en a déjà un, posé par la réservation
+ * qui l'a créée. Un règlement perdu laisse simplement l'appelant au tarif nominal — le
+ * défaut sûr, du même côté que le reste de ce module.
+ */
+export async function settleWclQuota(by: string, atMs: number, delta: number): Promise<void> {
+  if (delta === 0) return;
+
+  try {
+    await redisIncrBy(quotaKey(WCL_PREFIX, by, atMs), delta);
+  } catch {
+    // Avalé volontairement : voir l'en-tête.
+  }
+}

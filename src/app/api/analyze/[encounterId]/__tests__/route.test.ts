@@ -4,13 +4,19 @@ import { recordExposure } from '@/lib/labels/record-exposure';
 import { analyzeBoss } from '@/lib/wcl/pipeline';
 import { POST } from '../route';
 
-// Le garde de quota WCL a ses propres tests ; ici on le neutralise par défaut et on vérifie
-// seulement qu'un refus de sa part sort avant la moindre dépense.
-const { guardWclSpend } = vi.hoisted(() => ({ guardWclSpend: vi.fn(async () => null) }));
+// Le garde de quota WCL a ses propres tests ; ici on le neutralise par défaut — il exécute
+// simplement l'analyse qu'on lui confie — et on vérifie seulement qu'un refus de sa part sort
+// avant la moindre dépense. Il enveloppe désormais le corps du gestionnaire : c'est ainsi
+// qu'il règle l'écart entre le forfait réservé et ce qui est réellement parti chez WCL.
+const { guardMeteredWclSpend } = vi.hoisted(() => ({
+  guardMeteredWclSpend: vi.fn(
+    async (_route: string, _units: number, run: () => Promise<Response>) => run()
+  ),
+}));
 
 vi.mock('@/lib/api/wcl-guard', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api/wcl-guard')>()),
-  guardWclSpend,
+  guardMeteredWclSpend,
 }));
 
 vi.mock('@/lib/wcl/auth', () => ({
@@ -299,7 +305,7 @@ describe('analyze route', () => {
 // le refus sort avant le premier appel à Warcraft Logs.
 describe('analyze route under the WCL guard', () => {
   it('returns the guard refusal without spending anything', async () => {
-    guardWclSpend.mockResolvedValueOnce(new Response(null, { status: 429 }) as unknown as null);
+    guardMeteredWclSpend.mockResolvedValueOnce(new Response(null, { status: 429 }));
     vi.mocked(analyzeBoss).mockClear();
 
     const res = await POST(

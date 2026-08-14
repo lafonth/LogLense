@@ -2,6 +2,7 @@ import type { CombatantEvent } from './combatant';
 import type { ScoredCandidate } from './comparability';
 import type { DisqualificationReason, EligibilityProfile } from './eligibility';
 import type { WCLTable } from './parsers';
+import type { CachedVerification } from './reference-cache';
 import type { PoolObservation } from '@/lib/labels/pool';
 import type { Comparability, ReferenceSample, TopPlayer } from '@/types';
 import { recordPool } from '@/lib/labels/record-pool';
@@ -15,6 +16,14 @@ import { fmtMs, parseStats } from './parsers';
 import { resolveSeasonPartitions } from './partitions';
 import { poolCacheKey, readCachedPool, writeCachedPool } from './pool-cache';
 import { Q_BUFFS, Q_WORLD_RANKINGS, Q_WORLD_RANKINGS_PARTITION } from './queries';
+import {
+  fightDataCacheKey,
+  readCachedFightData,
+  readCachedVerifications,
+  verificationCacheKey,
+  writeCachedFightData,
+  writeCachedVerification,
+} from './reference-cache';
 
 export interface WorldRanking {
   name: string;
@@ -155,16 +164,32 @@ function pickExploration(
  * on the source id the combatant event carries. A candidate that cannot be identified,
  * or whose report refuses either query, is dropped rather than substituted: matching on
  * spec would put this candidate's name and damage beside another player's gear.
+ *
+ * Ces deux requêtes, fois treize candidats, sont l'autre gros de la facture d'une analyse —
+ * et comme le vivier, elles ne dépendent pas du joueur analysé. `cached` porte ce que le
+ * cache a déjà répondu pour ce candidat ; il est lu en amont, en une commande pour toute la
+ * fenêtre, parce que treize allers-retours Redis rendraient au réseau ce qu'on vient
+ * d'économiser chez Warcraft Logs.
+ *
+ * `disqualify` reste calculé ici, sur le chemin chaud, servi par le cache ou non : c'est la
+ * seule partie du verdict qui compare au demandeur. La mettre en cache figerait le verdict
+ * du premier arrivant pour tous les suivants.
  */
 async function verifyCandidate(
   token: string,
   scored: ScoredCandidate<WorldRanking>,
   mine: EligibilityProfile,
-  explored: boolean
+  explored: boolean,
+  cached: CachedVerification | null
 ): Promise<VerifiedCandidate | null> {
   const { candidate } = scored;
   const { code, fightID } = candidate.report;
   if (!code || !fightID) return null;
+
+  if (cached) {
+    const { combatant, profile } = cached;
+    return { scored, combatant, profile, disqualifiedBy: disqualify(profile, mine), explored };
+  }
 
   try {
     const combatant = await findCombatantByName(token, code, fightID, candidate.name);
@@ -176,7 +201,17 @@ async function verifyCandidate(
       sourceID: combatant.sourceID,
     });
 
-    const profile = eligibilityOf(combatant, data.reportData.report.buffs, candidate.duration);
+    const buffs = data.reportData.report.buffs;
+    const profile = eligibilityOf(combatant, buffs, candidate.duration);
+
+    // Attendue, pas mise en `void` : sur un runtime serverless, une promesse non attendue part
+    // avec la fonction. `writeCachedVerification` ne jette pas et refuse les entrées trouées.
+    await writeCachedVerification(verificationCacheKey({ code, fightID, name: candidate.name }), {
+      combatant,
+      profile,
+      aurasRead: buffs.data?.auras?.length ?? 0,
+    });
+
     return { scored, combatant, profile, disqualifiedBy: disqualify(profile, mine), explored };
   } catch {
     return null;
@@ -260,20 +295,39 @@ function observationsOf(
   });
 }
 
+/**
+ * Les dégâts et la rotation d'une référence, mis en cache comme sa vérification.
+ *
+ * Trois requêtes par référence, fois `TOP_N` : le dernier tiers de la facture d'une analyse.
+ * Elles ne dépendent pas non plus du demandeur — le combat d'un joueur classé ne bouge plus.
+ *
+ * Seuls les trois champs consommés sont écrits. `fetchFightData` en rend davantage — cibles,
+ * dps, éligibilité, contexte de raid — mais aucun n'est lu sur ce chemin, et les recopier
+ * gonflerait l'entrée sans rien servir.
+ */
 async function buildTopPlayer(token: string, verified: VerifiedCandidate): Promise<TopPlayer> {
   const { scored, combatant, profile, disqualifiedBy, explored } = verified;
   const { candidate, distance } = scored;
   const { code, fightID } = candidate.report;
 
   const dps = Math.round(candidate.amount);
-  const { stats, rotation, damageEntries } = await fetchFightData(token, {
-    code,
-    fightId: fightID,
-    combatant,
-    name: candidate.name,
-    fightMs: candidate.duration,
-    dps,
-  });
+  const cacheKey = fightDataCacheKey({ code, fightID, sourceID: combatant.sourceID });
+  const cached = await readCachedFightData(cacheKey);
+
+  const { stats, rotation, damageEntries } =
+    cached ??
+    (await fetchFightData(token, {
+      code,
+      fightId: fightID,
+      combatant,
+      name: candidate.name,
+      fightMs: candidate.duration,
+      dps,
+    }));
+
+  if (!cached) {
+    await writeCachedFightData(cacheKey, { stats, rotation, damageEntries });
+  }
 
   return {
     stats: { ...stats, dps, killTime: fmtMs(candidate.duration) },
@@ -359,12 +413,28 @@ export async function resolveReferences(
 
   // Promise.all preserves order, so both partitions stay sorted by distance and the
   // substitutes are drawn from the least-far eliminated candidate first.
-  const attempted = closest.length + (exploration ? 1 : 0);
+  const attemptedScored = [...closest, ...(exploration ? [exploration] : [])];
+  const attempted = attemptedScored.length;
+
+  // Toute la fenêtre en une commande, avant d'ouvrir la moindre requête chez WCL. Le tableau
+  // rendu est aligné sur les clés, donc sur `attemptedScored` : c'est l'index qui apparie une
+  // entrée à son candidat, jamais son contenu.
+  const hits = await readCachedVerifications(
+    attemptedScored.map((s) =>
+      verificationCacheKey({
+        code: s.candidate.report.code,
+        fightID: s.candidate.report.fightID,
+        name: s.candidate.name,
+      })
+    )
+  );
+
   const verified = (
-    await Promise.all([
-      ...closest.map((s) => verifyCandidate(token, s, mine, false)),
-      ...(exploration ? [verifyCandidate(token, exploration, mine, true)] : []),
-    ])
+    await Promise.all(
+      attemptedScored.map((s, i) =>
+        verifyCandidate(token, s, mine, i >= closest.length, hits[i] ?? null)
+      )
+    )
   ).filter((v): v is VerifiedCandidate => v !== null);
 
   const window = verified.filter((v) => !v.explored);

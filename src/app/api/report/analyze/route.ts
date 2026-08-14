@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { isNum, isRecord, isStr, readJson } from '@/lib/api/parse';
 import {
   BOSS_ANALYSIS_UNITS,
-  guardWclSpend,
+  guardMeteredWclSpend,
   MAX_ENCOUNTERS_PER_REQUEST,
 } from '@/lib/api/wcl-guard';
 import { recordExposure } from '@/lib/labels/record-exposure';
@@ -84,56 +84,60 @@ export async function POST(req: NextRequest) {
 
   // Le coût est proportionnel : la route éclate en un `Promise.all` sur les rencontres, et
   // une unité par requête HTTP laisserait un seul appel en acheter vingt fois cinquante.
-  const refusal = await guardWclSpend('report-analyze', encounters.length * BOSS_ANALYSIS_UNITS);
-  if (refusal) return refusal;
+  //
+  // Réservé puis réglé, comme sur l'autre route — et le gain y est plus grand encore : les
+  // rencontres d'un même rapport partagent leurs candidats d'une analyse à la suivante.
+  const units = encounters.length * BOSS_ANALYSIS_UNITS;
 
-  try {
-    const token = await getWCLToken(clientId, clientSecret);
+  return guardMeteredWclSpend('report-analyze', units, async () => {
+    try {
+      const token = await getWCLToken(clientId, clientSecret);
 
-    const bosses = await Promise.all(
-      encounters.map((enc) =>
-        analyzeReportBoss(
-          token,
-          code,
-          enc.id,
-          enc.name,
-          actorId,
-          actorName,
-          enc.fightId,
-          enc.fightMs,
-          difficulty
-        ).catch(() => null)
-      )
-    );
+      const bosses = await Promise.all(
+        encounters.map((enc) =>
+          analyzeReportBoss(
+            token,
+            code,
+            enc.id,
+            enc.name,
+            actorId,
+            actorName,
+            enc.fightId,
+            enc.fightMs,
+            difficulty
+          ).catch(() => null)
+        )
+      );
 
-    // Resolve specId: use provided specId if valid, else fall back to first DPS spec for the class.
-    // Si la classe elle-même est inconnue, on renvoie 0 : le prompt sait dire « spec inconnue »,
-    // il ne sait pas rattraper une spec affirmée à tort.
-    const resolvedSpecId = specId || getDpsSpecsForClass(actorClass)[0]?.specId || 0;
+      // Resolve specId: use provided specId if valid, else fall back to first DPS spec for the class.
+      // Si la classe elle-même est inconnue, on renvoie 0 : le prompt sait dire « spec inconnue »,
+      // il ne sait pas rattraper une spec affirmée à tort.
+      const resolvedSpecId = specId || getDpsSpecsForClass(actorClass)[0]?.specId || 0;
 
-    // Attendue avant la réponse, pour la même raison que sur l'autre route. La provenance du
-    // DPS est lue sur chaque résultat, pas affirmée ici : ce chemin retombe sur la table de
-    // dégâts pour le seul joueur absent des classements du rapport.
-    // Le `catch` double celui de `recordExposure` : c'est la seconde barrière, à l'intérieur
-    // du `try` qui rend un 500. La capture ne doit jamais coûter l'analyse.
-    await recordExposure(bosses).catch(() => {});
+      // Attendue avant la réponse, pour la même raison que sur l'autre route. La provenance du
+      // DPS est lue sur chaque résultat, pas affirmée ici : ce chemin retombe sur la table de
+      // dégâts pour le seul joueur absent des classements du rapport.
+      // Le `catch` double celui de `recordExposure` : c'est la seconde barrière, à l'intérieur
+      // du `try` qui rend un 500. La capture ne doit jamais coûter l'analyse.
+      await recordExposure(bosses).catch(() => {});
 
-    return NextResponse.json({
-      input: {
-        characterName: actorName,
-        serverSlug: '',
-        region: 'EU',
-        difficulty,
-        encounters: encounters.map((e) => ({ id: e.id, name: e.name })),
-        specId: resolvedSpecId,
-      },
-      bosses,
-      generatedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    // Sans lui, l'échec du jeton partait en exception non rattrapée : le client lisait un 500
-    // sans corps, là où l'autre route nomme la panne.
-    const message = error instanceof Error ? error.message : 'Analysis failed';
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+      return NextResponse.json({
+        input: {
+          characterName: actorName,
+          serverSlug: '',
+          region: 'EU',
+          difficulty,
+          encounters: encounters.map((e) => ({ id: e.id, name: e.name })),
+          specId: resolvedSpecId,
+        },
+        bosses,
+        generatedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      // Sans lui, l'échec du jeton partait en exception non rattrapée : le client lisait un 500
+      // sans corps, là où l'autre route nomme la panne.
+      const message = error instanceof Error ? error.message : 'Analysis failed';
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  });
 }

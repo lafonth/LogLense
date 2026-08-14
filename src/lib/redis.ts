@@ -71,6 +71,27 @@ export async function redisIncrBy(key: string, amount: number): Promise<number> 
   return value;
 }
 
+/**
+ * Lit plusieurs clés en une commande, dans l'ordre demandé.
+ *
+ * Existe pour un seul appelant, et pour une raison précise : la fenêtre de vérification des
+ * candidats fait treize clés de cache. Treize `GET` séquentiels rendraient au réseau ce que
+ * le cache vient d'économiser chez Warcraft Logs.
+ *
+ * L'alignement des index est ce qui rend le résultat exploitable — l'appelant reconnaît une
+ * valeur à sa position, pas à son contenu. Une réponse de longueur différente est donc une
+ * panne, pas un résultat partiel : on jette, et le cache échoue ouvert chez l'appelant.
+ */
+export async function redisMGet(keys: string[]): Promise<(string | null)[]> {
+  if (keys.length === 0) return [];
+
+  const values = await exec<(string | null)[] | null>(['MGET', ...keys]);
+  if (!Array.isArray(values) || values.length !== keys.length) {
+    throw new TypeError(`MGET returned ${String(values?.length)} values for ${keys.length} keys`);
+  }
+  return values.map((value) => (typeof value === 'string' ? value : null));
+}
+
 /** Pose une durée de vie. Sans elle, un compteur de fenêtre ne se réinitialiserait jamais. */
 export async function redisExpire(key: string, seconds: number): Promise<void> {
   await exec(['EXPIRE', key, String(seconds)]);

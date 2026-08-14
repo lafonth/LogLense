@@ -1,5 +1,6 @@
 import { clearTokenCache } from './auth';
 import { API_URL, REQUEST_TIMEOUT_MS, RETRY_POLICY } from './constants';
+import { countWclCall } from './meter';
 
 /**
  * Une requête WCL qui a échoué, avec de quoi savoir pourquoi.
@@ -74,6 +75,11 @@ export async function gql<T>(
   variables?: Record<string, unknown>,
   policy: RetryPolicy = RETRY_POLICY
 ): Promise<T> {
+  // Le point de passage unique de toute requête WCL, donc le seul endroit où la dépense
+  // réelle d'une analyse est mesurable. Compté ici, avant la boucle : une requête, une unité
+  // — c'est dans cette unité que le forfait réservé par `guardMeteredWclSpend` est libellé.
+  countWclCall();
+
   let last: WCLError | null = null;
 
   for (let attempt = 1; attempt <= policy.attempts; attempt++) {

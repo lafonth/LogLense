@@ -3,16 +3,23 @@ import type { Partition } from '../partitions';
 import type { WorldRanking } from '../references';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CANDIDATE_PAGES, TOP_N, VERIFICATION_WINDOW } from '../constants';
+import { OFFENSIVE_EXTERNALS } from '../eligibility';
 import { POOL_TTL_SECONDS, poolCacheKey } from '../pool-cache';
+import {
+  readCachedVerifications,
+  REFERENCE_TTL_SECONDS,
+  verificationCacheKey,
+} from '../reference-cache';
 import { fetchCandidatePool, resolveReferences } from '../references';
 
-const { redisGet, redisSetEx, recordPool } = vi.hoisted(() => ({
+const { redisGet, redisMGet, redisSetEx, recordPool } = vi.hoisted(() => ({
   redisGet: vi.fn(),
+  redisMGet: vi.fn(),
   redisSetEx: vi.fn(),
   recordPool: vi.fn(),
 }));
 
-vi.mock('@/lib/redis', () => ({ redisGet, redisSetEx }));
+vi.mock('@/lib/redis', () => ({ redisGet, redisMGet, redisSetEx }));
 // La capture du vivier est écrite ici mais testée dans `labels/` : ce fichier vérifie ce qui
 // lui est passé, pas ce qui part chez Redis.
 vi.mock('@/lib/labels/record-pool', () => ({ recordPool }));
@@ -290,7 +297,13 @@ describe('resolveReferences', () => {
   /** Four tier pieces and no external: the player everything else is measured against. */
   const MINE: EligibilityProfile = { tierPieces: 4, externalUptime: 0, externals: [] };
 
-  beforeEach(() => vi.restoreAllMocks());
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    // Cache froid par défaut : chaque test qui veut un cache chaud le dit lui-même.
+    redisGet.mockResolvedValue(null);
+    redisMGet.mockImplementation((keys: string[]) => Promise.resolve(keys.map(() => null)));
+    redisSetEx.mockResolvedValue(undefined);
+  });
 
   /** The report code is the candidate's name, so the default fixture can identify them. */
   function ranking(name: string, bracketData: number, duration = MY_MS): WorldRanking {
@@ -695,6 +708,158 @@ describe('resolveReferences', () => {
       });
 
       expect(topPlayers.map((p) => p.provenance.name)).toEqual(['R0', 'R1', 'R2']);
+    });
+  });
+
+  describe('reference caches', () => {
+    /**
+     * Une table de buffs qui a répondu, et qui ne porte aucun external : un flask, rien de
+     * plus. `NO_BUFFS` ne convient pas ici — une table vide est justement ce que le garde de
+     * complétude refuse d'écrire, faute de pouvoir la distinguer d'une requête sans réponse.
+     */
+    const FLASK_BUFFS = {
+      data: { auras: [{ guid: 431971, name: 'Flask of Alchemical Chaos', totalUptime: 300000 }] },
+    };
+
+    const buffedFight = (code: string) => plainFight(code, { buffs: FLASK_BUFFS });
+
+    /** Le nombre de requêtes parties chez WCL depuis le dernier `mockFights`. */
+    function wclCalls(): number {
+      return (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length;
+    }
+
+    /**
+     * Un Redis en mémoire : les tests de cache ont besoin qu'une écriture soit relisible,
+     * ce qu'un `mockResolvedValue` ne donne pas. Les trois commandes sont celles que les
+     * caches de référence utilisent, avec leur contrat — dont l'alignement du `MGET`.
+     */
+    function liveRedis(): Map<string, string> {
+      const store = new Map<string, string>();
+      redisGet.mockImplementation((k: string) => Promise.resolve(store.get(k) ?? null));
+      redisMGet.mockImplementation((keys: string[]) =>
+        Promise.resolve(keys.map((k) => store.get(k) ?? null))
+      );
+      redisSetEx.mockImplementation((k: string, v: string) => {
+        store.set(k, v);
+        return Promise.resolve(undefined);
+      });
+      return store;
+    }
+
+    /**
+     * Le miroir du test de complétude du vivier : une entrée trouée n'est pas écrite.
+     *
+     * Le combattant arrive sans équipement, donc `tierPieces` vaut `null`. Or `disqualify`
+     * ne disqualifie jamais sur un `null` : mise en cache, cette entrée promouvrait pour
+     * vingt-quatre heures, et pour tous les utilisateurs de la spec, un candidat que le set
+     * bonus devait peut-être écarter.
+     */
+    it('refuses to cache a verification read from a report without gear', async () => {
+      // La table de buffs, elle, est pleine : le seul motif de refus doit être le trou de
+      // l'équipement, sans quoi le test passerait pour la mauvaise raison.
+      mockFights((code) =>
+        plainFight(code, {
+          combatants: [{ sourceID: 4, specID: 103, agility: 14000 }],
+          buffs: PI_BUFFS,
+        })
+      );
+
+      const { topPlayers } = await resolve([ranking('holed', 285)]);
+
+      expect(topPlayers[0].provenance.tierPieces).toBeNull();
+      // Nommer la clé, et pas seulement le spy : `buildTopPlayer` écrit son propre cache par
+      // le même `redisSetEx`, et un `not.toHaveBeenCalled` nu confondrait les deux.
+      expect(redisSetEx).not.toHaveBeenCalledWith(
+        verificationCacheKey({ code: 'holed', fightID: 1, name: 'holed' }),
+        expect.anything(),
+        expect.anything()
+      );
+    });
+
+    // Le TTL est la garantie vis-à-vis du §5d, comme sur le vivier : une copie sans
+    // expiration serait la base de données permanente que les CGU refusent.
+    it('writes a complete verification with an explicit TTL', async () => {
+      mockFights(buffedFight);
+
+      await resolve([ranking('near', 285)]);
+
+      expect(redisSetEx).toHaveBeenCalledWith(
+        verificationCacheKey({ code: 'near', fightID: 1, name: 'near' }),
+        expect.any(String),
+        REFERENCE_TTL_SECONDS
+      );
+    });
+
+    /**
+     * La table des externals est une *entrée* du profil mis en cache : ce qui a été écrit
+     * avant qu'un sort y entre mesure autre chose. Sans empreinte dans la clé, le sort ajouté
+     * ne disqualifierait personne jusqu'à expiration des entrées d'avant.
+     */
+    it('changes the verification key when OFFENSIVE_EXTERNALS changes', () => {
+      const args = { code: 'abc', fightID: 1, name: 'Aidan' };
+      const before = verificationCacheKey(args);
+
+      OFFENSIVE_EXTERNALS[123456] = 'Un external offensif de plus';
+      try {
+        expect(verificationCacheKey(args)).not.toBe(before);
+      } finally {
+        delete OFFENSIVE_EXTERNALS[123456];
+      }
+
+      // Et l'empreinte revient : elle est recalculée à chaque clé, pas figée au chargement.
+      expect(verificationCacheKey(args)).toBe(before);
+    });
+
+    // Échoue ouvert, comme le vivier : un cache muet coûte des requêtes, jamais une analyse.
+    it('falls back to a live verification when the cache read fails', async () => {
+      redisGet.mockRejectedValue(new Error('upstash down'));
+      redisMGet.mockRejectedValue(new Error('upstash down'));
+      redisSetEx.mockRejectedValue(new Error('upstash down'));
+      mockFights();
+
+      // La fenêtre rendue reste alignée sur les clés demandées : c'est l'index qui apparie
+      // une entrée à son candidat, donc un tableau court décalerait tous les suivants.
+      await expect(readCachedVerifications(['a', 'b'])).resolves.toEqual([null, null]);
+
+      const { topPlayers } = await resolve([ranking('near', 285), ranking('far', 288)]);
+
+      expect(topPlayers.map((p) => p.provenance.name)).toEqual(['near', 'far']);
+      expect(topPlayers[0].stats.avgIlvl).toBe(640);
+    });
+
+    /**
+     * Le bout en bout : deux analyses successives de la même (spec, boss, difficulté), par
+     * deux joueurs différents. Le partage est par candidat, pas par demandeur — c'est ce qui
+     * fait tomber la seconde facture, et c'est ce que ce test mesure.
+     */
+    it('serves a second analysis of the same boss for under ten WCL calls', async () => {
+      liveRedis();
+      mockFights(buffedFight);
+
+      const pool = Array.from({ length: TOP_N + 1 }, (_, i) => ranking(`R${i}`, MY_ILVL + i));
+
+      const first = await resolve(pool);
+      const cold = wclCalls();
+
+      // Un autre demandeur : son `mine` diffère, donc `disqualify` est recalculé à chaud —
+      // seule la vérification, qui ne le connaît pas, est reprise du cache.
+      const second = await resolve(pool, {
+        mine: { tierPieces: 2, externalUptime: 0, externals: [] },
+        exclude: { code: 'someone-else', fightID: 7 },
+      });
+      const warm = wclCalls() - cold;
+
+      expect(cold).toBeGreaterThan(10);
+      // Zéro, et pas seulement « sous dix » : sur un vivier déjà fourni, la vérification et les
+      // données de combat sont tout ce que `resolveReferences` demande à WCL. Le chiffre est
+      // asserté tel quel — un `toBeLessThan(10)` laisserait une régression à neuf appels passer.
+      expect(warm).toBe(0);
+      // Et le panel est le même : l'économie vient du cache, pas d'une analyse dégradée.
+      expect(second.topPlayers.map((p) => p.provenance.name)).toEqual(
+        first.topPlayers.map((p) => p.provenance.name)
+      );
+      expect(second.topPlayers[0].stats).toEqual(first.topPlayers[0].stats);
+      expect(second.topPlayers[0].damageTable).toEqual(first.topPlayers[0].damageTable);
     });
   });
 });
