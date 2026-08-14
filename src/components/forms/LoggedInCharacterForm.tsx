@@ -232,14 +232,14 @@ export function LoggedInCharacterForm({
             <div className="text-2xs text-muted mb-1.5 font-sans tracking-widest uppercase">
               Your Characters
               {charsLoading && (
-                <span className="text-dim ml-2 font-sans normal-case opacity-60">Loading…</span>
+                <span className="text-dim ml-2 font-sans normal-case">Loading…</span>
               )}
             </div>
 
             <div className="flex max-h-64 flex-col gap-3 overflow-y-auto">
               {favsForRegion.length > 0 && (
                 <div>
-                  <div className="text-2xs text-dim mb-1.5 font-mono tracking-widest uppercase opacity-60">
+                  <div className="text-2xs text-dim mb-1.5 font-mono tracking-widest uppercase">
                     ★ Starred
                   </div>
                   {renderGrid(favsForRegion)}
@@ -248,7 +248,7 @@ export function LoggedInCharacterForm({
 
               {recentsForRegion.length > 0 && (
                 <div>
-                  <div className="text-2xs text-dim mb-1.5 font-mono tracking-widest uppercase opacity-60">
+                  <div className="text-2xs text-dim mb-1.5 font-mono tracking-widest uppercase">
                     Recent
                   </div>
                   {renderGrid(recentsForRegion)}
@@ -258,7 +258,7 @@ export function LoggedInCharacterForm({
               {rest.length > 0 && (
                 <div>
                   {(favsForRegion.length > 0 || recentsForRegion.length > 0) && (
-                    <div className="text-2xs text-dim mb-1.5 font-mono tracking-widest uppercase opacity-60">
+                    <div className="text-2xs text-dim mb-1.5 font-mono tracking-widest uppercase">
                       All
                     </div>
                   )}

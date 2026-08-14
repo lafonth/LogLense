@@ -15,7 +15,7 @@ import { ReportForm } from '@/components/forms/ReportForm';
 import { MarketingLanding } from '@/components/landing/MarketingLanding';
 import { ReportDashboard } from '@/components/report/ReportDashboard';
 import { PullComparisonDashboard } from '@/components/results/PullComparisonDashboard';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { ModeSelector } from '@/components/ui/ModeSelector';
 import { useAnalysis } from '@/hooks/useAnalysis';
 import { usePullComparison } from '@/hooks/usePullComparison';
@@ -283,11 +283,7 @@ export function HomeClient() {
   // Sans `spec`, `useRouteSync` ne lance rien : afficher le spinner ici tournerait sans fin.
   // On retombe sur le formulaire, où la spec se choisit.
   if (specParam && ((char && server) || (reportCode && reportActorId))) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <LoadingSpinner label="Loading…" />
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (sessionStatus === 'unauthenticated') {
@@ -300,11 +296,7 @@ export function HomeClient() {
   // Rendre `null` laissait une page blanche le temps que la session revienne, indiscernable
   // d'une panne : le même spinner que plus haut dit au moins qu'il se passe quelque chose.
   if (sessionStatus === 'loading') {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <LoadingSpinner label="Loading…" />
-      </div>
-    );
+    return <LoadingScreen />;
   }
   if (mode === null) return <ModeSelector onSelect={setMode} />;
 

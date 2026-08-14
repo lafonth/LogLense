@@ -138,7 +138,11 @@ export function RaidForm({ onOpenPlayer, onBack }: RaidFormProps) {
             </Select>
 
             {rankingError && <ErrorBanner message={rankingError} />}
-            {rankingLoading && <LoadingSpinner label="Classement du raid…" />}
+            {rankingLoading && (
+              <div role="status">
+                <LoadingSpinner label="Classement du raid…" />
+              </div>
+            )}
             {ranking && !rankingLoading && (
               <RaidRankingList ranking={ranking} onOpen={handleOpen} />
             )}

@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Fira+Code:wght@400;500&display=swap');
 @import 'tailwindcss';
 
 @theme {
@@ -10,7 +9,13 @@
 
   --color-text: #f2efe9;
   --color-muted: #9d97a8;
-  --color-dim: #6b6577;
+  /*
+   * Les trois niveaux de texte doivent tous rester lisibles : `dim` porte l'ilvl, les classes
+   * de personnage et les libellés d'étape, pas de la décoration. À #6b6577 il tombait à
+   * 3,4:1 sur `--color-bg`, sous le seuil AA de 4,5:1. Cette valeur tient 4,65:1 sur le fond
+   * le plus clair (`--color-surface-raised`), donc partout où elle est employée.
+   */
+  --color-dim: #898492;
 
   --color-brass: #b08d57;
   --color-brass-bright: #d7b988;
@@ -21,8 +26,26 @@
   --color-warning: #d9a441;
   --color-danger: #d9636f;
 
-  --font-display: 'IM Fell English', Georgia, serif;
-  --font-mono: 'Fira Code', ui-monospace, 'Courier New', monospace;
+  /*
+   * Paliers de percentile — les couleurs de qualité d'objet de WoW, que le joueur lit sans
+   * légende. Elles vivaient en hex bruts dans des classes `.pct-*`, hors du système de
+   * tokens, et deux d'entre elles échouaient au contraste AA sur le chiffre central du
+   * produit : l'epic à 3,9:1 et le rare à 3,9:1. Les teintes sont conservées, éclaircies
+   * juste assez pour passer 4,5:1 sur `--color-surface-raised`.
+   */
+  --color-pct-legendary: #ff8000;
+  --color-pct-epic: #b55cf1;
+  --color-pct-rare: #2a88e3;
+  --color-pct-uncommon: #1eff00;
+  --color-pct-common: #9d9d9d;
+
+  /*
+   * Les deux familles sont chargées par `next/font/google` depuis `layout.tsx`, qui les
+   * sert en local et expose ces variables : plus aucune requête vers fonts.googleapis.com
+   * ne bloque le premier rendu.
+   */
+  --font-display: var(--font-im-fell-english), Georgia, serif;
+  --font-mono: var(--font-fira-code), ui-monospace, 'Courier New', monospace;
   --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   --text-2xs: 0.6875rem;
@@ -93,21 +116,4 @@ h4 {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-border-strong);
-}
-
-/* Item-quality colours — a WoW convention, kept verbatim. */
-.pct-legendary {
-  color: #ff8000;
-}
-.pct-epic {
-  color: #a335ee;
-}
-.pct-rare {
-  color: #0070dd;
-}
-.pct-uncommon {
-  color: #1eff00;
-}
-.pct-common {
-  color: #9d9d9d;
 }

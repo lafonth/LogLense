@@ -28,6 +28,7 @@ export function BossSidebar({ encounters, bossStates, activeIdx, onSelect }: Bos
               key={enc.id}
               type="button"
               onClick={() => onSelect(i)}
+              aria-current={isActive ? true : undefined}
               className={`mb-1 flex w-full items-center justify-between rounded-sm border px-3 py-2 text-left ${
                 isActive
                   ? 'border-brass-dim bg-surface-raised'
@@ -37,7 +38,11 @@ export function BossSidebar({ encounters, bossStates, activeIdx, onSelect }: Bos
               <span className={`font-mono text-xs ${isActive ? 'text-brass' : 'text-muted'}`}>
                 {enc.name}
               </span>
-              {state?.status === 'loading' && <LoadingSpinner />}
+              {/* Huit boss se chargent de front : le libellé nomme lequel, sans encombrer
+                  un rail large de 200 px. */}
+              {state?.status === 'loading' && (
+                <LoadingSpinner label={`Loading ${enc.name}…`} labelHidden />
+              )}
               {state?.status === 'success' && pct !== null && <Badge pct={pct} size="sm" />}
               {state?.status === 'error' && <span className="text-danger text-2xs">err</span>}
             </button>

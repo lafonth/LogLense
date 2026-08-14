@@ -14,9 +14,12 @@ interface ModeSelectorProps {
 export function ModeSelector({ onSelect }: ModeSelectorProps) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-12 px-6 py-12">
-      <div className="text-muted tracking-caps font-mono text-xs uppercase">
+      {/* Le titre de l'écran d'accueil : un `div` n'entre pas dans le plan du document, et
+          c'est le seul repère de haut niveau de la page. La classe `font-mono` l'emporte sur
+          la règle d'élément `h1 { font-family: var(--font-display) }` — le rendu est le même. */}
+      <h1 className="text-muted tracking-caps m-0 font-mono text-xs uppercase">
         LogLense — Choose Analysis Mode
-      </div>
+      </h1>
       <div className="flex flex-col flex-wrap justify-center gap-6 sm:flex-row">
         <button onClick={() => onSelect('character')} className={CARD_CLASS}>
           <div className={TITLE_CLASS}>Analyse a Character</div>

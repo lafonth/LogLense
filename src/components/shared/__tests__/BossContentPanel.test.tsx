@@ -172,6 +172,15 @@ describe('bossContentPanel', () => {
     expect(screen.getByRole('button', { name: 'Feral' })).toBeInTheDocument();
   });
 
+  it('marks the spec on display, and only that one', () => {
+    // La spec active n'était signalée que par sa couleur de fond : rien ne la distinguait
+    // pour qui ne la voit pas.
+    renderPanel({ onSwitchBossSpec: vi.fn() });
+
+    expect(screen.getByRole('button', { name: 'Balance' })).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByRole('button', { name: 'Feral' })).not.toHaveAttribute('aria-current');
+  });
+
   it('hides the switcher for a class with a single dps spec', () => {
     renderPanel({
       onSwitchBossSpec: vi.fn(),

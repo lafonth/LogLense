@@ -47,6 +47,7 @@ export function SidebarItem({
         type="button"
         onClick={() => !isLoading && onClick()}
         disabled={isLoading}
+        aria-current={isActive ? true : undefined}
         className={`flex w-full items-center justify-between gap-1.5 rounded-sm border py-2 pl-2 text-left ${
           action ? 'pr-8' : 'pr-2'
         } ${
@@ -57,9 +58,11 @@ export function SidebarItem({
           <div className={`truncate font-mono text-xs ${isActive ? 'text-brass' : 'text-muted'}`}>
             {name}
           </div>
-          <div className="text-2xs text-dim font-mono opacity-60">{subtitle}</div>
+          <div className="text-2xs text-dim font-mono">{subtitle}</div>
         </div>
-        {isLoading && <LoadingSpinner />}
+        {/* Le rail n'a pas la place d'un libellé, mais l'attente doit rester nommée : c'est
+            le seul indice qu'un personnage est en cours de chargement et pas simplement figé. */}
+        {isLoading && <LoadingSpinner label={`Loading ${name}…`} labelHidden />}
       </button>
       {action && <div className="absolute top-1.5 right-1.5">{action}</div>}
     </div>

@@ -13,7 +13,7 @@ export function DamageBreakdown({ entries }: DamageBreakdownProps) {
     .slice(0, 10);
 
   return (
-    <ScrollArea className="mt-4">
+    <ScrollArea label="Damage breakdown" className="mt-4">
       {top10.map((entry) => {
         const pct = total > 0 ? (entry.total / total) * 100 : 0;
         return (

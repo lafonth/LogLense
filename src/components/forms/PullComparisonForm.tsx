@@ -99,7 +99,7 @@ function PullSidePicker({
 
   return (
     <div className="border-border flex flex-col gap-4 rounded-sm border p-4">
-      <h3 className="text-2xs tracking-caps text-dim font-sans uppercase">{label}</h3>
+      <h2 className="text-2xs tracking-caps text-dim font-sans uppercase">{label}</h2>
 
       <form onSubmit={handleLoadReport} className="flex flex-col gap-3">
         <Input
@@ -185,6 +185,11 @@ export function PullComparisonForm({ onSubmit, loading, onBack, error }: PullCom
         >
           ← Back
         </button>
+
+        {/* La maquette ne prévoit pas de titre visible ici, mais l'écran en avait besoin d'un :
+            sa hiérarchie commençait à « Before »/« After », deux `h3` sous aucun `h1`. Le titre
+            existe donc pour le plan du document seulement, et les deux panneaux passent en `h2`. */}
+        <h1 className="sr-only">Compare two pulls</h1>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <PullSidePicker label="Before" onResolved={setBefore} />

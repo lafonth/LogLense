@@ -41,7 +41,9 @@ export function DpsBanner({
 
       {/* Row 3: ilvl */}
       <div className="mt-2">
-        <span className="text-dim font-sans text-xs opacity-60">
+        {/* Pas d'`opacity` ici : l'ilvl est un critère de comparabilité, pas un ornement, et
+            un fondu à 0,6 sur `text-dim` retombait à 2,6:1 quelle que soit la teinte du token. */}
+        <span className="text-dim font-sans text-xs">
           <span className="font-mono">{ilvl}</span> ilvl
         </span>
       </div>

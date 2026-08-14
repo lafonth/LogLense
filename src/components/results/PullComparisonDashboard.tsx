@@ -30,10 +30,12 @@ export function PullComparisonDashboard({ result, onBack }: PullComparisonDashbo
           ← Back
         </button>
 
-        <h2 className="text-text mb-6 font-sans text-sm">
+        {/* Cet écran n'a pas d'autre titre : commencer à `h2` ouvrait la hiérarchie sur un
+            niveau manquant. `font-sans` l'emporte sur la règle d'élément, le rendu ne bouge pas. */}
+        <h1 className="text-text m-0 mb-6 font-sans text-sm">
           <span className="font-mono">{before.name}</span> — {before.code}#{before.fightId} vs{' '}
           {after.code}#{after.fightId}
-        </h2>
+        </h1>
 
         <div className="flex flex-col gap-4">
           <PullVerdictBanner comparison={comparison} before={before} after={after} />

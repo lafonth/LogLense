@@ -55,6 +55,7 @@ export function DashboardHeader({
                 size="xs"
                 shape="pill"
                 onClick={() => !active && onDifficultyChange(id)}
+                aria-current={active ? true : undefined}
                 className={`font-mono tracking-wide ${
                   active ? 'border-brass-dim bg-brass/10 text-brass' : 'text-muted'
                 }`}
@@ -83,10 +84,17 @@ export function LoadingProgress({ encounters, bossStates }: LoadingProgressProps
   const isLoading = bossStates.some((s) => s.status === 'loading' || s.status === 'idle');
   if (!isLoading) return null;
 
+  const settled = bossStates.filter((s) => s.status === 'success' || s.status === 'error').length;
+
   return (
     <div className="border-border bg-surface mb-6 rounded-sm border p-4">
-      <div className="text-2xs text-muted mb-2 font-mono tracking-wider uppercase">
-        Fetching bosses…
+      {/*
+       * La région vive tient sur ce seul résumé, pas sur la liste d'étapes en dessous : huit
+       * lignes qui basculent une à une produiraient huit annonces pour une seule information,
+       * l'avancement. La liste reste visible, elle est simplement hors de la région.
+       */}
+      <div role="status" className="text-2xs text-muted mb-2 font-mono tracking-wider uppercase">
+        Fetching bosses… {settled} of {encounters.length}
       </div>
       <ProgressSteps
         steps={encounters.map((enc, i) => {

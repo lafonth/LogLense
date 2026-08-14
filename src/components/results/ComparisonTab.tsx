@@ -21,7 +21,7 @@ interface ComparisonTabProps {
 export function ComparisonTab({ encounter, bossState, specName, talentNodes }: ComparisonTabProps) {
   if (bossState.status === 'idle' || bossState.status === 'loading') {
     return (
-      <div className="py-8">
+      <div role="status" className="py-8">
         <LoadingSpinner label={`Fetching ${encounter.name}…`} />
       </div>
     );

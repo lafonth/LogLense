@@ -16,7 +16,9 @@ interface OverviewTabProps {
 export function OverviewTab({ encounter, bossState, specName }: OverviewTabProps) {
   if (bossState.status === 'idle' || bossState.status === 'loading') {
     return (
-      <div className="py-8">
+      // Le panneau change de contenu sur place quand on passe d'un boss à l'autre : sans
+      // région vive, le remplacement est silencieux et rien ne dit que la requête est partie.
+      <div role="status" className="py-8">
         <LoadingSpinner label={`Fetching ${encounter.name}…`} />
       </div>
     );

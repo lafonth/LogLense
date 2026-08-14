@@ -147,6 +147,7 @@ export function BossContentPanel({
                   variant="secondary"
                   size="sm"
                   disabled={activeBossState.status === 'loading'}
+                  aria-current={spec.specId === currentSpecId ? true : undefined}
                   className={
                     spec.specId === currentSpecId ? 'bg-surface border-brass text-brass' : ''
                   }

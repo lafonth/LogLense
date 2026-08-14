@@ -39,7 +39,7 @@ export function StatsTable({ character, sample }: StatsTableProps) {
 
   if (stats.length === 0) {
     return (
-      <ScrollArea>
+      <ScrollArea label="Stats">
         <table className="w-full border-collapse">
           <thead>
             <tr>
@@ -62,7 +62,7 @@ export function StatsTable({ character, sample }: StatsTableProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <ScrollArea>
+      <ScrollArea label="Stats against the references">
         <table className="w-full border-collapse">
           <thead>
             <tr>
