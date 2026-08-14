@@ -117,6 +117,16 @@ export function consumeExposureQuota(by: string, atMs: number): Promise<RateVerd
 export interface StrictVerdict extends RateVerdict {
   /** Vrai quand le refus vient d'un compteur illisible, pas d'un plafond atteint. */
   unavailable: boolean;
+  /**
+   * Ce que le compteur totalise sur la fenêtre, coût de cette requête compris.
+   *
+   * `null` — et non `0` — quand l'`INCRBY` n'a pas répondu : rien n'a été lu, donc rien n'est
+   * su. La distinction porte parce que ce champ n'existe que pour être agrégé en distribution
+   * de demande, et qu'un coût réellement nul est représentable : `guardWclSpend` facturera un
+   * jour moins cher une analyse servie par le cache. Confondre « mesuré à zéro » et « pas
+   * mesuré » fausserait alors la seule courbe qu'on cherche à lire.
+   */
+  consumed: number | null;
 }
 
 /**
@@ -144,18 +154,22 @@ export async function consumeStrictQuota(
   try {
     count = await redisIncrBy(key, cost);
   } catch {
-    return { allowed: false, retryAfterSeconds, unavailable: true };
+    return { allowed: false, retryAfterSeconds, unavailable: true, consumed: null };
   }
 
   try {
     await redisExpire(key, windowSeconds);
   } catch {
-    return { allowed: false, retryAfterSeconds, unavailable: true };
+    // Le refus est le même que ci-dessus, la mesure non : l'incrément, lui, a répondu, donc
+    // `count` est un relevé vrai. Le jeter parce que la commande *suivante* a échoué perdrait
+    // une donnée qu'on tient déjà — et c'est `unavailable` qui dit que le verdict n'est pas
+    // garanti, pas `consumed`.
+    return { allowed: false, retryAfterSeconds, unavailable: true, consumed: count };
   }
 
   return count > limit
-    ? { allowed: false, retryAfterSeconds, unavailable: false }
-    : { allowed: true, retryAfterSeconds: 0, unavailable: false };
+    ? { allowed: false, retryAfterSeconds, unavailable: false, consumed: count }
+    : { allowed: true, retryAfterSeconds: 0, unavailable: false, consumed: count };
 }
 
 export function consumeAiQuota(by: string, atMs: number): Promise<StrictVerdict> {

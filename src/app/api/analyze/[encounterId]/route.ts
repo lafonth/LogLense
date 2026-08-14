@@ -90,7 +90,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
   // Après validation, avant la première requête WCL : c'est la seule position où le quota
   // borne quelque chose. Un boss vaut une cinquantaine d'appels chez un tiers dont la
   // sanction porte sur la clé du produit entier.
-  const refusal = await guardWclSpend(BOSS_ANALYSIS_UNITS);
+  const refusal = await guardWclSpend('analyze', BOSS_ANALYSIS_UNITS);
   if (refusal) return refusal;
 
   try {

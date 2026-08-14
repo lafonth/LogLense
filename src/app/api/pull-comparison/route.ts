@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
   const { specId, before, after } = body;
 
-  const refusal = await guardWclSpend(PULL_COMPARISON_UNITS);
+  const refusal = await guardWclSpend('pull-comparison', PULL_COMPARISON_UNITS);
   if (refusal) return refusal;
 
   const clientId = process.env.WCL_CLIENT_ID;

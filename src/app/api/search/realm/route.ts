@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
   // ouvrir un cinquième : c'est un budget d'appels tiers, pas un budget par fournisseur.
   // La garde passe avant le cache mémoire — une unité sur deux mille ne vaut pas une
   // exception qui laisserait la route ouverte aux anonymes dès qu'elle est chaude.
-  const refusal = await guardWclSpend(METADATA_UNITS);
+  const refusal = await guardWclSpend('realm-search', METADATA_UNITS);
   if (refusal) return refusal;
 
   const region = (new URL(req.url).searchParams.get('region') ?? 'EU').toUpperCase();

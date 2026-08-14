@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
     return NextResponse.json({ error: 'Invalid fight id' }, { status: 400 });
   }
 
-  const refusal = await guardWclSpend(RAID_RANKING_UNITS);
+  const refusal = await guardWclSpend('raid', RAID_RANKING_UNITS);
   if (refusal) return refusal;
 
   const token = await getWCLToken(process.env.WCL_CLIENT_ID!, process.env.WCL_CLIENT_SECRET!);

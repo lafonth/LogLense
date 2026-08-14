@@ -1,8 +1,10 @@
+import type { WclRoute } from '@/lib/labels/record-demand';
 import { createHash } from 'node:crypto';
 import { getServerSession } from 'next-auth/next';
 
 import { authOptions } from '@/lib/auth';
 import { consumeWclQuota } from '@/lib/labels/rate-limit';
+import { recordDemand } from '@/lib/labels/record-demand';
 
 /**
  * Coût nominal d'une analyse de boss, en appels Warcraft Logs.
@@ -74,8 +76,13 @@ export function quotaSubject(userId: string): string {
  * Rend la réponse de refus, ou `null` quand la dépense est autorisée. À appeler après la
  * validation du corps — un quota se dépense sur une requête qui aboutira, pas sur une qu'on
  * s'apprête à refuser pour une autre raison.
+ *
+ * C'est aussi le seul endroit où la demande adressée à WCL est observable en entier : les trois
+ * issues du quota y passent, et `recordDemand` les consigne toutes les trois. Le 401, lui,
+ * n'écrit rien — aucun verdict de quota n'existe encore à ce stade, et la friction de
+ * l'allowlist est une autre mesure, qui ne se range pas dans les mêmes seaux.
  */
-export async function guardWclSpend(units: number): Promise<Response | null> {
+export async function guardWclSpend(route: WclRoute, units: number): Promise<Response | null> {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.email ?? session?.user?.name ?? '';
   if (!userId) {
@@ -83,6 +90,11 @@ export async function guardWclSpend(units: number): Promise<Response | null> {
   }
 
   const verdict = await consumeWclQuota(quotaSubject(userId), Date.now(), units);
+
+  // Attendu avant la réponse, refus compris : c'est l'invariant des écritures de corpus, et le
+  // 429 est justement l'enregistrement qu'on ne peut pas reconstituer après coup.
+  await recordDemand(route, units, verdict, userId);
+
   if (verdict.unavailable) {
     return jsonResponse({ error: 'Analysis temporarily unavailable' }, 503);
   }

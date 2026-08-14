@@ -31,6 +31,21 @@ export const CORPUS_MONTH_CAP = 50_000;
  */
 export const POOL_MONTH_CAP = 150_000;
 
+/**
+ * Le plafond propre à la demande Warcraft Logs.
+ *
+ * C'est le flux le plus fréquent du corpus : il écrit une ligne par requête qui dépense chez
+ * WCL, y compris les lectures de métadonnées à une unité, là où les autres flux n'écrivent
+ * qu'au bout d'une analyse. Ce sont en contrepartie les lignes les plus courtes — sept
+ * scalaires, ni stats ni rotation ni pointeurs de combat.
+ *
+ * Au plafond commun, la demande fermerait le mois avant les verdicts humains, qui restent les
+ * plus chers à obtenir. Et un mois de demande tronqué ne perd pas n'importe quelle part de sa
+ * distribution : il perd la fin, donc les comptes qui demandent le plus — précisément ceux sur
+ * lesquels ce flux existe pour renseigner.
+ */
+export const DEMAND_MONTH_CAP = 150_000;
+
 export type CorpusWrite = 'written' | 'full';
 
 /**

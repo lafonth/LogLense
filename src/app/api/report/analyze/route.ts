@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
 
   // Le coût est proportionnel : la route éclate en un `Promise.all` sur les rencontres, et
   // une unité par requête HTTP laisserait un seul appel en acheter vingt fois cinquante.
-  const refusal = await guardWclSpend(encounters.length * BOSS_ANALYSIS_UNITS);
+  const refusal = await guardWclSpend('report-analyze', encounters.length * BOSS_ANALYSIS_UNITS);
   if (refusal) return refusal;
 
   try {

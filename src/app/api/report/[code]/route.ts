@@ -40,7 +40,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: 'Invalid report code' }, { status: 400 });
   }
 
-  const refusal = await guardWclSpend(METADATA_UNITS);
+  const refusal = await guardWclSpend('report', METADATA_UNITS);
   if (refusal) return refusal;
 
   const clientId = process.env.WCL_CLIENT_ID!;

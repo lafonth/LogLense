@@ -28,7 +28,7 @@ export async function GET() {
     return NextResponse.json({ error: 'WCL credentials not configured' }, { status: 500 });
   }
 
-  const refusal = await guardWclSpend(METADATA_UNITS);
+  const refusal = await guardWclSpend('zones', METADATA_UNITS);
   if (refusal) return refusal;
 
   try {

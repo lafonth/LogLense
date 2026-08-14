@@ -113,6 +113,7 @@ describe('consumeAiQuota', () => {
       allowed: true,
       retryAfterSeconds: 0,
       unavailable: false,
+      consumed: AI_LIMIT,
     });
   });
 
@@ -125,6 +126,7 @@ describe('consumeAiQuota', () => {
       allowed: false,
       retryAfterSeconds: WINDOW_MS / 2000,
       unavailable: false,
+      consumed: AI_LIMIT + 1,
     });
   });
 
@@ -182,5 +184,52 @@ describe('consumeWclQuota', () => {
 
     expect(verdict.allowed).toBe(false);
     expect(verdict.unavailable).toBe(true);
+  });
+
+  // `consumed` n'existe que pour être agrégé en distribution de demande : ce que le compteur
+  // totalise sur la fenêtre, cette requête comprise. Les quatre chemins de retour le portent,
+  // sans quoi la courbe se lit sur un échantillon dont on ignore lesquels manquent.
+  it('reports what the window totals, this request included, when it allows', async () => {
+    redisIncrBy.mockResolvedValue(140);
+
+    await expect(consumeWclQuota(BY, 0, 50)).resolves.toMatchObject({
+      allowed: true,
+      consumed: 140,
+    });
+  });
+
+  it('reports what the window totals when it refuses', async () => {
+    redisIncrBy.mockResolvedValue(WCL_UNIT_LIMIT + 50);
+
+    await expect(consumeWclQuota(BY, 0, 50)).resolves.toMatchObject({
+      allowed: false,
+      consumed: WCL_UNIT_LIMIT + 50,
+    });
+  });
+
+  // `null`, et non `0` : rien n'a été lu, donc rien n'est su. Un coût réellement nul est
+  // représentable — `guardWclSpend` facturera un jour moins cher une analyse servie par le
+  // cache — et confondre les deux fausserait la seule courbe qu'on cherche à lire.
+  it('reports nothing measured, not a zero, when the increment never answered', async () => {
+    redisIncrBy.mockRejectedValue(new Error('upstash down'));
+
+    await expect(consumeWclQuota(BY, 0, 50)).resolves.toMatchObject({
+      unavailable: true,
+      consumed: null,
+    });
+  });
+
+  // L'incrément, lui, a répondu : le relevé est vrai, et le jeter parce que la commande
+  // *suivante* a échoué perdrait une donnée qu'on tient déjà. C'est `unavailable` qui dit que
+  // le verdict n'est pas garanti, pas `consumed`.
+  it('keeps the reading it already holds when only the expiry fails', async () => {
+    redisIncrBy.mockResolvedValue(310);
+    redisExpire.mockRejectedValue(new Error('upstash down'));
+
+    await expect(consumeWclQuota(BY, 0, 50)).resolves.toMatchObject({
+      allowed: false,
+      unavailable: true,
+      consumed: 310,
+    });
   });
 });
