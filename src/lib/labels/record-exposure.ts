@@ -38,6 +38,11 @@ export async function recordExposure(bosses: (BossResult | null)[]): Promise<voi
     // Mesuré une fois pour le lot, pas une fois par boss : voir `hasCorpusRoom`.
     if (!(await hasCorpusRoom(key))) return;
 
+    // Les décomptes de quota restent séquentiels : `consumeExposureQuota` ne prend pas de
+    // coût, donc vingt boss demandent vingt `INCR` — les grouper voudrait dire changer la
+    // signature du quota, et un plafond franchi par un lot compté en bloc n'est plus un
+    // plafond. C'est l'écriture, elle, qui n'a aucune raison d'attendre la précédente.
+    const payloads: string[] = [];
     for (const boss of bosses) {
       if (!boss) continue;
 
@@ -47,14 +52,19 @@ export async function recordExposure(bosses: (BossResult | null)[]): Promise<voi
       if (by) {
         const quota = await consumeExposureQuota(by, atMs);
         // Le suivant serait refusé pour la même raison : inutile d'insister.
-        if (!quota.allowed) return;
+        if (!quota.allowed) break;
       }
 
       // La provenance du DPS n'est pas passée ici : elle est portée par le résultat lui-même
       // (`character.dpsSource`). Une route qui l'affirmerait mentirait dès que le pipeline
       // change de source, ce qui est exactement ce qui est arrivé au chemin rapport.
-      await redisAppend(key, JSON.stringify(buildExposure(boss, { by, at })));
+      payloads.push(JSON.stringify(buildExposure(boss, { by, at })));
     }
+
+    // `allSettled` et non `all` : sur un rejet, `all` rendrait la main pendant que les autres
+    // `RPUSH` sont encore en vol, et la fonction serverless les emporterait avec elle. Le
+    // refus d'une écriture ne doit pas coûter les autres.
+    await Promise.allSettled(payloads.map((payload) => redisAppend(key, payload)));
   } catch {
     // Avalé volontairement : voir l'en-tête.
   }
