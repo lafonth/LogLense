@@ -26,7 +26,8 @@ async function fetchBoss(
   input: AnalysisInput,
   encounter: { id: number; name: string },
   difficulty: number,
-  variant: Variant
+  variant: Variant,
+  preferSnapshot: boolean
 ): Promise<BossState> {
   try {
     const res = await fetch(`/api/analyze/${encounter.id}`, {
@@ -40,6 +41,7 @@ async function fetchBoss(
         encounterName: encounter.name,
         specId: input.specId,
         ...variant,
+        preferSnapshot,
       }),
     });
 
@@ -77,7 +79,7 @@ export function useAnalysis() {
   }, []);
 
   const runBoss = useCallback(
-    async (bossIdx: number, variant: Variant) => {
+    async (bossIdx: number, variant: Variant, preferSnapshot = false) => {
       const currentInput = inputRef.current;
       if (!currentInput) return;
       const enc = currentInput.encounters[bossIdx];
@@ -93,15 +95,23 @@ export function useAnalysis() {
       }
 
       commit(difficulty, bossIdx, { status: 'loading' });
-      const state = await fetchBoss(currentInput, enc, difficulty, variant);
+      const state = await fetchBoss(currentInput, enc, difficulty, variant, preferSnapshot);
       if (state.status === 'success') variantsRef.current.set(key, state);
       commit(difficulty, bossIdx, state);
     },
     [commit]
   );
 
+  /**
+   * `preferSnapshot` voyage en second argument plutôt que dans `AnalysisInput` : ce type est
+   * du domaine, il ressort tel quel dans `AnalysisResult.input` et part au prompt. Une
+   * préférence de cache n'y a rien à faire.
+   *
+   * Elle ne vaut que pour cette première salve. `switchBossSpec` et `switchBossFight` sont des
+   * demandes neuves du lecteur : il a cliqué, il attend le calcul, pas le rendu d'un autre.
+   */
   const start = useCallback(
-    async (analysisInput: AnalysisInput) => {
+    async (analysisInput: AnalysisInput, opts?: { preferSnapshot?: boolean }) => {
       const diff = analysisInput.difficulty;
       activeDiffRef.current = diff;
       setCurrentDifficulty(diff);
@@ -128,7 +138,9 @@ export function useAnalysis() {
       cacheRef.current[diff] = [...initial];
       setBossStates([...initial]);
 
-      await Promise.all(analysisInput.encounters.map((_, i) => runBoss(i, {})));
+      await Promise.all(
+        analysisInput.encounters.map((_, i) => runBoss(i, {}, opts?.preferSnapshot ?? false))
+      );
     },
     [runBoss]
   );

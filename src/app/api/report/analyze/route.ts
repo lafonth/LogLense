@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import type { BossResult } from '@/types';
 import { NextResponse } from 'next/server';
 import { isNum, isRecord, isStr, readJson } from '@/lib/api/parse';
 import {
@@ -10,6 +11,7 @@ import { recordExposure } from '@/lib/labels/record-exposure';
 import { getDpsSpecsForClass } from '@/lib/specs';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { analyzeReportBoss } from '@/lib/wcl/report-pipeline';
+import { readSnapshot, reportSnapshotKey, writeSnapshot } from '@/lib/wcl/result-snapshot';
 
 export const runtime = 'nodejs';
 
@@ -21,6 +23,15 @@ interface ReportAnalyzeBody {
   specId: number;
   difficulty: number;
   encounters: { id: number; name: string; fightId: number; fightMs: number }[];
+  /**
+   * Le lien ouvert portait la marque de partage. Autorise la lecture des instantanés — elle
+   * ne se fait jamais d'office : un raideur qui relance son analyse pendant la soirée doit
+   * voir sa pull du moment, pas celle d'il y a deux heures.
+   *
+   * Ce n'est pas une frontière de sécurité, et la forger n'ouvre rien : l'appelant est
+   * connecté, il pourrait lancer l'analyse lui-même.
+   */
+  preferSnapshot?: boolean;
 }
 
 /**
@@ -33,11 +44,13 @@ interface ReportAnalyzeBody {
 function parseBody(input: unknown): ReportAnalyzeBody | null {
   if (!isRecord(input)) return null;
 
-  const { code, actorId, actorName, actorClass, specId, difficulty, encounters } = input;
+  const { code, actorId, actorName, actorClass, specId, difficulty, encounters, preferSnapshot } =
+    input;
 
   if (!isStr(code) || !isNum(actorId)) return null;
   if (!isStr(actorName) || !isStr(actorClass)) return null;
   if (!isNum(specId) || !isNum(difficulty)) return null;
+  if (preferSnapshot !== undefined && typeof preferSnapshot !== 'boolean') return null;
 
   // Le plafond de rencontres reste à l'appelant : il a son propre message, qui dit au
   // client quoi faire, là où un `null` ne dirait que « non ».
@@ -51,7 +64,16 @@ function parseBody(input: unknown): ReportAnalyzeBody | null {
     parsed.push({ id: enc.id, name: enc.name, fightId: enc.fightId, fightMs: enc.fightMs });
   }
 
-  return { code, actorId, actorName, actorClass, specId, difficulty, encounters: parsed };
+  return {
+    code,
+    actorId,
+    actorName,
+    actorClass,
+    specId,
+    difficulty,
+    encounters: parsed,
+    preferSnapshot,
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -61,7 +83,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid analysis request' }, { status: 400 });
   }
 
-  const { code, actorId, actorName, actorClass, specId, difficulty, encounters } = body;
+  const { code, actorId, actorName, actorClass, specId, difficulty, encounters, preferSnapshot } =
+    body;
 
   if (encounters.length > MAX_ENCOUNTERS_PER_REQUEST) {
     return NextResponse.json(
@@ -91,22 +114,59 @@ export async function POST(req: NextRequest) {
 
   return guardMeteredWclSpend('report-analyze', units, async () => {
     try {
-      const token = await getWCLToken(clientId, clientSecret);
+      const snapshotKeys = encounters.map((enc) =>
+        reportSnapshotKey({
+          code,
+          actorId,
+          encounterId: enc.id,
+          fightId: enc.fightId,
+          difficulty,
+        })
+      );
+
+      // Lus à l'intérieur du garde, jamais dans une route à part : la réservation a déjà refusé
+      // l'appelant anonyme, ce qui est tout ce que §2a demande. Un instantané servi ne dépense
+      // aucun appel WCL, et le règlement rend au quota du lecteur le forfait de la rencontre —
+      // le partage devient gratuit pour lui, pas seulement pour la facture.
+      //
+      // Rencontre par rencontre, pas tout ou rien : un rapport dont une seule pull a changé
+      // sert les autres depuis l'instantané et ne recalcule que celle-là.
+      const snapshots: (BossResult | null)[] = preferSnapshot
+        ? await Promise.all(snapshotKeys.map((key) => readSnapshot(key)))
+        : encounters.map(() => null);
+
+      // Le jeton n'est demandé que s'il reste une rencontre à calculer : un lien entièrement
+      // servi par les instantanés ne doit toucher ni l'API ni l'OAuth de Warcraft Logs.
+      const token = snapshots.every((snap) => snap !== null)
+        ? ''
+        : await getWCLToken(clientId, clientSecret);
 
       const bosses = await Promise.all(
-        encounters.map((enc) =>
-          analyzeReportBoss(
-            token,
-            code,
-            enc.id,
-            enc.name,
-            actorId,
-            actorName,
-            enc.fightId,
-            enc.fightMs,
-            difficulty
-          ).catch(() => null)
+        encounters.map(
+          (enc, i) =>
+            snapshots[i] ??
+            analyzeReportBoss(
+              token,
+              code,
+              enc.id,
+              enc.name,
+              actorId,
+              actorName,
+              enc.fightId,
+              enc.fightMs,
+              difficulty
+            ).catch(() => null)
         )
+      );
+
+      // Écrit les seules rencontres calculées à froid : réécrire un instantané qu'on vient de
+      // lire repousserait son expiration à chaque ouverture du lien, et une durée de vie qu'on
+      // prolonge indéfiniment n'est plus une copie de travail.
+      await Promise.all(
+        bosses.map(async (boss, i) => {
+          if (snapshots[i] || !boss) return;
+          await writeSnapshot(snapshotKeys[i], boss);
+        })
       );
 
       // Resolve specId: use provided specId if valid, else fall back to first DPS spec for the class.

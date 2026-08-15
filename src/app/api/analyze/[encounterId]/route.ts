@@ -5,6 +5,7 @@ import { BOSS_ANALYSIS_UNITS, guardMeteredWclSpend } from '@/lib/api/wcl-guard';
 import { recordExposure } from '@/lib/labels/record-exposure';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { analyzeBoss } from '@/lib/wcl/pipeline';
+import { characterSnapshotKey, readSnapshot, writeSnapshot } from '@/lib/wcl/result-snapshot';
 
 export const runtime = 'nodejs';
 
@@ -17,6 +18,15 @@ interface AnalyzeBody {
   specId: number;
   specIdOverride?: number;
   fightOverride?: { code: string; fightID: number };
+  /**
+   * Le lien ouvert portait la marque de partage. Autorise la lecture de l'instantané — elle
+   * ne se fait jamais d'office : un raideur qui relance son analyse pendant la soirée doit
+   * voir sa pull du moment, pas celle d'il y a deux heures.
+   *
+   * Ce n'est pas une frontière de sécurité, et la forger n'ouvre rien : l'appelant est
+   * connecté, il pourrait lancer l'analyse lui-même.
+   */
+  preferSnapshot?: boolean;
 }
 
 const REGIONS: readonly AnalysisInput['region'][] = ['US', 'EU', 'KR', 'TW', 'CN'];
@@ -42,6 +52,7 @@ function parseAnalyzeBody(input: unknown): AnalyzeBody | null {
     specId,
     specIdOverride,
     fightOverride,
+    preferSnapshot,
   } = input;
 
   if (!isStr(characterName) || !isStr(serverSlug) || !isStr(encounterName)) return null;
@@ -53,6 +64,7 @@ function parseAnalyzeBody(input: unknown): AnalyzeBody | null {
     if (!isRecord(fightOverride)) return null;
     if (!isStr(fightOverride.code) || !isNum(fightOverride.fightID)) return null;
   }
+  if (preferSnapshot !== undefined && typeof preferSnapshot !== 'boolean') return null;
 
   return {
     characterName,
@@ -63,6 +75,7 @@ function parseAnalyzeBody(input: unknown): AnalyzeBody | null {
     specId,
     specIdOverride,
     fightOverride: fightOverride as { code: string; fightID: number } | undefined,
+    preferSnapshot,
   };
 }
 
@@ -96,6 +109,31 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
   // boss coûte une poignée d'appels — c'est ici que l'économie revient à l'utilisateur.
   return guardMeteredWclSpend('analyze', BOSS_ANALYSIS_UNITS, async () => {
     try {
+      const snapshotKey = characterSnapshotKey({
+        region: body.region,
+        serverSlug: body.serverSlug,
+        characterName: body.characterName,
+        encounterId: encounterIdNum,
+        difficulty: body.difficulty,
+        specId: body.specId,
+        specIdOverride: body.specIdOverride,
+        fightOverride: body.fightOverride,
+      });
+
+      // Lu à l'intérieur du garde, jamais dans une route à part : la réservation a déjà refusé
+      // l'appelant anonyme, ce qui est tout ce que §2a demande. Un instantané servi ne dépense
+      // aucun appel WCL, et le règlement rend le forfait entier au quota du lecteur — le
+      // partage devient gratuit pour lui, pas seulement pour la facture.
+      if (body.preferSnapshot) {
+        const snapshot = await readSnapshot(snapshotKey);
+        if (snapshot) {
+          // Un rendu a bien eu lieu : la capture part comme sur le chemin froid. Le `renderId`
+          // que porte l'instantané relu est neuf, il ne se confond pas avec celui du partageur.
+          await recordExposure([snapshot]).catch(() => {});
+          return NextResponse.json(snapshot);
+        }
+      }
+
       const token = await getWCLToken(clientId, clientSecret);
 
       const input: AnalysisInput = {
@@ -123,6 +161,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
       // `recordExposure` avale déjà ses échecs ; le `catch` d'ici est la seconde barrière, à
       // l'intérieur du `try` qui rend un 500. La capture ne doit jamais coûter l'analyse.
       await recordExposure(result ? [result] : []).catch(() => {});
+
+      // Écrit sur le chemin froid uniquement : réécrire un instantané qu'on vient de lire
+      // repousserait son expiration à chaque ouverture du lien, et une durée de vie qu'on
+      // prolonge indéfiniment n'est plus une copie de travail.
+      if (result) await writeSnapshot(snapshotKey, result);
 
       return NextResponse.json(result);
     } catch (error) {

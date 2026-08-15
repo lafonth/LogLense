@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { recordExposure } from '@/lib/labels/record-exposure';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { analyzeReportBoss } from '@/lib/wcl/report-pipeline';
+import { readSnapshot, reportSnapshotKey, writeSnapshot } from '@/lib/wcl/result-snapshot';
 import { POST } from '../route';
 
 // Le garde de quota WCL a ses propres tests ; ici on le neutralise par défaut — il exécute
@@ -31,6 +32,15 @@ vi.mock('@/lib/wcl/report-pipeline', () => ({
 
 vi.mock('@/lib/labels/record-exposure', () => ({
   recordExposure: vi.fn().mockResolvedValue(undefined),
+}));
+
+// La clé reste la vraie : c'est elle qui atteste que la route relit exactement ce qu'elle a
+// écrit, et une clé simulée ferait passer une dérive entre les deux. Seules les deux
+// entrées-sorties sont doublées — complétude et durée de vie ont leurs propres tests.
+vi.mock('@/lib/wcl/result-snapshot', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/wcl/result-snapshot')>()),
+  readSnapshot: vi.fn(),
+  writeSnapshot: vi.fn(),
 }));
 
 const mockBossResult: BossResult = {
@@ -233,6 +243,100 @@ describe('report analyze route', () => {
 
     expect(res.status).toBe(200);
     expect((await res.json()).bosses[0].encounter).toBe('Chimaerus');
+  });
+});
+
+/**
+ * Le chemin rapport analyse plusieurs rencontres d'un coup : l'instantané s'y joue rencontre
+ * par rencontre, pas tout ou rien. Un rapport dont une seule pull a changé doit servir les
+ * autres depuis le cache et ne recalculer que celle-là.
+ */
+describe('report analyze route, shared link', () => {
+  const KEY_ARGS = { code: 'abc', actorId: 63, encounterId: 3306, fightId: 17, difficulty: 5 };
+  const KEY = reportSnapshotKey(KEY_ARGS);
+
+  const SECOND = { id: 3310, name: 'Nexus-King', fightId: 21, fightMs: 240000 };
+  const SECOND_KEY = reportSnapshotKey({ ...KEY_ARGS, encounterId: 3310, fightId: 21 });
+
+  beforeEach(() => {
+    vi.mocked(analyzeReportBoss).mockReset().mockResolvedValue(mockBossResult);
+    vi.mocked(recordExposure).mockReset().mockResolvedValue(undefined);
+    vi.mocked(getWCLToken).mockReset().mockResolvedValue('mock-token');
+    vi.mocked(readSnapshot).mockReset().mockResolvedValue(null);
+    vi.mocked(writeSnapshot).mockReset().mockResolvedValue(undefined);
+    guardMeteredWclSpend.mockClear();
+    process.env.WCL_CLIENT_ID = 'test-id';
+    process.env.WCL_CLIENT_SECRET = 'test-secret';
+  });
+
+  it('reads no snapshot without the marker, and stores what it computed', async () => {
+    await POST(makeRequest(validBody()));
+
+    expect(readSnapshot).not.toHaveBeenCalled();
+    expect(writeSnapshot).toHaveBeenCalledWith(KEY, mockBossResult);
+  });
+
+  it('serves the snapshot without touching Warcraft Logs when the marker is set', async () => {
+    const shared = { ...mockBossResult, renderId: 'render-shared' };
+    vi.mocked(readSnapshot).mockResolvedValue(shared);
+
+    const res = await POST(makeRequest(validBody({ preferSnapshot: true })));
+    const body = await res.json();
+
+    expect(readSnapshot).toHaveBeenCalledWith(KEY);
+    expect(body.bosses[0].renderId).toBe('render-shared');
+    // Le jeton n'est demandé que s'il reste une rencontre à calculer : un lien entièrement
+    // servi ne doit toucher ni l'API ni l'OAuth de Warcraft Logs.
+    expect(getWCLToken).not.toHaveBeenCalled();
+    expect(analyzeReportBoss).not.toHaveBeenCalled();
+    expect(writeSnapshot).not.toHaveBeenCalled();
+    expect(recordExposure).toHaveBeenCalledWith([shared]);
+  });
+
+  // Le cas réel du partage en guilde : le lien porte tout le rapport, une seule rencontre a
+  // expiré. Un tout-ou-rien rejouerait les autres pour rien.
+  it('recomputes only the encounter whose snapshot is missing', async () => {
+    const shared = { ...mockBossResult, renderId: 'render-shared' };
+    vi.mocked(readSnapshot).mockImplementation(async (key) => (key === KEY ? shared : null));
+
+    const res = await POST(
+      makeRequest(
+        validBody({
+          preferSnapshot: true,
+          encounters: [{ id: 3306, name: 'Chimaerus', fightId: 17, fightMs: 180000 }, SECOND],
+        })
+      )
+    );
+    const body = await res.json();
+
+    expect(body.bosses[0].renderId).toBe('render-shared');
+    expect(body.bosses[1].renderId).toBe('render-1');
+    // Le troisième argument est l'`encounterId` : seule la rencontre manquante est analysée.
+    expect(analyzeReportBoss).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(analyzeReportBoss).mock.calls[0][2]).toBe(3310);
+    // Il reste une rencontre froide : le jeton est bien demandé, une seule fois.
+    expect(getWCLToken).toHaveBeenCalledTimes(1);
+    // Et seule celle-là est écrite — l'autre garderait sinon une expiration repoussée.
+    expect(writeSnapshot).toHaveBeenCalledTimes(1);
+    expect(writeSnapshot).toHaveBeenCalledWith(SECOND_KEY, mockBossResult);
+  });
+
+  // Une rencontre qui a échoué revient en `null` : la figer servirait le trou pendant vingt-
+  // quatre heures à tous ceux qui ouvrent le lien.
+  it('stores nothing for an encounter that failed', async () => {
+    vi.mocked(analyzeReportBoss).mockRejectedValue(new Error('boss unavailable'));
+
+    const res = await POST(makeRequest(validBody({ preferSnapshot: true })));
+
+    expect(res.status).toBe(200);
+    expect(writeSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('refuses a marker that is not a boolean, before reading anything', async () => {
+    const res = await POST(makeRequest(validBody({ preferSnapshot: 'yes' })));
+
+    expect(res.status).toBe(400);
+    expect(readSnapshot).not.toHaveBeenCalled();
   });
 });
 

@@ -124,8 +124,30 @@ describe('useRouteSync — character analysis effect', () => {
         region: 'EU',
         difficulty: 4,
         specId: 103,
-      })
+      }),
+      { preferSnapshot: false }
     );
+  });
+
+  // Sans la marque dans l'URL, une ouverture ordinaire ne doit jamais accepter un instantané :
+  // un raideur qui relance entre deux pulls verrait celle d'il y a deux heures.
+  it('passes the shared marker to the first analysis only', async () => {
+    mockParams('char=Jumbaa&server=ysondre&region=EU&difficulty=4&spec=103&shared=1');
+    const start = vi.fn();
+    const { rerender } = renderHook((props: { difficulty?: string } = {}) =>
+      useRouteSync(makeHookArgs({ zones: [zone], start, ...props }))
+    );
+
+    await waitFor(() => expect(start).toHaveBeenCalledTimes(1));
+    expect(start).toHaveBeenLastCalledWith(expect.anything(), { preferSnapshot: true });
+
+    // La marque traîne dans l'URL réécrite, mais un changement de difficulté est une demande
+    // neuve : la resservir depuis le cache rendrait l'ancien palier.
+    mockParams('char=Jumbaa&server=ysondre&region=EU&difficulty=5&spec=103&shared=1');
+    rerender({});
+
+    await waitFor(() => expect(start).toHaveBeenCalledTimes(2));
+    expect(start).toHaveBeenLastCalledWith(expect.anything(), { preferSnapshot: false });
   });
 
   it('does not call start when spec is missing', async () => {

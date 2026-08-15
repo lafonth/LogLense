@@ -10,6 +10,15 @@ interface ReportAnalysisParams {
   specId: number;
   difficulty: number;
   fights: ReportFight[];
+  /**
+   * L'URL portait la marque de partage : le serveur peut servir l'instantané du rendu partagé
+   * au lieu de rejouer le pipeline. Champ de ce type-ci, local au hook, et non d'un type du
+   * domaine — une préférence de cache n'a rien à faire dans ce qui part au prompt.
+   *
+   * Ne concerne que `start`. `switchPull` est une demande neuve du lecteur : il a cliqué sur
+   * une autre pull, il attend son calcul.
+   */
+  preferSnapshot?: boolean;
 }
 
 /** État d'une ré-analyse de rencontre : elle ne concerne qu'un boss, pas tout l'écran. */
@@ -50,7 +59,7 @@ export function useReportAnalysis() {
 
   const start = useCallback(
     async (params: ReportAnalysisParams) => {
-      const { code, actor, specId, difficulty, fights } = params;
+      const { code, actor, specId, difficulty, fights, preferSnapshot } = params;
       setLoading(true);
       setError(null);
       commit(null);
@@ -79,6 +88,7 @@ export function useReportAnalysis() {
             specId,
             difficulty,
             encounters,
+            preferSnapshot: preferSnapshot ?? false,
           })
         );
       } catch (e) {

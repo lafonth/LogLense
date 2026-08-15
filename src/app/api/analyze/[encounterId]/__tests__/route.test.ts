@@ -1,7 +1,9 @@
 import type { BossResult } from '@/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { recordExposure } from '@/lib/labels/record-exposure';
+import { getWCLToken } from '@/lib/wcl/auth';
 import { analyzeBoss } from '@/lib/wcl/pipeline';
+import { characterSnapshotKey, readSnapshot, writeSnapshot } from '@/lib/wcl/result-snapshot';
 import { POST } from '../route';
 
 // Le garde de quota WCL a ses propres tests ; ici on le neutralise par défaut — il exécute
@@ -29,6 +31,15 @@ vi.mock('@/lib/wcl/pipeline', () => ({
 
 vi.mock('@/lib/labels/record-exposure', () => ({
   recordExposure: vi.fn().mockResolvedValue(undefined),
+}));
+
+// La clé reste la vraie : c'est elle qui atteste que la route relit exactement ce qu'elle a
+// écrit, et une clé simulée ferait passer une dérive entre les deux. Seules les deux
+// entrées-sorties sont doublées — complétude et durée de vie ont leurs propres tests.
+vi.mock('@/lib/wcl/result-snapshot', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/wcl/result-snapshot')>()),
+  readSnapshot: vi.fn(),
+  writeSnapshot: vi.fn(),
 }));
 
 const mockBossResult: BossResult = {
@@ -298,6 +309,115 @@ describe('analyze route', () => {
 
     expect(res.status).toBe(200);
     expect((await res.json()).encounter).toBe('Chimaerus');
+  });
+});
+
+/**
+ * Ce que vérifient ces tests est le câblage, pas l'instantané : quand la route lit, quand elle
+ * écrit, et ce que la lecture épargne. La lecture vit à l'intérieur du garde et non dans une
+ * route à part — c'est la réservation qui refuse l'appelant anonyme, ce que le §2a demande.
+ */
+describe('analyze route, shared link', () => {
+  const KEY_ARGS = {
+    region: 'EU',
+    serverSlug: 'ysondre',
+    characterName: 'Jumbaa',
+    encounterId: 3306,
+    difficulty: 5,
+    specId: 103,
+  };
+
+  const KEY = characterSnapshotKey(KEY_ARGS);
+
+  const BODY = {
+    characterName: 'Jumbaa',
+    serverSlug: 'ysondre',
+    region: 'EU',
+    difficulty: 5,
+    encounterName: 'Chimaerus',
+    specId: 103,
+  };
+
+  function post(body: Record<string, unknown>) {
+    return POST(makeRequest(body), { params: Promise.resolve({ encounterId: '3306' }) });
+  }
+
+  beforeEach(() => {
+    vi.mocked(analyzeBoss).mockReset().mockResolvedValue(mockBossResult);
+    vi.mocked(recordExposure).mockReset().mockResolvedValue(undefined);
+    vi.mocked(getWCLToken).mockReset().mockResolvedValue('mock-token');
+    vi.mocked(readSnapshot).mockReset().mockResolvedValue(null);
+    vi.mocked(writeSnapshot).mockReset().mockResolvedValue(undefined);
+    process.env.WCL_CLIENT_ID = 'test-id';
+    process.env.WCL_CLIENT_SECRET = 'test-secret';
+  });
+
+  // Sans la marque, l'analyse est neuve : un raideur qui relance entre deux pulls doit voir
+  // la sienne, pas celle d'il y a deux heures.
+  it('reads no snapshot without the marker, and stores what it computed', async () => {
+    await post(BODY);
+
+    expect(readSnapshot).not.toHaveBeenCalled();
+    expect(writeSnapshot).toHaveBeenCalledWith(KEY, mockBossResult);
+  });
+
+  it('serves the snapshot without touching Warcraft Logs when the marker is set', async () => {
+    const shared = { ...mockBossResult, renderId: 'render-shared' };
+    vi.mocked(readSnapshot).mockResolvedValue(shared);
+
+    const res = await post({ ...BODY, preferSnapshot: true });
+    const body = await res.json();
+
+    expect(readSnapshot).toHaveBeenCalledWith(KEY);
+    expect(body.renderId).toBe('render-shared');
+    // Ni l'API ni l'OAuth : un lien servi par l'instantané ne doit rien coûter chez WCL.
+    expect(getWCLToken).not.toHaveBeenCalled();
+    expect(analyzeBoss).not.toHaveBeenCalled();
+    // Réécrire ce qu'on vient de lire repousserait l'expiration à chaque ouverture du lien.
+    expect(writeSnapshot).not.toHaveBeenCalled();
+    // Un rendu a bien eu lieu : la capture part comme sur le chemin froid, sans quoi le corpus
+    // perdrait toutes les ouvertures d'un lien partagé.
+    expect(recordExposure).toHaveBeenCalledWith([shared]);
+  });
+
+  // Échouer ouvert veut dire rendre l'analyse, pas rendre une erreur : l'instantané perdu doit
+  // coûter des requêtes, jamais un écran.
+  it('falls back to a fresh analysis when the snapshot is gone', async () => {
+    const res = await post({ ...BODY, preferSnapshot: true });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.renderId).toBe('render-1');
+    expect(analyzeBoss).toHaveBeenCalledTimes(1);
+    expect(writeSnapshot).toHaveBeenCalledWith(KEY, mockBossResult);
+  });
+
+  // La variante n'est jamais lue mais elle est écrite : sous la clé de base, un basculement de
+  // spec écraserait l'analyse de départ et le lien rendrait l'autre spec.
+  it('stores a spec override under its own key', async () => {
+    await post({ ...BODY, specIdOverride: 62 });
+
+    expect(writeSnapshot).toHaveBeenCalledWith(
+      characterSnapshotKey({ ...KEY_ARGS, specIdOverride: 62 }),
+      mockBossResult
+    );
+  });
+
+  // Un personnage sans données rend `null` en 200 : le figer occuperait la clé pendant vingt-
+  // quatre heures et transformerait un trou de collecte en verdict.
+  it('stores nothing when the analysis came back empty', async () => {
+    vi.mocked(analyzeBoss).mockResolvedValue(null);
+
+    await post(BODY);
+
+    expect(writeSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('refuses a marker that is not a boolean, before reading anything', async () => {
+    const res = await post({ ...BODY, preferSnapshot: 'yes' });
+
+    expect(res.status).toBe(400);
+    expect(readSnapshot).not.toHaveBeenCalled();
   });
 });
 

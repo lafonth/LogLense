@@ -64,6 +64,17 @@ export function useRouteSync({
   // n'a choisie — un rapport faux qui ne se signale pas. On refuse de démarrer à la place.
   const specParam = Number(searchParams.get('spec')) || null;
   const bossParam = Number(searchParams.get('boss')) || null;
+  /**
+   * La marque posée par le bouton de partage. Elle autorise le serveur à servir l'instantané
+   * du rendu partagé plutôt que de rejouer le pipeline.
+   *
+   * Hors des deux clés de dédoublonnage, volontairement : une clé qui la porterait relancerait
+   * l'analyse entière au moment où la marque disparaît de l'URL, ce qu'on cherche justement à
+   * éviter. Elle n'est honorée qu'à la première analyse de la session — les écritures d'URL
+   * qui suivent repartent de `searchParams.toString()` et la traînent, or un changement de
+   * difficulté ou de personnage est une demande neuve, pas l'ouverture d'un lien.
+   */
+  const shared = searchParams.get('shared') === '1';
 
   const lastKeyRef = useRef<string | null>(null);
   const lastReportKeyRef = useRef<string | null>(null);
@@ -74,16 +85,20 @@ export function useRouteSync({
     if (!zone) return;
     const key = `${char}|${server}|${region}|${difficulty}|${zone.id}|${specParam}`;
     if (lastKeyRef.current === key) return;
+    const preferSnapshot = shared && lastKeyRef.current === null;
     lastKeyRef.current = key;
-    void start({
-      characterName: char,
-      serverSlug: server,
-      region,
-      difficulty,
-      encounters: zone.encounters,
-      specId: specParam,
-    });
-  }, [char, server, region, difficulty, zoneId, zones, zonesLoading, specParam, start]);
+    void start(
+      {
+        characterName: char,
+        serverSlug: server,
+        region,
+        difficulty,
+        encounters: zone.encounters,
+        specId: specParam,
+      },
+      { preferSnapshot }
+    );
+  }, [char, server, region, difficulty, zoneId, zones, zonesLoading, specParam, shared, start]);
 
   useEffect(() => {
     if (!reportCode || !reportActorId || !specParam) return;
@@ -96,6 +111,7 @@ export function useRouteSync({
     }
     const actor = reportMeta.actors.find((a) => a.id === reportActorId);
     if (!actor) return;
+    const preferSnapshot = shared && lastReportKeyRef.current === null;
     lastReportKeyRef.current = key;
     void startReport({
       code: reportCode,
@@ -103,6 +119,7 @@ export function useRouteSync({
       specId: specParam,
       difficulty: reportDifficulty,
       fights: reportMeta.fights,
+      preferSnapshot,
     });
   }, [
     reportCode,
@@ -112,6 +129,7 @@ export function useRouteSync({
     fetchedCode,
     reportMetaLoading,
     specParam,
+    shared,
     fetchMeta,
     startReport,
   ]);

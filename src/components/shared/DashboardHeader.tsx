@@ -1,6 +1,7 @@
 import type { StepStatus } from '@/components/ui/ProgressSteps';
 import type { BossState } from '@/hooks/useAnalysis';
 import type { AnalysisInput } from '@/types';
+import { ShareButton } from '@/components/shared/ShareButton';
 import { Button } from '@/components/ui/Button';
 import { ProgressSteps } from '@/components/ui/ProgressSteps';
 
@@ -67,6 +68,11 @@ export function DashboardHeader({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-3">
+        {/*
+         * Rendu par l'en-tête commun, donc présent sur les deux pipelines : l'URL est la source
+         * de vérité des deux, et les deux routes savent lire l'instantané qu'elle désigne.
+         */}
+        <ShareButton />
         <Button variant="secondary" size="sm" onClick={onReset} className="font-mono text-xs">
           ← New search
         </Button>
