@@ -51,9 +51,15 @@ function rankChar(over: Record<string, unknown> = {}) {
   };
 }
 
-/** `role` place le joueur ailleurs que chez les dps : c'est le seul axe qui varie ici. */
+/**
+ * `role` place le joueur ailleurs que chez les dps : c'est le seul axe qui varie ici.
+ *
+ * `fightID` porte le combat de `run()` : les entrées sont retrouvées par lui, jamais par leur
+ * rang dans `data`. Une entrée sans discriminant ne décrit aucun combat, et n'est donc lue
+ * pour aucun.
+ */
 function rankings(role: 'dps' | 'healers' | 'tanks', chars: unknown[]) {
-  return { data: [{ roles: { [role]: { characters: chars } } }] };
+  return { data: [{ fightID: 17, roles: { [role]: { characters: chars } } }] };
 }
 
 function stubGql(dps: unknown, boss: unknown = rankings('dps', [])) {

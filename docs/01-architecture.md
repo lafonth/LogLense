@@ -76,7 +76,7 @@ flowchart TD
     end
 
     subgraph B["Chemin rapport — report-pipeline.ts"]
-        B1["code + actorId + fightId<br/>+ difficulté"] --> B2[Q_REPORT_RANKINGS_DPS<br/>+ _BOSSDPS]
+        B1["code + actorId + fightId<br/>+ difficulté"] --> B2["Q_REPORT_RANKINGS_DPS<br/>+ _BOSSDPS<br/>(report-rankings.ts : deux requêtes<br/>pour tous les combats du rapport,<br/>entrée retrouvée par fightID)"]
         B1 --> B3[findCombatantByActorId<br/>→ spec réelle]
         B2 --> B4["rankPercent ici = percentile DU JOUR"]
         B4 --> B5{server.name<br/>et region ?}

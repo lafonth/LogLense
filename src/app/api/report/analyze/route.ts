@@ -11,6 +11,7 @@ import { recordExposure } from '@/lib/labels/record-exposure';
 import { getDpsSpecsForClass } from '@/lib/specs';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { analyzeReportBoss } from '@/lib/wcl/report-pipeline';
+import { fetchReportRankings } from '@/lib/wcl/report-rankings';
 import { readSnapshot, reportSnapshotKey, writeSnapshot } from '@/lib/wcl/result-snapshot';
 
 export const runtime = 'nodejs';
@@ -141,6 +142,14 @@ export async function POST(req: NextRequest) {
         ? ''
         : await getWCLToken(clientId, clientSecret);
 
+      // `report.rankings` prend une liste de combats : les rencontres calculées à froid les
+      // demandent ensemble, deux requêtes pour le rapport au lieu de deux par boss. Construit
+      // ici et non dans le pipeline, parce que c'est ici qu'on sait quels combats partent
+      // ensemble — et seulement pour ceux-là : un instantané servi ne doit toucher à rien.
+      const coldFightIds = encounters.filter((_, i) => !snapshots[i]).map((enc) => enc.fightId);
+      const rankings =
+        coldFightIds.length > 0 ? fetchReportRankings(token, code, coldFightIds) : undefined;
+
       const bosses = await Promise.all(
         encounters.map(
           (enc, i) =>
@@ -154,7 +163,8 @@ export async function POST(req: NextRequest) {
               actorName,
               enc.fightId,
               enc.fightMs,
-              difficulty
+              difficulty,
+              rankings
             ).catch(() => null)
         )
       );
