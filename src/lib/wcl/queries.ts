@@ -112,10 +112,15 @@ export const Q_WORLD_RANKINGS = `
 `;
 
 /**
- * Les partitions du palier auquel appartient une rencontre.
+ * Les partitions du palier auquel appartient une rencontre, et les rencontres de ce palier.
  *
  * Passe par `encounter.zone` plutôt que par la liste complète des zones : la réponse tient
  * en un objet au lieu d'un catalogue entier, pour la seule information utile.
+ *
+ * `encounters { id }` est ce qui rend la réponse réutilisable. Les partitions appartiennent
+ * à la zone, pas à la rencontre : sans la liste de ses rencontres, l'analyse d'un rapport de
+ * douze boss redemande douze fois la même réponse, parce que rien dans les onze autres appels
+ * ne dit qu'ils tomberaient sur la zone déjà résolue. Voir `partitions.ts`.
  */
 export const Q_ENCOUNTER_PARTITIONS = `
   query EncounterPartitions($encounterID: Int!) {
@@ -123,6 +128,7 @@ export const Q_ENCOUNTER_PARTITIONS = `
       encounter(id: $encounterID) {
         zone {
           id
+          encounters { id }
           partitions { id name default }
         }
       }

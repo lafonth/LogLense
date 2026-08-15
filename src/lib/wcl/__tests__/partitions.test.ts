@@ -2,10 +2,12 @@ import type { Partition } from '../partitions';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_SEASON_PARTITIONS, PARTITION_TTL_SECONDS } from '../constants';
 import {
-  partitionCacheKey,
+  clearZoneMemo,
+  encounterZoneKey,
   resolveSeasonPartitions,
   seasonOf,
   seasonPartitions,
+  zonePartitionsKey,
 } from '../partitions';
 
 const { redisGet, redisSetEx } = vi.hoisted(() => ({
@@ -93,27 +95,49 @@ describe('resolveSeasonPartitions', () => {
     vi.restoreAllMocks();
     redisGet.mockResolvedValue(null);
     redisSetEx.mockResolvedValue(undefined);
+    clearZoneMemo();
   });
 
+  /** Les rencontres du palier courant, relevées sur l'API : `3306` en fait partie. */
+  const ZONE_ENCOUNTERS = [3176, 3177, 3179, 3178, 3180, 3181, 3306, 3182, 3183];
+
   const ok = (data: unknown) => ({ ok: true, json: async () => ({ data }) }) as Response;
-  const zone = (partitions: Partition[] | null) =>
-    ok({ worldData: { encounter: partitions === null ? null : { zone: { id: 46, partitions } } } });
+  const zone = (partitions: Partition[] | null, encounters = ZONE_ENCOUNTERS) =>
+    ok({
+      worldData: {
+        encounter:
+          partitions === null
+            ? null
+            : { zone: { id: 46, encounters: encounters.map((id) => ({ id })), partitions } },
+      },
+    });
 
   /** Une réponse en échec sur toutes les tentatives, sans délai demandé. */
   const failed = () =>
     ({ ok: false, status: 500, headers: { get: () => null } }) as unknown as Response;
 
+  /** Le cache chaud d'un conteneur qui démarre froid : le palier, puis sa liste. */
+  const cachedZone = (ids: number[]) =>
+    redisGet.mockImplementation(async (key: string) => {
+      if (key === encounterZoneKey(3306)) return '46';
+      if (key === zonePartitionsKey(46)) return JSON.stringify(ids);
+      return null;
+    });
+
   it('serves the cached list without asking Warcraft Logs', async () => {
-    redisGet.mockResolvedValue(JSON.stringify([1, 2, 3]));
+    cachedZone([1, 2, 3]);
     globalThis.fetch = vi.fn();
 
     await expect(resolveSeasonPartitions('token', 3306)).resolves.toEqual([1, 2, 3]);
     expect(globalThis.fetch).not.toHaveBeenCalled();
-    expect(redisGet).toHaveBeenCalledWith(partitionCacheKey(3306));
   });
 
   it('ignores a cached value that is not a list of ids', async () => {
-    redisGet.mockResolvedValue(JSON.stringify({ ids: [1, 2] }));
+    redisGet.mockImplementation(async (key: string) => {
+      if (key === encounterZoneKey(3306)) return '46';
+      if (key === zonePartitionsKey(46)) return JSON.stringify({ ids: [1, 2] });
+      return null;
+    });
     globalThis.fetch = vi.fn().mockResolvedValue(zone(CURRENT_TIER));
 
     await expect(resolveSeasonPartitions('token', 3306)).resolves.toEqual([1, 2, 3]);
@@ -121,16 +145,62 @@ describe('resolveSeasonPartitions', () => {
 
   // Une liste de partitions bouge quelques fois par palier ; sans expiration elle ne bougerait
   // plus jamais, et un nouveau patch resterait invisible.
-  it('caches the resolved list with an explicit expiry', async () => {
+  it('caches the resolved list under the zone, with an explicit expiry', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(zone(CURRENT_TIER));
 
     await resolveSeasonPartitions('token', 3306);
 
     expect(redisSetEx).toHaveBeenCalledWith(
-      partitionCacheKey(3306),
+      zonePartitionsKey(46),
       JSON.stringify([1, 2, 3]),
       PARTITION_TTL_SECONDS
     );
+  });
+
+  // Ce qui rend la liste réutilisable par un conteneur froid : sans ce pont, il devrait payer
+  // une requête juste pour apprendre quelle zone lire.
+  it('maps every encounter of the tier to its zone', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(zone(CURRENT_TIER));
+
+    await resolveSeasonPartitions('token', 3306);
+
+    for (const id of ZONE_ENCOUNTERS) {
+      expect(redisSetEx).toHaveBeenCalledWith(encounterZoneKey(id), '46', PARTITION_TTL_SECONDS);
+    }
+  });
+
+  // Le test qui porte l'économie. Les rencontres d'un rapport partent ensemble : elles lisent
+  // toutes le cache avant que la première réponse ne revienne, donc seul un partage en vol
+  // peut les empêcher de redemander la même liste.
+  it('asks once for a whole tier analysed in parallel', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(zone(CURRENT_TIER));
+
+    const resolved = await Promise.all(
+      ZONE_ENCOUNTERS.map((id) => resolveSeasonPartitions('token', id))
+    );
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    for (const ids of resolved) expect(ids).toEqual([1, 2, 3]);
+  });
+
+  // La contrepartie : deux paliers analysés en même temps ne doivent pas se voler leur
+  // réponse. Celui que la découverte en vol ne couvre pas lance la sienne.
+  it('does not serve a tier from another tier resolution in flight', async () => {
+    globalThis.fetch = vi.fn().mockImplementation(async (_url, init: RequestInit) => {
+      const body = JSON.parse(String(init.body)) as { variables: { encounterID: number } };
+      return body.variables.encounterID === 3306
+        ? zone(CURRENT_TIER)
+        : zone([{ id: 9, name: '11.1', default: true }], [2900]);
+    });
+
+    const [tier, other] = await Promise.all([
+      resolveSeasonPartitions('token', 3306),
+      resolveSeasonPartitions('token', 2900),
+    ]);
+
+    expect(tier).toEqual([1, 2, 3]);
+    expect(other).toEqual([9]);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 
   // Échoue ouvert : `[]` veut dire « interroge sans argument `partition` ». Le vivier est
@@ -149,6 +219,15 @@ describe('resolveSeasonPartitions', () => {
     expect(redisSetEx).not.toHaveBeenCalled();
   });
 
+  // Une zone qui ne rend pas ses rencontres reste résolue pour celle qu'on a demandée : la
+  // dégradation coûte des requêtes, jamais un résultat.
+  it('resolves the requested encounter when the zone lists none', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(zone(CURRENT_TIER, []));
+
+    await expect(resolveSeasonPartitions('token', 3306)).resolves.toEqual([1, 2, 3]);
+    expect(redisSetEx).toHaveBeenCalledWith(encounterZoneKey(3306), '46', PARTITION_TTL_SECONDS);
+  });
+
   it('resolves the season even when Redis is down on both ends', async () => {
     redisGet.mockRejectedValue(new Error('upstash down'));
     redisSetEx.mockRejectedValue(new Error('upstash down'));
@@ -157,7 +236,9 @@ describe('resolveSeasonPartitions', () => {
     await expect(resolveSeasonPartitions('token', 3306)).resolves.toEqual([1, 2, 3]);
   });
 
-  it('gives two encounters different cache keys', () => {
-    expect(partitionCacheKey(3306)).not.toBe(partitionCacheKey(3307));
+  // Un id de zone et un id de rencontre sont tous deux des entiers : sans préfixes distincts,
+  // la zone 46 et la rencontre 46 partageraient une entrée.
+  it('never collides a zone key with an encounter key', () => {
+    expect(zonePartitionsKey(46)).not.toBe(encounterZoneKey(46));
   });
 });
