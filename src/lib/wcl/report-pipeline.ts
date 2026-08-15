@@ -1,8 +1,9 @@
+import type { ReportCombatants } from './combatant';
 import type { ReportRankings } from './report-rankings';
 import type { BossResult } from '@/types';
 import { randomUUID } from 'node:crypto';
 import { getSpecInfo } from '@/lib/specs';
-import { findCombatantByActorId } from './combatant';
+import { fetchReportCombatants } from './combatant';
 import { fetchFightData } from './fight-data';
 import { fetchCharacterHistory } from './historical-parse';
 import { fmtMs } from './parsers';
@@ -24,10 +25,15 @@ export async function analyzeReportBoss(
    * chaque rencontre reprend les siens : le chemin d'une analyse isolée reste une écriture
    * directe, sans que l'appelant ait à monter un lot d'un seul combat.
    */
-  rankings: ReportRankings = fetchReportRankings(token, code, [fightId])
+  rankings: ReportRankings = fetchReportRankings(token, code, [fightId]),
+  /**
+   * Les `CombatantInfo` du rapport, partagés comme les classements. Absent, la rencontre
+   * reprend les siens — un lot d'un seul combat, que la requête accepte telle quelle.
+   */
+  combatants: ReportCombatants = fetchReportCombatants(token, code, [fightId])
 ): Promise<BossResult | null> {
   // Detect actual spec from combatant data before starting world rankings
-  const charEvent = await findCombatantByActorId(token, code, fightId, actorId);
+  const charEvent = await combatants.byActor(fightId, actorId);
   if (!charEvent) return null;
 
   const specInfo = getSpecInfo(charEvent.specID);

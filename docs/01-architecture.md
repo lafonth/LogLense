@@ -77,7 +77,7 @@ flowchart TD
 
     subgraph B["Chemin rapport — report-pipeline.ts"]
         B1["code + actorId + fightId<br/>+ difficulté"] --> B2["Q_REPORT_RANKINGS_DPS<br/>+ _BOSSDPS<br/>(report-rankings.ts : deux requêtes<br/>pour tous les combats du rapport,<br/>entrée retrouvée par fightID)"]
-        B1 --> B3[findCombatantByActorId<br/>→ spec réelle]
+        B1 --> B3["Q_COMBATANT<br/>(combatant.ts : une requête<br/>pour tous les combats du rapport,<br/>ligne retrouvée par fight + sourceID)<br/>→ spec réelle"]
         B2 --> B4["rankPercent ici = percentile DU JOUR"]
         B4 --> B5{server.name<br/>et region ?}
         B5 -->|oui| B6["fetchCharacterHistory<br/>→ percentile verrouillé + trajectoire"]

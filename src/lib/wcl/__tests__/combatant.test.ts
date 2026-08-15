@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { findCombatantByActorId, findCombatantByName } from '../combatant';
+import { fetchReportCombatants, findCombatantByActorId, findCombatantByName } from '../combatant';
 
 const EVENTS = [
   { sourceID: 1, specID: 103, agility: 13200 },
@@ -35,6 +35,65 @@ describe('combatant lookups', () => {
       mockReport({ reportData: { report: { events: { data: EVENTS } } } });
 
       expect(await findCombatantByActorId('token', 'abc', 7, 99)).toBeNull();
+    });
+  });
+
+  describe('fetchReportCombatants', () => {
+    /** Le même joueur, une ligne par pull : la forme que rend un lot de `fightIDs`. */
+    const BATCH = [
+      { fight: 7, sourceID: 2, specID: 250, gear: [{ id: 200, itemLevel: 636, quality: 4 }] },
+      { fight: 7, sourceID: 1, specID: 103, agility: 13200 },
+      { fight: 12, sourceID: 2, specID: 250, gear: [{ id: 200, itemLevel: 645, quality: 4 }] },
+    ];
+
+    // Le gain du dédoublonnage : le nombre de requêtes ne suit plus le nombre de combats.
+    it('spends one request whatever the number of fights', async () => {
+      mockReport({ reportData: { report: { events: { data: BATCH } } } });
+
+      const combatants = fetchReportCombatants('token', 'abc', [7, 12]);
+
+      expect((await combatants.byActor(7, 1))?.specID).toBe(103);
+      expect((await combatants.byActor(12, 2))?.specID).toBe(250);
+      expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(1);
+    });
+
+    // Le risque propre au lot : un `sourceID` désigne un acteur du rapport, pas d'un combat.
+    // Sans le filtre sur `fight`, la première pull du joueur serait rendue pour toutes — donc
+    // son éligibilité jugée sur l'équipement d'une autre.
+    it('returns the gear of the requested fight, not of the first one carrying the actor', async () => {
+      mockReport({ reportData: { report: { events: { data: BATCH } } } });
+
+      const combatants = fetchReportCombatants('token', 'abc', [7, 12]);
+
+      expect((await combatants.byActor(12, 2))?.gear?.[0]?.itemLevel).toBe(645);
+      expect((await combatants.byActor(7, 2))?.gear?.[0]?.itemLevel).toBe(636);
+    });
+
+    it('yields null for a fight the actor was absent from', async () => {
+      mockReport({ reportData: { report: { events: { data: BATCH } } } });
+
+      const combatants = fetchReportCombatants('token', 'abc', [7, 12]);
+
+      expect(await combatants.byActor(12, 1)).toBeNull();
+    });
+
+    // Toutes les rencontres peuvent abandonner avant de lire le lot. Sans puits sur la
+    // promesse partagée, Node terminerait le processus sur la rejection que plus personne
+    // n'attend.
+    it('does not leave a rejection unread when nobody queries it', async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('WCL down'));
+
+      fetchReportCombatants('token', 'abc', [7]);
+
+      await new Promise((resolve) => setImmediate(resolve));
+    });
+
+    it('propagates the failure to whoever does read it', async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('WCL down'));
+
+      const combatants = fetchReportCombatants('token', 'abc', [7]);
+
+      await expect(combatants.byActor(7, 1)).rejects.toThrow('WCL down');
     });
   });
 

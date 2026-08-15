@@ -78,7 +78,7 @@ vi.mock('../client', () => ({
 
 vi.mock('../combatant', () => ({
   findCombatantByName: vi.fn().mockResolvedValue(fixtures.combatant),
-  findCombatantByActorId: vi.fn().mockResolvedValue(fixtures.combatant),
+  fetchReportCombatants: () => ({ byActor: vi.fn().mockResolvedValue(fixtures.combatant) }),
 }));
 
 vi.mock('../fight-data', () => ({

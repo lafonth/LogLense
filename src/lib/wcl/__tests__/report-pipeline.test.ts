@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { gql } from '../client';
-import { findCombatantByActorId } from '../combatant';
 import { fetchFightData } from '../fight-data';
 import { fetchCharacterHistory } from '../historical-parse';
 import { analyzeReportBoss } from '../report-pipeline';
@@ -24,7 +23,13 @@ const fixtures = vi.hoisted(() => ({
 }));
 
 vi.mock('../client', () => ({ gql: vi.fn() }));
-vi.mock('../combatant', () => ({ findCombatantByActorId: vi.fn() }));
+
+/**
+ * Le lot de combattants, réduit à son accesseur : le pipeline ne connaît de lui que
+ * `byActor`, qu'il reçoive celui du rapport entier ou celui qu'il monte pour son seul combat.
+ */
+const byActor = vi.hoisted(() => vi.fn());
+vi.mock('../combatant', () => ({ fetchReportCombatants: () => ({ byActor }) }));
 vi.mock('../fight-data', () => ({
   fetchFightData: vi.fn().mockResolvedValue(fixtures.fightData),
 }));
@@ -35,7 +40,7 @@ vi.mock('../references', () => ({
 }));
 
 const gqlMock = vi.mocked(gql);
-const combatantMock = vi.mocked(findCombatantByActorId);
+const combatantMock = byActor;
 const historyMock = vi.mocked(fetchCharacterHistory);
 
 /** Une entrée de classement, avec de quoi retrouver le personnage sur son royaume. */

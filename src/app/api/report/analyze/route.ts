@@ -10,6 +10,7 @@ import {
 import { recordExposure } from '@/lib/labels/record-exposure';
 import { getDpsSpecsForClass } from '@/lib/specs';
 import { getWCLToken } from '@/lib/wcl/auth';
+import { fetchReportCombatants } from '@/lib/wcl/combatant';
 import { analyzeReportBoss } from '@/lib/wcl/report-pipeline';
 import { fetchReportRankings } from '@/lib/wcl/report-rankings';
 import { readSnapshot, reportSnapshotKey, writeSnapshot } from '@/lib/wcl/result-snapshot';
@@ -142,13 +143,19 @@ export async function POST(req: NextRequest) {
         ? ''
         : await getWCLToken(clientId, clientSecret);
 
-      // `report.rankings` prend une liste de combats : les rencontres calculées à froid les
-      // demandent ensemble, deux requêtes pour le rapport au lieu de deux par boss. Construit
-      // ici et non dans le pipeline, parce que c'est ici qu'on sait quels combats partent
-      // ensemble — et seulement pour ceux-là : un instantané servi ne doit toucher à rien.
+      // `report.rankings` et `events(dataType: CombatantInfo)` prennent tous deux une liste de
+      // combats : les rencontres calculées à froid les demandent ensemble, trois requêtes pour
+      // le rapport au lieu de trois par boss. Construit ici et non dans le pipeline, parce que
+      // c'est ici qu'on sait quels combats partent ensemble — et seulement pour ceux-là : un
+      // instantané servi ne doit toucher à rien.
+      //
+      // Le lot ne dépasse jamais `MAX_ENCOUNTERS_PER_REQUEST`, refusé plus haut : c'est ce qui
+      // tient la réponse des combattants sous le seuil de pagination de `events`.
       const coldFightIds = encounters.filter((_, i) => !snapshots[i]).map((enc) => enc.fightId);
       const rankings =
         coldFightIds.length > 0 ? fetchReportRankings(token, code, coldFightIds) : undefined;
+      const combatants =
+        coldFightIds.length > 0 ? fetchReportCombatants(token, code, coldFightIds) : undefined;
 
       const bosses = await Promise.all(
         encounters.map(
@@ -164,7 +171,8 @@ export async function POST(req: NextRequest) {
               enc.fightId,
               enc.fightMs,
               difficulty,
-              rankings
+              rankings,
+              combatants
             ).catch(() => null)
         )
       );
