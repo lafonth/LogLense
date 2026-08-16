@@ -24,6 +24,23 @@ export type WclRoute =
 export type DemandOutcome = 'allowed' | 'denied' | 'unavailable';
 
 export interface DemandRecord {
+  /**
+   * Les deux discriminants que les sept autres flux portent depuis leur première ligne, et que
+   * celui-ci a été écrit sans.
+   *
+   * Ils ne servent à rien tant qu'une clé ne contient qu'une forme — et c'est exactement pour
+   * ça qu'ils s'oublient. Ils servent le jour où la forme change : sans `v`, un lecteur ne peut
+   * pas distinguer un champ absent d'un champ pas encore introduit, et sans `kind` il ne peut
+   * pas trier une clé qui en mêlerait deux, comme `labels:report` mêle déjà `advice` et
+   * `feedback`. C'est la classe d'erreur du corpus : append-only, jamais purgé, donc une ligne
+   * écrite sans discriminant n'en gagnera jamais un rétroactivement.
+   *
+   * **Les lignes antérieures à ce commit n'ont ni l'un ni l'autre.** Un lecteur de
+   * `labels:demand:*` doit lire leur absence comme `v: 0, kind: 'demand'` : la clé ne portait
+   * alors que cette forme, ce qui rend l'inférence sûre ici et le resterait mal ailleurs.
+   */
+  v: 1;
+  kind: 'demand';
   route: WclRoute;
   /** Ce que la requête a demandé au budget. */
   units: number;
@@ -79,6 +96,8 @@ export async function recordDemand(
     if (!(await hasCorpusRoom(key, DEMAND_MONTH_CAP))) return;
 
     const record: DemandRecord = {
+      v: 1,
+      kind: 'demand',
       route,
       units,
       consumed: verdict.consumed,

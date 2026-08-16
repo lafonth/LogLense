@@ -89,6 +89,15 @@ describe('recordDemand', () => {
     expect(written()[0]).toMatchObject({ outcome: 'unavailable', consumed: null });
   });
 
+  // Un discriminant absent ne se rattrape pas : le corpus est append-only et jamais purgé, donc
+  // une ligne écrite sans `v` ni `kind` reste illisible pour toujours. Ce test existe pour que
+  // les retirer casse ici plutôt que dans six mois, à la relecture.
+  it('carries the version and the kind that make it readable later', async () => {
+    await recordDemand('analyze', 90, verdict(), USER);
+
+    expect(written()[0]).toMatchObject({ v: 1, kind: 'demand' });
+  });
+
   it('identifies the account by its salted hash, never by its address', async () => {
     await recordDemand('zones', 1, verdict(), USER);
 
