@@ -21,62 +21,19 @@
  * d'exposition et ne se joignent à rien. Comptés à part sur stderr, jamais silencieusement
  * mélangés aux `v: 3`.
  *
+ * **Deux flux sur sept, et c'est délibéré.** Ce script répond à une question — l'étiquette de
+ * comparabilité — et les cinq autres flux n'y répondent pas : `pool` porte le vivier écarté,
+ * `demand` la dépense WCL, `report` les rapports IA, `intra-raid` et `pull-comparison` d'autres
+ * comparaisons. Les élargir ici ferait un script qui répond mal à six questions au lieu de bien
+ * à une. Pour les relire bruts : `dump-corpus.ts`.
+ *
  * Usage: npx tsx scripts/export-corpus.ts [nombre de mois, 6 par défaut] > corpus.jsonl
  * Requires: UPSTASH_REDIS_REST_URL et UPSTASH_REDIS_REST_TOKEN dans .env.local
  */
-import { resolve } from 'node:path';
 import process from 'node:process';
-
-process.loadEnvFile(resolve(process.cwd(), '.env.local'));
+import { FLOWS, lrange, parseLines, recentMonths, requireRedis } from './corpus-io';
 
 const MONTHS = Number(process.argv[2] ?? 6);
-
-async function lrange(key: string): Promise<string[]> {
-  const res = await fetch(process.env.UPSTASH_REDIS_REST_URL ?? '', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN ?? ''}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(['LRANGE', key, '0', '-1']),
-    cache: 'no-store',
-  });
-  if (!res.ok) throw new Error(`Redis a répondu ${res.status} sur ${key}`);
-  const data = (await res.json()) as { result?: unknown };
-  return Array.isArray(data.result) ? data.result.filter((v) => typeof v === 'string') : [];
-}
-
-/** Les `count` derniers mois, du plus ancien au plus récent, en `YYYY-MM`. */
-function recentMonths(count: number): string[] {
-  const now = new Date();
-  return Array.from({ length: count }, (_, i) => {
-    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (count - 1 - i), 1));
-    return d.toISOString().slice(0, 7);
-  });
-}
-
-/**
- * Une entrée illisible est signalée et sautée, pas fatale.
- *
- * Le corpus est append-only et ne se nettoie pas après coup : une seule ligne corrompue ne
- * doit pas rendre inexportables les milliers d'autres.
- */
-function parseLines(lines: string[], key: string): Record<string, unknown>[] {
-  const out: Record<string, unknown>[] = [];
-  for (const [i, line] of lines.entries()) {
-    try {
-      const value: unknown = JSON.parse(line);
-      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        out.push(value as Record<string, unknown>);
-      } else {
-        console.error(`${key}[${i}] : entrée non objet, sautée`);
-      }
-    } catch {
-      console.error(`${key}[${i}] : JSON illisible, sauté`);
-    }
-  }
-  return out;
-}
 
 /** Le pointeur complet d'une référence : ce sur quoi un verdict et une exposition se recoupent. */
 function refKey(code: unknown, fightID: unknown, actorId: unknown): string {
@@ -89,15 +46,12 @@ interface Verdict {
 }
 
 async function main() {
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-    console.error('UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN absents de .env.local');
-    process.exit(1);
-  }
+  requireRedis();
 
   const months = recentMonths(MONTHS);
   const [exposureLists, verdictLists] = await Promise.all([
-    Promise.all(months.map((m) => lrange(`labels:exposure:${m}`))),
-    Promise.all(months.map((m) => lrange(`labels:comparability:${m}`))),
+    Promise.all(months.map((m) => lrange(`${FLOWS.exposure.key}:${m}`))),
+    Promise.all(months.map((m) => lrange(`${FLOWS.comparability.key}:${m}`))),
   ]);
 
   const exposures = months.flatMap((m, i) => parseLines(exposureLists[i], `exposure:${m}`));
