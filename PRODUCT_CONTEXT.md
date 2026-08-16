@@ -935,6 +935,9 @@ l'instant — un schéma d'étiquette `v: 3` réduit aux pointeurs (`code`, `fig
 `actorId`) et aux jugements propres, les mesures WCL étant réhydratées à l'entraînement
 plutôt que copiées.
 
+*Le 2026-08-16, le badge « Pro » de la page publique a été maintenu sans rouvrir cette
+demande — voir « Le badge Pro reste » en section 9, qui énonce ce qui la rouvrirait.*
+
 Le mécanisme d'application n'est pas judiciaire mais discrétionnaire : révocation de clé
 API, déclenchée par la visibilité et la concurrence. À noter qu'Archon — distributions de
 stats par spec sur une population de parses — est le produit visé ici, et appartient à
@@ -1008,6 +1011,38 @@ pas la même réponse**, et le cadrage les traite comme une seule question. Atti
 sur une niche étroite — le joueur confirmé qui plafonne, sur le couple comparabilité +
 trajectoire. Monétiser : rien de ce qui est construit n'est payable, par construction,
 puisque c'est le gratuit du découpage de la section 5. La tâche 11 ouvre le manque.
+
+### Le badge « Pro » reste — décision du 2026-08-16
+
+`MarketingLanding.tsx` pose un badge `Pro` sur la carte « AI Coaching Report ». C'est le
+seul marqueur de palier de la page, et il ne recouvre rien : aucune route ne refuse sur un
+attribut de compte, rien ne distingue un compte Pro d'un autre. L'audit du 2026-08-16
+recommandait de le retirer — un palier annoncé qui n'existe pas — en s'appuyant en outre
+sur le §2a, qui nomme les *subscriptions* parmi les usages commerciaux soumis à
+approbation écrite.
+
+**Il est conservé, délibérément.** Le motif est de simuler un produit où l'abonnement
+existe déjà, pour que l'écran se lise comme le découpage de la section 5 et non comme un
+outil gratuit complet. C'est le risque de la section 4 pris à revers : si le gratuit
+devient *le* produit dans la perception, la couche payante ressemble à une rançon. Une
+frontière posée avant qu'elle serve se lit comme annoncée ; la même frontière posée après
+se lit comme un retrait.
+
+Ce qui rend la position tenable aujourd'hui, et qu'il faut vérifier plutôt que supposer :
+la page ne porte **ni prix, ni panier, ni bouton d'abonnement**. Son unique appel à
+l'action est `Sign in with Battle.net`. Le badge est donc un signal de palier sur une bêta
+fermée, pas une offre de vente — et le §2a se déclenche sur le revenu (*« earning money
+from it »*), pas sur son annonce.
+
+Deux conditions de réouverture, à tenir explicitement :
+
+- **Un prix, un panier ou un bouton d'abonnement sur cette page publique** rend la question
+  de l'approbation §2a vivante. La décision du 2026-08-07 — repousser la demande en fin de
+  projet et développer comme si elle était acquise — doit alors être reprise **avant** la
+  mise en ligne, pas après.
+- **Le jour où le badge cesse d'être décoratif** et qu'une route refuse réellement sur lui,
+  ce qu'il ferme ne peut pas être le cœur utilitaire : ce serait un paywall dur sur un
+  outil utilitaire, donc la contrainte non négociable n°1.
 
 ### Ce qui reste sans réponse
 
