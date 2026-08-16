@@ -48,7 +48,7 @@ function outcomeOf(verdict: StrictVerdict): DemandOutcome {
 /**
  * Écrit au corpus ce qu'une requête a demandé au budget Warcraft Logs, et ce qu'elle a obtenu.
  *
- * Mêmes règles que les six autres écritures de corpus, pour les mêmes raisons : appelée côté
+ * Mêmes règles que les sept autres écritures de corpus, pour les mêmes raisons : appelée côté
  * serveur et **attendue** avant la réponse — sur un runtime serverless une promesse non
  * attendue part avec la fonction, et c'est vrai du chemin 429 comme du chemin 200 — elle **ne
  * jette jamais**, et elle **échoue fermé sur l'identité** : `hashUserId` jette sans

@@ -20,6 +20,7 @@ graph TB
         R5["/api/labels/comparability<br/>/api/labels/report"]
         R6["/api/zones · /api/search/realm<br/>/api/user/*"]
         R7["/api/auth/[...nextauth]"]
+        R8["/api/raid/:code<br/>/api/pull-comparison"]
     end
 
     subgraph domaine["src/lib — le domaine"]
@@ -40,15 +41,15 @@ graph TB
         PROV[(Anthropic · Gemini · Groq)]
     end
 
-    HOOKS -->|fetch| R1 & R2 & R3 & R4 & R5
+    HOOKS -->|fetch| R1 & R2 & R3 & R4 & R5 & R8
     COMP --> R5
     R1 --> PIPE
     R2 --> RPIPE
     PIPE & RPIPE --> REFS & FIGHT & COMB
     REFS --> ELIG
-    PIPE & RPIPE & R3 --> WCL
+    PIPE & RPIPE & R3 & R8 --> WCL
     R4 --> AI --> PROV
-    R1 & R2 & R4 & R5 --> LAB --> REDIS
+    R1 & R2 & R4 & R5 & R8 --> LAB --> REDIS
     R6 & R7 --> REDIS
     COMP --> CMP
 
@@ -167,13 +168,16 @@ de traçage : c'est **la seule clé de jointure du corpus** entre ce qui a été
 | `/api/analyze/[encounterId]` | POST | Un boss du chemin personnage. Appelle `analyzeBoss`, puis **attend** `recordExposure` avant de répondre |
 | `/api/report/analyze` | POST | Le chemin rapport, pour tous les boss tués à la difficulté demandée |
 | `/api/report/[code]` | GET | Métadonnées d'un rapport WCL : titre, combats, acteurs — sert à peupler le formulaire |
+| `/api/raid/[code]` | GET | Le classement d'une pull par marge de progression (`raid-ranking.ts`, une seule requête) |
+| `/api/pull-comparison` | POST | Deux pulls du même joueur, écart décomposé — pas de vivier de références à résoudre |
 | `/api/ai-report` | GET | Quels fournisseurs ont une clé côté serveur |
 | `/api/ai-report` | POST | Construit le prompt, écrit l'empreinte de conseil, ouvre le flux SSE |
 | `/api/labels/comparability` | POST | Verdict « pas comparable » — authentifié, quota, validation champ par champ |
 | `/api/labels/report` | POST | Retour du lecteur sur le rapport IA |
 | `/api/zones`, `/api/search/realm` | GET | Données de formulaire |
-| `/api/user/{characters,favourites,preferences,recents}` | GET/POST | Préférences persistées en Redis |
-| `/api/auth/[...nextauth]` | — | NextAuth ; la whitelist vit dans le même Redis |
+| `/api/user/{characters,favourites,preferences,recents}` | GET/POST | Compte et préférences, persistés en Redis |
+| `/api/user/characters/active-spec` | GET | La spec active d'un personnage |
+| `/api/auth/[...nextauth]` | — | NextAuth ; la liste blanche de beta vit en variable d'environnement, pas en Redis — une panne n'ouvre pas la porte |
 
 Toutes les routes d'analyse déclarent `export const runtime = 'nodejs'` : elles ont besoin de
 `node:crypto` (`randomUUID`, le hachage salé) et de sessions NextAuth côté serveur.

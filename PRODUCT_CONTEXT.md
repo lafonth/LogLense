@@ -6,6 +6,8 @@ Issue d'une session de cadrage produit (phase d'extraction des frictions).
 **Statut de ce document** : les constats sur le code ont été vérifiés contre le working
 tree le 2026-08-03 (commit `6989056`). Voir la section 7 et le rapport complet dans
 [docs/superpowers/specs/2026-08-03-audit-pipeline-wcl.md](docs/superpowers/specs/2026-08-03-audit-pipeline-wcl.md).
+La **section 8** a été rouverte et revérifiée le 2026-08-16 : elle n'est plus un ordre des
+travaux mais l'inventaire de ce qui tourne.
 
 **Autorité** : ce document fait autorité sur les décisions produit. Le code fait autorité
 sur les constats techniques.
@@ -407,85 +409,212 @@ mécaniquement corrélés (moins de phases, plus d'uptime CD). Se comparer à un
 
 ---
 
-## 8. Tâches, par ordre de valeur
+## 8. Ce qui tourne — inventaire au 2026-08-16
 
-**Préalable — déduplication du pipeline (D1). Fait le 2026-08-03.** Les tâches ci-dessous
-touchaient toutes le même bloc de code, présent deux fois ; `combatant.ts`, `fight-data.ts`
-et `references.ts` portent désormais le traitement commun.
+**Cette section était un ordre des travaux ; elle ne l'est plus.** Écrite le 2026-08-03,
+elle listait onze tâches sur le moteur d'analyse individuelle, classées par valeur. Sept
+sont faites, trois sont abandonnées, une seule reste ouverte — et celle-là est conditionnée
+à une infra qui n'existe pas. La lire comme une feuille de route, c'est donc se tromper
+deux fois : sur ce qu'il reste à faire, et sur ce que le produit est devenu.
 
-1. ~~**Capture des étiquettes**~~ — **fait le 2026-08-06.** Schéma versionné (`v: 2`
-   depuis l'ajout des critères éliminatoires — palier de set et uptime d'externals des
-   deux côtés, plus le verdict de sélection ; les enregistrements `v: 1` ne les portent
-   pas, et c'est une absence de mesure, pas une valeur nulle), identité `by` hachée avec
-   `LABEL_SALT` — l'endpoint refuse d'écrire sans sel plutôt que d'écrire en clair —,
-   `POST /api/labels/comparability` en append-only sous quota horaire par identité hachée
-   (`LABEL_LIMIT = 60`, réponse `429` avec `Retry-After`), et le contrôle « pas
-   comparable » avec raison dans `ComparisonTab`.
+Car le dépôt livre depuis longtemps ce qu'aucune des onze n'énumère. La couche de compte
+est **antérieure** au cadrage — Battle.net, personnages, favoris, récents, préférences, du
+2026-05-15 au 2026-05-16. La porte de beta, les quotas par compte, deux des quatre modes
+produit et quatre des huit flux de capture sont arrivés après, sans jamais revenir dans la
+liste. **Neuf des seize routes d'API couvrent des fonctionnalités que les onze tâches ne
+nomment pas.**
 
-   Deux choses à ne pas croire acquises. **Rien n'exploite ces étiquettes** : elles
-   s'accumulent, aucune route ne les relit, aucun modèle ne s'en sert, et l'affichage
-   n'en tient pas compte. C'était l'objectif — capturer d'abord, le calcul se rattrape,
-   la donnée non capturée est perdue. Et **le stockage reste un Redis append-only** :
-   assumé comme insuffisant pour de l'entraînement, à migrer le jour où il y aura assez
-   de volume pour valoir une vraie base. Les CGU WCL sur le stockage de données dérivées
-   sont tranchées — voir « CGU RPGLogs » plus bas. *(v1)*
-2. ~~**Rendre C2 visible**~~ — **fait le 2026-08-06.** `ComparabilityBanner` énonce le
-   niveau atteint et les écarts signés, sur les deux chemins.
-3. ~~**Corriger D3**~~ — **fait le 2026-08-06.** Le joueur de référence est apparié par
-   nom, et un candidat non identifiable est écarté plutôt que remplacé.
-4. ~~**Set bonus et externals dans la sélection**~~ — **fait le 2026-08-06.** Le pipeline
-   est inversé : `resolveReferences` score tout le vivier, **vérifie en parallèle** les
-   `VERIFICATION_WINDOW = 12` candidats les plus proches (`CombatantInfo` + buffs), puis
-   ne récupère dégâts et rotation que des survivants — ce qui clôt au passage C6. Voir
-   ci-dessous.
-5. ~~**Paralléliser et élargir la fenêtre de candidats**~~ (C3) — **fait le 2026-08-06**,
-   dix pages en parallèle. La boucle séquentielle sur les logs de référence eux-mêmes
-   (C6) est tombée avec la tâche 4.
-6. ~~**Agréger les références au lieu de les juxtaposer**~~ (D4) — **fait le 2026-08-06.**
-   `BossResult.sample` s'ajoute à `topPlayers` et porte toute la fenêtre vérifiée.
-   `src/lib/comparison/stat-distribution.ts` en tire min, médiane, max et percentile de
-   rang moyen ; `StatsTable`, `TalentDiff` et `src/lib/ai/prompt.ts` le consomment.
-   L'échantillon est gratuit — `parseStats` dérive stats et talents du `CombatantInfo`
-   déjà payé à la vérification — donc seuls dégâts et rotation restent à `TOP_N`.
-   La distribution porte sur les qualifiés, et retombe sur l'échantillon entier quand
-   aucun ne l'est, en le disant.
-7. ~~**Opening chain**~~ (C5) — **fait le 2026-08-06.** `Q_CAST_EVENTS` interroge
-   `events(dataType: Casts)` en plus du tableau agrégé, `parseOpening` en tire la
-   séquence, `src/lib/comparison/opening-diff.ts` la confronte à la majorité des
-   références, et `OpeningChain` comme la section `### Opening` du prompt n'énoncent
-   que la **première** divergence. Voir « Constats clos » ci-dessous.
-8. **ML** — **sorti de la v1 le 2026-08-07**, puis **abandonné le 2026-08-13**. Deux
-   sous-tâches restent faites et actives parce qu'elles relèvent de la capture, pas du
-   calcul : **8a**, le chemin de lecture du corpus (`scripts/export-corpus.ts`), et **8b**,
-   la fente d'exploration. **8c à 8e — features, entraînement, remplacement de l'heuristique
-   — quittent l'ordre des travaux** : le gain est réel mais invisible à l'écran, et le coût
-   inclut une migration de persistance. Voir « 8c-8e sortent du plan » ci-dessous pour la
-   démonstration et pour le seul signal qui rouvrirait le dossier. *(abandonné)*
-9. ~~**Suivi dans le temps**~~ — **fait le 2026-08-07.** `encounterRankings` portait déjà
-    tous les kills classés ; les deux chemins n'en gardaient qu'un. `src/lib/wcl/trajectory.ts`
-    les sort, `src/lib/comparison/trend.ts`
-    décompose l'écart entre deux kills en part matériel, part kill time et reste — le reste
-    seul parle du joueur —, l'axe tracé est le **percentile verrouillé** et non le DPS, et
-    la section `### Trajectory` du prompt encadre ce que le modèle a le droit d'en lire.
-    Voir « Le suivi dans le temps remplace le rapport isolé » ci-dessous. *(v1)*
-10. ~~**Capture manquante**~~ — **close le 2026-08-07.** `subject.dps` et l'instantané de
-    comparabilité (**10a et 10d**, `v: 3`), les références affichées-non-contestées
-    (**10b**), et un retour sur le rapport (**10c**). Voir « Cadrage de la capture
-    manquante ». *(v1, avant 9)*
-11. **Vue roster** — **ouverte le 2026-08-08**, non commencée, **conditionnée à l'infra
-    v2**. C'est le seul axe payable identifié par la section 4, et il n'avait jusqu'ici ni
-    numéro ni périmètre : le séquencement « moteur individuel d'abord » a été suivi, mais
-    la chose désignée comme *le produit à vendre* n'était écrite nulle part. Contenu :
-    priorisation à l'échelle du roster — qui a le plus de marge, sur quel axe —, qui
-    progresse et qui stagne, comparaison inter-joueurs de même spec.
+Elle devient donc un inventaire. Les onze tâches y survivent en table de correspondance,
+parce que le reste du dépôt cite ces numéros — « tâche 8 », « 10b », « 8c » — et qu'un
+renvoi qui ne résout plus est pire qu'une liste périmée. Ce qui reste à faire tient en deux
+entrées, en fin d'inventaire, sous son propre titre.
 
-    **Le blocage est la latence, pas le calcul.** Une analyse par personnage et par boss
-    coûte plusieurs secondes de requêtes WCL ; 25 joueurs × les boss d'un tier ne tient pas
-    dans une requête synchrone. La vue roster n'est donc pas « N fois le pipeline
-    individuel dans une boucle », elle suppose la base pré-calculée de la v2 (section 6).
-    Corollaire à ne pas perdre : **la monétisation ne dépend pas de plus de finition sur la
-    v1, elle dépend du pré-calcul.** L'ordre de cette liste laisse croire l'inverse.
-    *(v2)*
+**Pour le *comment*, lire [`docs/`](docs/README.md), pas cette section.** L'inventaire dit
+ce qui existe et depuis quand ; l'architecture, les écrans, la sélection des références et
+le corpus y sont décrits en détail, et c'est le code qui y fait autorité. Les sous-sections
+datées qui suivent l'inventaire sont conservées intégralement : elles ne décrivent pas le
+produit, elles portent le **pourquoi** — pourquoi le ML est sorti, ce que sa sortie coûte,
+ce que les CGU interdisent — et ça ne se relit nulle part ailleurs.
+
+### Les onze tâches du 2026-08-03, et ce qu'elles sont devenues
+
+**Préalable — déduplication du pipeline (D1). Fait le 2026-08-03.** Les onze touchaient
+toutes le même bloc de code, présent deux fois ; `combatant.ts`, `fight-data.ts` et
+`references.ts` portent depuis le traitement commun.
+
+| N° | Tâche | État |
+|---|---|---|
+| 1 | Capture des étiquettes | **Fait le 2026-08-06.** Schéma versionné, identité `by` hachée au `LABEL_SALT` — refus d'écrire sans sel plutôt qu'écriture en clair —, append-only sous quota horaire. C'est le flux `verdict` du tableau des captures |
+| 2 | Rendre le repli de comparabilité visible (C2) | **Fait le 2026-08-06.** `ComparabilityBanner`, niveau atteint et écarts signés, sur les deux chemins |
+| 3 | Corriger l'appariement des références (D3) | **Fait le 2026-08-06.** Apparié par nom ; un candidat non identifiable est écarté, pas remplacé |
+| 4 | Set bonus et externals dans la sélection | **Fait le 2026-08-06.** Pipeline inversé : `resolveReferences` vérifie `VERIFICATION_WINDOW = 12` candidats avant de payer dégâts et rotation. Clôt C6 au passage |
+| 5 | Paralléliser et élargir le vivier (C3) | **Fait le 2026-08-06**, dix pages en parallèle |
+| 6 | Agréger les références au lieu de les juxtaposer (D4) | **Fait le 2026-08-06.** `BossResult.sample` + `stat-distribution.ts`. L'échantillon est gratuit : le `CombatantInfo` est déjà payé à la vérification |
+| 7 | Opening chain (C5) | **Fait le 2026-08-06.** `parseOpening` + `opening-diff.ts` ; écran et prompt n'énoncent que la **première** divergence |
+| 8 | ML | **8a et 8b faits** (lecture du corpus, fente d'exploration — c'est de la capture). **8c–8e abandonnés le 2026-08-13**, voir ci-dessous |
+| 9 | Suivi dans le temps | **Fait le 2026-08-07.** `trajectory.ts` + `trend.ts` ; l'axe tracé est le **percentile verrouillé**, pas le DPS |
+| 10 | Capture manquante (10a–10d) | **Close le 2026-08-07.** `v: 3` : DPS du sujet, instantané de comparabilité, expositions, retour sur le rapport |
+| 11 | Vue roster | **Non commencée**, conditionnée à l'infra v2 — voir « Ce qui n'est pas fait » |
+
+Deux choses à ne pas croire acquises pour autant, écrites avec la tâche 1 et toujours
+vraies des huit flux. **Rien n'exploite les étiquettes** : elles s'accumulent, aucune route
+ne les relit, aucun modèle ne s'en sert, l'affichage n'en tient pas compte. C'était
+l'objectif — capturer d'abord, le calcul se rattrape, la donnée non capturée est perdue.
+Et **le stockage reste un Redis append-only**, assumé insuffisant pour de l'entraînement.
+
+### Les quatre modes
+
+`HomeClient` porte un seul état de navigation, `mode`, à quatre valeurs plus `null` ; à
+`null` il rend `ModeSelector`. Il n'y a pas d'autre page : `src/app/page.tsx` monte
+`HomeClient` sous une frontière de suspense, et l'URL est la source de vérité de l'écran.
+
+| Mode | Ce qu'on lui donne | Ce qu'il rend | Depuis |
+|---|---|---|---|
+| `character` | nom, royaume, région, difficulté | Le meilleur parse par boss, ses références, ses onglets | v1 |
+| `report` | code de rapport, acteur, difficulté | Les boss tués du rapport, la pull étant rechoisissable | v1 |
+| `raid` | code de rapport, combat | Les joueurs de la pull ordonnés par marge de progression | 2026-08-08 |
+| `pull` | deux pulls du même joueur | L'écart décomposé en matériel, kill time et reste | 2026-08-09 |
+
+Les deux derniers ne coûtent pas un pipeline complet, et c'est ce qui les a rendus
+possibles avant la v2 : `raid-ranking.ts` tient en une requête parce qu'un percentile est
+déjà une mesure de marge, et `pull-pipeline.ts` compare deux pulls du même joueur, donc
+sans vivier de références à résoudre. Aucun des deux ne préfigure la vue roster, qui reste
+un problème de latence et de pré-calcul.
+
+### La porte et le compte
+
+Rien de ceci n'apparaissait dans les onze tâches ; l'essentiel est **antérieur** au
+cadrage, ce qui explique l'oubli sans l'excuser.
+
+- **Battle.net via NextAuth** (`src/lib/auth.ts`, 2026-05-15). Un visiteur non connecté
+  voit `MarketingLanding`, jamais un formulaire.
+- **La beta est fermée par défaut** (2026-08-09). `BETA_ALLOWLIST` est lue dans
+  l'environnement ; liste absente ou vide vaut *fermée à tous*, et un compte hors liste
+  voit `BetaClosedScreen`. Une panne de Redis n'ouvre pas la porte — c'est le correctif du
+  2026-08-08 qui a déplacé la liste hors de Redis.
+- **`startup-check.ts`** échoue au démarrage plutôt qu'au premier clic d'un raider :
+  variable manquante, ou stub de session de développement resté actif en production.
+- **Le compte persiste en Redis** : personnages, spec active, favoris, récents,
+  préférences d'affichage.
+
+### Les seize routes
+
+| Route | Verbe | Rôle |
+|---|---|---|
+| `/api/analyze/[encounterId]` | POST | Un boss du chemin personnage |
+| `/api/report/analyze` | POST | Les boss tués d'un rapport, à la difficulté demandée |
+| `/api/report/[code]` | GET | Métadonnées d'un rapport : combats, acteurs, paliers |
+| `/api/raid/[code]` | GET | Le classement d'une pull par marge de progression |
+| `/api/pull-comparison` | POST | Deux pulls du même joueur, écart décomposé |
+| `/api/ai-report` | GET | Quels fournisseurs ont une clé côté serveur |
+| `/api/ai-report` | POST | Le rapport en flux, et l'empreinte du conseil au corpus |
+| `/api/labels/comparability` | POST | Le verdict humain « pas comparable », avec sa raison |
+| `/api/labels/report` | POST | Le retour du lecteur sur le rapport IA |
+| `/api/zones` | GET | Zones et rencontres du formulaire |
+| `/api/search/realm` | GET | Autocomplétion de royaume |
+| `/api/user/characters` | GET | Les personnages du compte Battle.net |
+| `/api/user/characters/active-spec` | GET | La spec active d'un personnage |
+| `/api/user/favourites` | POST | Épingler un personnage |
+| `/api/user/recents` | POST | Mémoriser une consultation |
+| `/api/user/preferences` | GET | Les préférences restituées à l'ouverture |
+| `/api/auth/[...nextauth]` | — | Le gestionnaire NextAuth |
+
+**Le partage n'est pas une route.** `ShareButton` copie l'URL courante marquée `shared=1` ;
+la marque n'est pas une frontière de sécurité — la forger n'ouvre rien —, elle dit
+seulement au serveur que cette ouverture-ci accepte l'instantané du rendu
+(`result-snapshot.ts`, 24 h) plutôt qu'un calcul neuf. Le destinataire doit être connecté
+comme n'importe quel autre appelant : c'est §2a des CGU qui l'impose, pas une commodité.
+Et le `renderId` est refrappé à chaque lecture d'instantané, sans quoi tous les lecteurs
+d'un lien s'effondreraient sur une exposition unique dans le corpus.
+
+**`wcl-guard` n'en est pas une non plus** : c'est le module que toute route dépensière
+traverse.
+
+### Ce qu'un compte a le droit de dépenser
+
+`src/lib/api/wcl-guard.ts`, 2026-08-08. Le principe : refuser ici ce que Warcraft Logs
+refuserait là-bas, plutôt que de le payer.
+
+| Constante | Valeur | Ce qu'elle borne |
+|---|---|---|
+| `WCL_UNIT_LIMIT` | 2 000 / heure / compte | Le budget WCL d'un compte |
+| `BOSS_ANALYSIS_UNITS` | 90 | Une analyse de boss |
+| `PULL_COMPARISON_UNITS` | 10 | Une comparaison de pulls |
+| `RAID_RANKING_UNITS` | 3 | Un classement de pull |
+| `METADATA_UNITS` | 1 | Une lecture de métadonnées |
+| `MAX_ENCOUNTERS_PER_REQUEST` | 20 | Ce qu'une seule requête peut demander |
+
+Trois autres quotas horaires, par identité hachée, bornent l'écriture au corpus et l'appel
+au modèle : `LABEL_LIMIT = 60`, `EXPOSURE_LIMIT = 120`, `AI_LIMIT = 20`. `consumeQuota`
+échoue **ouvert** et `consumeStrictQuota` **fermé** — la première garde la capture, qui ne
+se rattrape pas ; la seconde garde la dépense, qui se refait.
+
+### Les huit flux de capture
+
+Sept portent un `kind` versionné ; la demande WCL n'en porte pas, c'est une mesure
+d'exploitation entrée au corpus par commodité de stockage.
+
+| Flux | Clé mensuelle | Écrit quand | Depuis |
+|---|---|---|---|
+| `verdict` | `labels:comparability:AAAA-MM` | Le lecteur conteste une référence affichée | 2026-08-06 |
+| `exposure` | `labels:exposure:AAAA-MM` | Une analyse est rendue — la classe positive implicite | 2026-08-07 |
+| `advice` / `feedback` | `labels:report:AAAA-MM` | Le rapport IA part / le lecteur le juge | 2026-08-07 |
+| `intra-raid` | `labels:intra-raid:AAAA-MM` | Deux joueurs de même spec dans la même pull — la classe positive de haute confiance | 2026-08-08 |
+| `pool` | `labels:pool:AAAA-MM` | Une analyse est rendue — le vivier **écarté** comme retenu | 2026-08-09 |
+| `pull-comparison` | `labels:pull-comparison:AAAA-MM` | Une comparaison de pulls est rendue | 2026-08-09 |
+| `demand` | `labels:demand:AAAA-MM` | Chaque requête qui dépense chez WCL, refus compris | 2026-08-14 |
+
+`renderId` est la seule clé de jointure entre exposition, verdicts et conseils : sans elle,
+le corpus a des lignes mais pas de rendus. Aucun flux n'est jamais purgé — le corpus est
+l'actif —, tous sont bornés par mois : `CORPUS_MONTH_CAP = 50 000`,
+`POOL_MONTH_CAP = 150 000`, `DEMAND_MONTH_CAP = 150 000`. Dépasser ferme le mois en cours,
+pas le corpus. Toutes les écritures sont **attendues** avant la réponse : sur un runtime
+serverless, une promesse laissée en `void` part avec la fonction.
+
+### Ce qui n'est pas fait
+
+Deux entrées, et rien d'autre n'est en attente.
+
+**Vue roster — ouverte le 2026-08-08, non commencée, conditionnée à l'infra v2.** C'est le
+seul axe payable identifié par la section 4. Contenu : priorisation à l'échelle du roster —
+qui a le plus de marge, sur quel axe —, qui progresse et qui stagne, comparaison
+inter-joueurs de même spec. **Le blocage est la latence, pas le calcul.** Une analyse par
+personnage et par boss coûte plusieurs secondes de requêtes WCL ; 25 joueurs × les boss
+d'un tier ne tient pas dans une requête synchrone. Ce n'est donc pas « N fois le pipeline
+individuel dans une boucle », ça suppose la base pré-calculée de la v2 (section 6).
+Corollaire à ne pas perdre : **la monétisation ne dépend pas de plus de finition sur la v1,
+elle dépend du pré-calcul.** L'ordre de l'ancienne liste laissait croire l'inverse, et c'est
+la principale raison de la réécrire.
+
+**8c à 8e — features, entraînement, remplacement de l'heuristique.** Abandonnés le
+2026-08-13, pas ajournés : le gain est réel mais invisible à l'écran, et le coût inclut une
+migration de persistance. La démonstration et le seul signal qui rouvrirait le dossier sont
+ci-dessous, sous « 8c-8e sortent du plan ».
+
+### Le format « spec » n'est plus alimenté
+
+`docs/superpowers/specs/` porte dix fichiers datés du 2026-08-08, et **aucun n'a de plan** :
+les plans s'arrêtent au 2026-08-07 (`2026-08-07-capture-exposition.md`). Le pont
+spec → plan → code a été abandonné en route. C'est un constat, pas un reproche — cinq des
+dix ont été implémentées directement, plus vite qu'en écrivant le plan.
+
+| Spec du 2026-08-08 | État |
+|---|---|
+| `00-beta-guilde` | Implémentée le 2026-08-09 |
+| `01-mode-raid` | Implémentée le 2026-08-08 |
+| `02-capture-vivier` | Implémentée le 2026-08-09 |
+| `03-verdict-en-tete` | Implémentée le 2026-08-09 |
+| `04-comparer-ses-pulls` | Implémentée le 2026-08-09 |
+| `05-contrainte-2-design` | Note de décision, pas une spec d'implémentation |
+| `06-classifieur-comparabilite` | **Caduque le 2026-08-13** — voir « 8c-8e sortent du plan » |
+| `07-addon-in-game` | Sur le papier, non engagée |
+| `08-precalcul-roster` | Sur le papier, non engagée — c'est la vue roster ci-dessus |
+| `09-approbation-wcl` | Externe, non engagée — repoussée en fin de projet |
+
+Il vaut mieux l'écrire que laisser dix fichiers suggérer une file d'attente. Ce qui a
+remplacé la spec : ce cadrage pour le produit, `docs/` pour le code, et le message de
+commit pour le reste. Relancer 07 ou 08 produirait un nouveau document, pas la reprise de
+celui-ci.
 
 ### Le ML sort de la v1 — décision du 2026-08-07
 

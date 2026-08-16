@@ -1,6 +1,30 @@
 # Classifieur de comparabilité — design
 
+> ## ⚠️ CADUQUE — 2026-08-13
+>
+> **Ce chantier ne sera pas mené.** La décision « 8c-8e sortent du plan » (section 8 de
+> [PRODUCT_CONTEXT.md](../../../PRODUCT_CONTEXT.md)) l'a retiré du plan cinq jours après
+> l'écriture de cette spec, et rien ici n'avait été commencé.
+>
+> **Motif** — le test de substitution de
+> [ia-ml-architecture.md](../../../ia-ml-architecture.md) §6.1 échoue. Remplace le modèle
+> par le substitut le moins cher : les seuils codés en dur de `comparability.ts`.
+> L'utilisateur le remarque-t-il ? Non — il ne voit pas la sélection, il voit les
+> références retenues. Part-il ? Non. Le gain serait réel sur la qualité du panel et
+> invisible à l'écran, pour un coût qui inclut **une migration de persistance** : le seuil
+> de mille étiquettes de la section 1 ci-dessous n'est pas atteignable en lecture sur un
+> Redis append-only.
+>
+> **Ce qui rouvrirait le dossier** : un seul signal, que les utilisateurs **contestent les
+> références qu'on leur montre**. Le flux `verdict` continue de le mesurer, et c'est pour
+> ça que la capture, elle, n'a pas été arrêtée.
+>
+> **Ce qui reste vrai** — les sections 1 à 3 décrivent correctement le problème, les traits
+> disponibles et la nature des trois classes du corpus. Elles se relisent comme un état de
+> l'art interne, pas comme un travail à faire.
+
 **Date** : 2026-08-08
+**Statut** : **caduque le 2026-08-13** — jamais commencée
 **Périmètre** : remplacer les seuils codés en dur de la comparabilité par un modèle appris
 sur le corpus capturé (tâches 8c à 8e)
 **Hors périmètre** : toute génération de texte, tout LLM. Ce chantier est du ML tabulaire

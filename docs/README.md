@@ -44,3 +44,18 @@ Trois choses à retenir avant de lire le reste :
    tiennent encore debout. C'est la définition même du gadget au sens de `CLAUDE.md`.
 3. **Aucun ML n'est en production.** Le produit *capture* de quoi en entraîner un ; il n'en
    exécute aucun. Voir [04-ia-et-ml.md](04-ia-et-ml.md), qui le dit sans détour.
+
+## `superpowers/` est une archive, pas une file d'attente
+
+`superpowers/specs/` et `superpowers/plans/` datent d'un mode de travail abandonné en
+route : les plans s'arrêtent au 2026-08-07, et **aucune des dix specs du 2026-08-08 n'a de
+plan**. Cinq d'entre elles ont pourtant été implémentées — directement, plus vite qu'en
+écrivant le plan. Ce n'est donc pas un retard à rattraper.
+
+**Le format n'est plus alimenté.** Un fichier qui s'y trouve décrit une intention passée,
+pas un travail programmé, et une spec non implémentée n'est pas pour autant à faire — la 06
+(classifieur de comparabilité) porte son bandeau de caducité pour cette raison précise.
+L'état réel de chacune est tenu dans la section 8 de
+[`PRODUCT_CONTEXT.md`](../PRODUCT_CONTEXT.md), qui fait autorité là-dessus. Ce qui a
+remplacé la spec : ce cadrage pour le produit, ce dossier-ci pour le code, et le message de
+commit pour le reste.

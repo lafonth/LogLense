@@ -3,8 +3,9 @@ import { redisAppend, redisLlen } from '@/lib/redis';
 /**
  * Ce qu'une clé mensuelle du corpus a le droit d'accumuler.
  *
- * Les trois flux d'étiquettes sont append-only et sans expiration : rien, dans le code, ne
- * les raccourcit jamais. C'est voulu — un corpus est l'actif du produit, et le purger par
+ * Les flux d'étiquettes — huit aujourd'hui, trois quand ce plafond a été posé — sont tous
+ * append-only et sans expiration : rien, dans le code, ne les raccourcit jamais. C'est
+ * voulu — un corpus est l'actif du produit, et le purger par
  * TTL reviendrait à jeter la seule chose qui ne se reconstitue pas. Mais « sans purge » et
  * « sans borne » ne sont pas la même propriété : une exposition anonyme ne consomme aucun
  * quota, donc rien ne limitait la croissance d'une clé, et une instance Redis pleine perd
