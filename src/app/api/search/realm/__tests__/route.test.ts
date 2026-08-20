@@ -108,13 +108,20 @@ describe('search/realm route', () => {
   it('returns empty array when Blizzard credentials are not configured', async () => {
     vi.stubEnv('BLIZZARD_CLIENT_ID_DEV', '');
     vi.stubEnv('BLIZZARD_CLIENT_SECRET_DEV', '');
-    // No fetch mock needed — the error is thrown before any fetch
+    // Le jeton est mémorisé au niveau du module : sans ce rechargement, un test précédent
+    // l'a déjà mis en cache et la route ne regarde jamais les identifiants — elle partait
+    // alors appeler Blizzard pour de vrai.
+    vi.resetModules();
+    const { GET: freshGET } = await import('../route');
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
 
-    const res = await GET(makeRequest('KR'));
+    const res = await freshGET(makeRequest('KR'));
     const json = await res.json();
 
     expect(res.status).toBe(200);
     expect(json).toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 
