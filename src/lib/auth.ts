@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from 'next-auth';
 import BattleNetProvider from 'next-auth/providers/battlenet';
+import { blizzardCredentials } from '@/lib/blizzard-credentials';
 import {
   DEV_SESSION_PROVIDER_ID,
   DEV_STUB_ACCESS_TOKEN,
@@ -40,12 +41,8 @@ function isAllowed(battletag: string): boolean {
 export const authOptions: NextAuthOptions = {
   providers: [
     BattleNetProvider({
-      clientId: (process.env.VERCEL_ENV === 'production'
-        ? process.env.BLIZZARD_CLIENT_ID_PROD
-        : process.env.BLIZZARD_CLIENT_ID_DEV)!,
-      clientSecret: (process.env.VERCEL_ENV === 'production'
-        ? process.env.BLIZZARD_CLIENT_SECRET_PROD
-        : process.env.BLIZZARD_CLIENT_SECRET_DEV)!,
+      clientId: blizzardCredentials().clientId!,
+      clientSecret: blizzardCredentials().clientSecret!,
       issuer: 'https://eu.battle.net/oauth',
       authorization: {
         params: { scope: 'openid wow.profile' },

@@ -785,8 +785,11 @@ peut donc signaler cette section comme inutile, comme les six autres.
 
 ### Cadrage de la capture manquante
 
-Le corpus actuel (`v: 2`, `src/lib/labels/schema.ts`) capture **un verdict humain négatif
-sur une référence**. Trois trous, par ordre de coût si on ne les comble pas.
+Le corpus décrit ici est celui d'**avant le 2026-08-07** (`v: 2`) : il ne capture qu'**un
+verdict humain négatif sur une référence**. Les versions en vigueur aujourd'hui sont dans
+[`docs/05-capture-de-donnees.md`](docs/05-capture-de-donnees.md) — comparabilité `v: 3`,
+exposition `v: 4`. Ce qui suit est le cadrage qui a produit ce passage, gardé pour ses
+raisons. Trois trous, par ordre de coût si on ne les comble pas.
 
 #### 10a — `subject.dps` : le corpus ne porte pas l'écart
 

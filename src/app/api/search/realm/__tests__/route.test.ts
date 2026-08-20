@@ -27,8 +27,8 @@ const realmIndex = {
 };
 
 beforeEach(() => {
-  vi.stubEnv('BLIZZARD_CLIENT_ID', 'test-id');
-  vi.stubEnv('BLIZZARD_CLIENT_SECRET', 'test-secret');
+  vi.stubEnv('BLIZZARD_CLIENT_ID_DEV', 'test-id');
+  vi.stubEnv('BLIZZARD_CLIENT_SECRET_DEV', 'test-secret');
 });
 
 afterEach(() => {
@@ -106,8 +106,8 @@ describe('search/realm route', () => {
   });
 
   it('returns empty array when Blizzard credentials are not configured', async () => {
-    vi.stubEnv('BLIZZARD_CLIENT_ID', '');
-    vi.stubEnv('BLIZZARD_CLIENT_SECRET', '');
+    vi.stubEnv('BLIZZARD_CLIENT_ID_DEV', '');
+    vi.stubEnv('BLIZZARD_CLIENT_SECRET_DEV', '');
     // No fetch mock needed — the error is thrown before any fetch
 
     const res = await GET(makeRequest('KR'));

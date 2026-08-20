@@ -4,7 +4,11 @@ Le seul actif que LogLense ne peut pas reconstituer plus tard. Le vivier de cand
 boss n'existera plus dans un mois ; les jugements portés dessus, si — à condition d'avoir été
 écrits au moment où ils ont eu lieu.
 
-## Les quatre enregistrements et leur clé commune
+## Les quatre enregistrements joints par `renderId`
+
+Le corpus compte **huit types d'enregistrement sur sept clés** (l'inventaire complet est en
+[Stockage](#stockage)). Quatre seulement se joignent entre eux, et ce sont ceux-ci : ils
+décrivent une même analyse rendue, vue sous quatre angles.
 
 ```mermaid
 erDiagram
@@ -13,7 +17,7 @@ erDiagram
     ADVICE ||--o| FEEDBACK : "renderId"
 
     EXPOSURE {
-        int v "3"
+        int v "4"
         string kind "exposure"
         string renderId PK
         string by "hash salé ou null"
@@ -158,18 +162,31 @@ qui sert la whitelist d'authentification.
 
 ## Stockage
 
-Une liste Redis par mois et par type, en append-only :
+Une liste Redis par mois et par type, en append-only. Sept clés, huit `kind` — `labels:report`
+en mêle deux, et c'est la seule qui le fasse :
 
-```
-labels:exposure:2026-08        expositions
-labels:comparability:2026-08   verdicts « pas comparable »
-labels:report:2026-08          empreintes de conseil ET retours de lecteur
-```
+| Clé mensuelle | `kind` | `v` | Ce qu'une ligne dit | Écrite par |
+|---|---|---|---|---|
+| `labels:exposure:AAAA-MM` | `exposure` | 4 | Toute la fenêtre vérifiée d'une analyse rendue — la classe positive faible | `recordExposure`, serveur |
+| `labels:comparability:AAAA-MM` | `verdict` | 3 | Un refus énoncé sur une référence — la classe négative | `POST /api/labels/comparability` |
+| `labels:report:AAAA-MM` | `advice` | 3 | Empreinte d'un rapport IA : version de prompt, fournisseur, axes couverts | `recordAdvice`, serveur |
+| `labels:report:AAAA-MM` | `feedback` | 3 | Le lecteur a trouvé le rapport utile ou inutile, et sur quels axes | `POST /api/labels/report` |
+| `labels:pool:AAAA-MM` | `pool` | 1 | Une ligne par candidat vérifié, écartés compris — le vivier tel qu'il était | `recordPool`, depuis `references.ts` |
+| `labels:intra-raid:AAAA-MM` | `intra-raid` | 1 | Deux joueurs de la même spec dans la même pull — la positive de haute confiance | `recordIntraRaid`, serveur |
+| `labels:pull-comparison:AAAA-MM` | `pull-comparison` | 1 | Deux pulls qu'un joueur a choisi de comparer | `recordPullComparison`, serveur |
+| `labels:demand:AAAA-MM` | `demand` | 1 | Une requête qui a dépensé du budget WCL, avec sa route et son verdict de quota | `recordDemand`, serveur |
 
-Bornées par construction, lisibles sans index. Le champ `v` n'est pas décoratif : le corpus
-survivra à plusieurs versions du code, et sans lui on ne saurait plus dans un an ce que
-signifiaient les enregistrements d'aujourd'hui. `v: 3` marque le passage aux pointeurs — les
-enregistrements `2` portent des mesures WCL recopiées, les `3` les réhydratent.
+Bornées par construction — `CORPUS_MONTH_CAP` pour la plupart, `POOL_MONTH_CAP` et
+`DEMAND_MONTH_CAP` pour les deux flux à gros volume — et lisibles sans index.
+
+Le champ `v` n'est pas décoratif : le corpus survivra à plusieurs versions du code, et sans
+lui on ne saurait plus dans un an ce que signifiaient les enregistrements d'aujourd'hui. Il
+est **propre à chaque flux**, pas commun au corpus : `v: 3` marque, sur la comparabilité,
+le passage aux pointeurs — les enregistrements `2` portent des mesures WCL recopiées, les
+`3` les réhydratent — tandis que l'exposition est passée `4` en ajoutant le profil
+d'éligibilité du sujet, qui était calculé et jamais écrit. Une ligne de `labels:demand`
+sans `v` ni `kind` se lit comme `v: 0, kind: 'demand'` : la clé a existé avant ses
+discriminants.
 
 [`redis.ts`](../src/lib/redis.ts) est un client REST Upstash minimal : `GET`, `SET`, `RPUSH`.
 C'est la seule persistance du produit.

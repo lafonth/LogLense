@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { guardWclSpend, METADATA_UNITS } from '@/lib/api/wcl-guard';
+import { blizzardCredentials } from '@/lib/blizzard-credentials';
 
 export const runtime = 'nodejs';
 
@@ -13,8 +14,7 @@ async function getBnetToken(): Promise<string> {
   const now = Date.now();
   if (cachedToken && now < cacheExpiresAt) return cachedToken;
 
-  const clientId = process.env.BLIZZARD_CLIENT_ID;
-  const clientSecret = process.env.BLIZZARD_CLIENT_SECRET;
+  const { clientId, clientSecret } = blizzardCredentials();
   if (!clientId || !clientSecret) throw new Error('Blizzard credentials not configured');
   const credentials = btoa(`${clientId}:${clientSecret}`);
 
