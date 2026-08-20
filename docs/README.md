@@ -12,6 +12,7 @@ si les deux divergent, c'est le code qui a raison ici.
 | [03-comparabilite.md](03-comparabilite.md) | Comment les logs de référence sont choisis — le cœur du produit |
 | [04-ia-et-ml.md](04-ia-et-ml.md) | Où le LLM intervient, où le ML n'intervient pas encore, et pourquoi |
 | [05-capture-de-donnees.md](05-capture-de-donnees.md) | Le corpus d'étiquettes : ce qui est écrit, quand, et sous quelle identité |
+| [06-deploiement.md](06-deploiement.md) | Comment le produit arrive en production, et ce que coûte l'admission d'un testeur |
 
 ## Le résumé en une image
 

@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Le déploiement se déclenche à la main, sur la référence choisie dans l'interface
+  # GitHub. Pas de déploiement automatique au push : la mise en production est une
+  # décision, et elle doit rester lisible dans l'historique des exécutions.
+  workflow_dispatch:
 
 jobs:
   quality:
@@ -37,3 +41,39 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+  # `needs: quality` est ce qui empêche un déploiement de contourner les quatre portes.
+  # Le job n'est pas là pour automatiser une tâche pénible — il est là pour que le chemin
+  # de mise en production existe dans le dépôt, et pas seulement dans la tête de son auteur.
+  deploy:
+    name: Deploy to production
+    needs: quality
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      # `vercel pull` rapatrie les variables d'environnement du projet. Sans lui, l'étape
+      # suivante construit sans `NEXTAUTH_URL_PROD` — que `next.config.ts` lit à la
+      # construction — et chaque retour de Battle.net atterrit sur la mauvaise origine.
+      - name: Pull production environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}

@@ -35,6 +35,10 @@ out/
 node_modules/
 next-env.d.ts
 
+# Vercel — `vercel link` écrit ici l'identité du projet de celui qui déploie.
+# Elle n'est pas partagée : le CI la reçoit par ses secrets (voir docs/06-deploiement.md).
+.vercel/
+
 # Python environment
 __pycache__/
 *.py[cod]
