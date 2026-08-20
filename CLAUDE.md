@@ -84,9 +84,13 @@ src/lib/wcl/
   eligibility.ts      Set bonus et externals d'un combattant : les critères éliminatoires
   fight-context.ts    Ce qui est arrivé au raid pendant la pull (morts, wipes, durée)
   pool-cache.ts       Cache à TTL du pool de candidats — jamais un pool incomplet
+  comparability.ts    Le calcul : distance d'un candidat, sélection, niveau. Importé par
+                      references.ts seul
   references.ts       Sélection des logs de comparaison et récupération des joueurs
   pipeline.ts         Analyse par personnage : nom → rankings → meilleur parse → rapport
   report-pipeline.ts  Analyse par rapport WCL : code + acteur → rapport
+  pull-pipeline.ts    Comparaison de deux pulls du même joueur — sans références
+  raid-ranking.ts     Classement des joueurs d'une pull — sans références
 src/lib/comparison/
   talent-diff.ts      Écarts de build : toi seul / eux seuls / communs, avec le compte k sur n
   rotation-stats.ts   Par sort : fourchette des références, médiane, écart, tri par écart
@@ -108,9 +112,37 @@ src/components/ui/    Les primitives : Button, Card, Input, Select, Tabs, Scroll
                       Sheet, Badge, ErrorBanner, LoadingSpinner, ProgressSteps
 ```
 
-Les deux modules de `comparison/` sont des fonctions pures, testables sans rendu. Ils sont
+Tous les modules de `comparison/` sont des fonctions pures, testables sans rendu. Ils sont
 séparés des composants parce que le sous-projet 3 les réutilisera quand les références
 passeront de trois exemplaires à une distribution.
+
+## Les quatre pipelines
+
+`pipeline.ts` et `report-pipeline.ts` sont deux vues du même chemin. Ils ne diffèrent que sur
+deux points : **comment le sujet analysé est trouvé** (nom de personnage → rankings →
+meilleur parse, contre `code` + `actorId` déjà fournis) et **d'où viennent les percentiles**
+(`encounterRankings` contre `report.rankings`). Tout le reste passe par `combatant`,
+`fight-data` et `references`.
+
+Les deux autres ne passent pas par `references.ts` du tout :
+
+- `pull-pipeline.ts` compare deux pulls **du même joueur** : le sujet est sa propre
+  référence, il n'y a pas de vivier à résoudre. Les critères de comparabilité y sont portés
+  (`eligibility` et `context` sur chaque instantané) et **affichés**, pas utilisés pour
+  sélectionner.
+- `raid-ranking.ts` classe les joueurs d'**une seule pull**, sur le percentile WCL ou sur le
+  DPS brut en repli. C'est un autre axe, nommé à l'écran par `criterionReason`.
+
+**Corollaire** : une évolution de la comparabilité — rendre le fallback visible, filtrer sur
+l'ilvl ou le set bonus, paralléliser, passer à une distribution — s'écrit dans `references.ts`
+et `comparability.ts`, jamais dans `pipeline.ts` ni `report-pipeline.ts`. **Mais elle
+n'atteindra que deux écrans sur quatre.** Les deux autres ne bougeront pas, et rien ne le
+signalera : qui durcit la comparabilité doit trancher explicitement, pipeline par pipeline,
+si la règle s'y applique — et l'écrire ici.
+
+Faire converger les quatre n'est pas au programme : `PRODUCT_CONTEXT.md` §9 acte qu'il n'y a
+pas davantage de travail de comparabilité à faire. Cette section dit donc l'état réel, pour
+qu'on ne s'appuie pas sur une garantie qui n'existe pas.
 
 ## Interface : tokens et primitives
 
@@ -140,15 +172,6 @@ Trois règles qui ont chacune coûté une ronde de correction :
 `Sheet` est le traitement mobile des colonnes latérales : il rend ses enfants directement à
 partir de `md`, et derrière un déclencheur plus un panneau glissant en dessous. L'envelopper
 suffit — pas de media query à écrire.
-
-Les deux pipelines ne diffèrent que sur deux points : **comment le sujet analysé est
-trouvé** (nom de personnage → rankings → meilleur parse, contre `code` + `actorId` déjà
-fournis) et **d'où viennent les percentiles** (`encounterRankings` contre
-`report.rankings`). Tout le reste passe par `combatant`, `fight-data` et `references`.
-
-**Corollaire** : une évolution de la comparabilité — rendre le fallback visible, filtrer
-sur l'ilvl ou le set bonus, paralléliser, passer à une distribution — s'écrit dans
-`references.ts` uniquement, jamais dans les pipelines.
 
 ## Vérification
 
