@@ -64,8 +64,11 @@ export interface FightContextArgs {
 /**
  * Les entrées de la table des morts, quelle que soit la forme rendue.
  *
- * WCL renvoie tantôt `{ entries: [...] }`, tantôt le tableau nu. Choisir une des deux et
- * se tromper coûterait toutes les morts d'un rendu, silencieusement — on accepte les deux.
+ * Forme observée sur données réelles — sonde `scripts/probe-fight-tables-batch.ts` (e00c944),
+ * qui lit cette table et en rend le compte : `{ data: { entries: [...] } }`. Les deux autres
+ * branches n'ont jamais été vues. Elles restent parce qu'elles coûtent six lignes et qu'une
+ * forme mal devinée ferait disparaître toutes les morts d'un rendu sans lever d'erreur — le
+ * seul défaut que le corpus ne rattrape jamais.
  */
 function deathEntries(deaths: unknown): DeathEntry[] {
   if (Array.isArray(deaths)) return deaths as DeathEntry[];
@@ -86,6 +89,12 @@ function deathEntries(deaths: unknown): DeathEntry[] {
  * L'horodatage de la table est celui du rapport, pas du combat. Mais une valeur déjà
  * relative est plus petite que le départ du combat : la soustraire donnerait un négatif,
  * qu'on ne peut pas distinguer d'une donnée absente. On la garde telle quelle dans ce cas.
+ *
+ * **Non vérifié** : que `deathTime` soit bien absolu. Les deux lectures sont traitées faute
+ * d'une observation, et une seule suffirait à trancher — `scripts/probe-fight-tables-batch.ts`
+ * demande déjà cette table sur des données réelles ; y comparer `deathTime` au `startTime` du
+ * combat répondrait. Tant que ce n'est pas fait, la branche de repli n'est pas de la prudence,
+ * c'est une ignorance assumée.
  */
 function relativeDeathMs(raw: number | undefined, fightStart: number | null): number | null {
   if (raw === undefined || !Number.isFinite(raw)) return null;
