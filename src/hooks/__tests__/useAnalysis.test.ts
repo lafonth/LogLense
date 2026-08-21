@@ -81,6 +81,7 @@ function mockFetchError(status: number, error: string) {
   return vi.fn().mockResolvedValue({
     ok: false,
     status,
+    headers: new Headers(),
     json: () => Promise.resolve({ error }),
   } as unknown as Response);
 }

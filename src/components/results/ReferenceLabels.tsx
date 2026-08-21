@@ -97,7 +97,22 @@ export function ReferenceLabels({ result }: ReferenceLabelsProps) {
     }
   }
 
-  if (result.topPlayers.length === 0) return null;
+  // La carte disparaissait sans un mot, et c'est celle qui demande le plus au lecteur : le
+  // signalement d'une comparaison injuste est la seule donnée que le corpus ne peut pas
+  // reconstituer seul. Un vide non expliqué se lit comme une carte cassée, pas comme une
+  // sélection qui n'a rien gardé. Les chiffres de la recherche ne sont pas repris ici : le
+  // bandeau juste au-dessus les porte déjà.
+  if (result.topPlayers.length === 0) {
+    return (
+      <Card header="Challenge a reference">
+        <p className="text-muted font-sans text-xs">
+          Nothing to challenge: the selection kept no reference on this pull. This card lists the
+          logs you were measured against so you can flag one as an unfair comparison — with no
+          reference, there is no comparison to flag. The basis above says how the search ended.
+        </p>
+      </Card>
+    );
+  }
 
   return (
     <Card header="Challenge a reference">

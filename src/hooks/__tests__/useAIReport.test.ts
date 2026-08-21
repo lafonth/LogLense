@@ -95,6 +95,7 @@ describe('useAIReport', () => {
   it('sets error when API returns non-ok response', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       json: () => Promise.resolve({ error: 'Invalid API key' }),
     } as unknown as Response);
 

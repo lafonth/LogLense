@@ -135,8 +135,10 @@ describe('reportForm integration', () => {
       'fetch',
       vi.fn().mockResolvedValue({
         ok: false,
+        status: 404,
+        headers: new Headers(),
         json: () => Promise.resolve({ error: 'Report not found' }),
-      } as Response)
+      } as unknown as Response)
     );
 
     render(<ReportForm onSubmit={vi.fn()} loading={false} onBack={vi.fn()} />);

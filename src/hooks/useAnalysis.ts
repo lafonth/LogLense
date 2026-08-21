@@ -2,6 +2,7 @@
 
 import type { AnalysisInput, BossResult } from '@/types';
 import { useCallback, useRef, useState } from 'react';
+import { readApiError } from '@/lib/api/response-error';
 
 export type BossState =
   | { status: 'idle' }
@@ -45,10 +46,7 @@ async function fetchBoss(
       }),
     });
 
-    if (!res.ok) {
-      const body = (await res.json()) as { error?: string };
-      return { status: 'error', message: body.error ?? 'Request failed' };
-    }
+    if (!res.ok) return { status: 'error', message: await readApiError(res) };
     const result = (await res.json()) as BossResult | null;
     return { status: 'success', result };
   } catch (err) {

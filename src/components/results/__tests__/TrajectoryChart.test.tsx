@@ -27,13 +27,27 @@ function percents(values: number[], over: Partial<TrajectoryPoint> = {}) {
 }
 
 describe('trajectoryChart', () => {
-  // Un rapport isolé reste un rapport valide : l'écran se tait, titre compris.
-  it('ne rend rien sous deux kills', () => {
-    const { container } = render(<TrajectoryChart trajectory={[]} />);
-    expect(container).toBeEmptyDOMElement();
+  // Un rapport isolé reste un rapport valide : rien n'est tracé. Mais le bloc ne disparaît
+  // plus — un vide se lit comme une panne, alors que le motif est une donnée.
+  it('dit pourquoi il ne trace rien plutôt que de disparaître', () => {
+    render(<TrajectoryChart trajectory={[]} />);
+    expect(screen.getByText(/No ranked kill on this boss yet/)).toBeInTheDocument();
 
-    const one = render(<TrajectoryChart trajectory={[point()]} />);
-    expect(one.container).toBeEmptyDOMElement();
+    render(<TrajectoryChart trajectory={[point()]} />);
+    expect(screen.getByText(/One ranked kill is not a trajectory/)).toBeInTheDocument();
+  });
+
+  // Le motif le moins devinable des trois : les kills existent, mais dans une autre spec.
+  it('impute le vide au changement de spec quand c’est lui qui coupe le segment', () => {
+    render(
+      <TrajectoryChart
+        trajectory={[point({ spec: 'Balance' }), point({ spec: 'Balance' }), point()]}
+      />
+    );
+
+    expect(screen.getByText(/One ranked kill is not a trajectory/)).toHaveTextContent(
+      '2 earlier kills are left out'
+    );
   });
 
   it('annonce le plateau, le message que le joueur ne voit pas seul', () => {

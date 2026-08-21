@@ -1,5 +1,6 @@
 import type { ReportMeta } from '@/types';
 import { useState } from 'react';
+import { readApiError } from '@/lib/api/response-error';
 
 export function useReportMeta() {
   const [meta, setMeta] = useState<ReportMeta | null>(null);
@@ -14,10 +15,7 @@ export function useReportMeta() {
     setFetchedCode(null);
     try {
       const res = await fetch(`/api/report/${code}`);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(await readApiError(res));
       const data = (await res.json()) as ReportMeta;
       setMeta(data);
       setFetchedCode(code);

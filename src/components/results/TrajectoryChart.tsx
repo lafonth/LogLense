@@ -45,9 +45,31 @@ function signed(n: number): string {
 
 export function TrajectoryChart({ trajectory }: TrajectoryChartProps) {
   // Un seul kill ne fait pas une trajectoire, et un rapport isolé reste un rapport valide :
-  // l'écran se tait plutôt que de tracer un segment entre un point et lui-même.
+  // l'écran ne trace pas de segment entre un point et lui-même. Mais il ne disparaît plus en
+  // silence — un bloc absent se lit comme une panne, alors que le motif est ici une donnée :
+  // aucun kill classé, ou aucun deuxième kill *dans la spec courante*.
   const segment = segmentBySpec(trajectory).at(-1) ?? [];
-  if (segment.length < 2) return null;
+  if (segment.length < 2) {
+    const dropped = trajectory.length - segment.length;
+    return (
+      <div className="mt-6">
+        <h3 className="text-muted mb-2 font-mono text-xs tracking-wider uppercase">Trajectory</h3>
+        <p className="text-muted font-sans text-xs">
+          {segment.length === 0
+            ? 'No ranked kill on this boss yet.'
+            : 'One ranked kill is not a trajectory — a direction needs two.'}{' '}
+          {dropped > 0 && (
+            <>
+              <span className="font-mono">{dropped}</span> earlier kill
+              {dropped > 1 ? 's are' : ' is'} left out: another spec does not measure the same
+              thing.{' '}
+            </>
+          )}
+          Warcraft Logs does not rank a wipe, so a failed night leaves no point here.
+        </p>
+      </div>
+    );
+  }
 
   const trend = analyseTrend(trajectory);
   const verdict = VERDICTS[trend.verdict];

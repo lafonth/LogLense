@@ -2,6 +2,7 @@
 
 import type { AnalysisResult, ReportActor, ReportFight } from '@/types';
 import { useCallback, useRef, useState } from 'react';
+import { readApiError } from '@/lib/api/response-error';
 import { groupKillsByEncounter, lastKillOf } from '@/lib/report-kills';
 
 interface ReportAnalysisParams {
@@ -30,10 +31,7 @@ async function postAnalysis(body: unknown): Promise<AnalysisResult> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
-  }
+  if (!res.ok) throw new Error(await readApiError(res));
   return (await res.json()) as AnalysisResult;
 }
 

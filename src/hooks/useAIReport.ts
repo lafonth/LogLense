@@ -3,6 +3,7 @@
 import type { UsageData } from '@/lib/ai/provider';
 import type { AnalysisResult } from '@/types';
 import { useCallback, useRef, useState } from 'react';
+import { readApiError } from '@/lib/api/response-error';
 
 interface UsageEvent extends UsageData {
   _meta: 'usage';
@@ -43,10 +44,7 @@ export function useAIReport() {
           signal: controller.signal,
         });
 
-        if (!res.ok) {
-          const body = (await res.json()) as { error?: string };
-          throw new Error(body.error ?? 'AI report failed');
-        }
+        if (!res.ok) throw new Error(await readApiError(res));
 
         const reader = res.body?.getReader();
         if (!reader) throw new Error('No response body');

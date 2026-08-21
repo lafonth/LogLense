@@ -148,6 +148,7 @@ describe('useReportAnalysis', () => {
       vi.fn().mockResolvedValue({
         ok: false,
         status: 429,
+        headers: new Headers(),
         json: () => Promise.resolve({ error: 'Daily WCL budget spent' }),
       } as unknown as Response)
     );
@@ -161,12 +162,35 @@ describe('useReportAnalysis', () => {
     expect(result.current.result).toBeNull();
   });
 
+  // Le quota calcule l'échéance exacte et la pose sur le 429 ; l'écran la jetait. Un refus
+  // sans échéance se lit comme une panne, et l'utilisateur relance — ce que le quota veut
+  // justement éviter.
+  it('dit dans combien de temps réessayer quand le serveur l’a chiffré', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        headers: new Headers({ 'Retry-After': '840' }),
+        json: () => Promise.resolve({ error: 'Hourly Warcraft Logs quota reached' }),
+      } as unknown as Response)
+    );
+    const { result } = renderHook(() => useReportAnalysis());
+
+    await act(async () => {
+      await result.current.start(params([fight()]));
+    });
+
+    expect(result.current.error).toBe('Hourly Warcraft Logs quota reached — retry in 14 minutes.');
+  });
+
   it('falls back to the status code when the failure body is not JSON', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
         ok: false,
         status: 502,
+        headers: new Headers(),
         json: () => Promise.reject(new Error('not json')),
       } as unknown as Response)
     );

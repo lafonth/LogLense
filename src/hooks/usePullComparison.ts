@@ -2,6 +2,7 @@
 
 import type { PullComparisonResult, PullPointer } from '@/lib/wcl/pull-pipeline';
 import { useCallback, useState } from 'react';
+import { readApiError } from '@/lib/api/response-error';
 
 interface PullComparisonParams {
   specId: number;
@@ -25,10 +26,7 @@ export function usePullComparison() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ specId, before, after }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(await readApiError(res));
       const data = (await res.json()) as PullComparisonResult;
       setResult(data);
     } catch (e) {

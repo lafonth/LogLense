@@ -1,5 +1,6 @@
 import type { RaidRanking } from '@/lib/wcl/raid-ranking';
 import { useState } from 'react';
+import { readApiError } from '@/lib/api/response-error';
 
 /**
  * Le classement d'un combat. Un seul appel, déclenché quand on choisit une pull.
@@ -20,10 +21,7 @@ export function useRaidRanking() {
     setFetchedFightID(null);
     try {
       const res = await fetch(`/api/raid/${code}?fight=${fightID}`);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(await readApiError(res));
       const data = (await res.json()) as RaidRanking;
       setRanking(data);
       setFetchedFightID(fightID);

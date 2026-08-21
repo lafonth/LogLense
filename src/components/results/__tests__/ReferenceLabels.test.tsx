@@ -276,10 +276,14 @@ describe('referenceLabels', () => {
     expect(screen.getAllByRole('button', { name: 'Not comparable' })).toHaveLength(2);
   });
 
-  it('renders nothing when there are no references', () => {
+  // C'est la carte qui demande le plus au lecteur — le signalement d'une comparaison injuste
+  // est la seule donnée que le corpus ne reconstitue pas seul. Disparaître sans un mot se lit
+  // comme une carte cassée, pas comme une sélection qui n'a rien gardé.
+  it('dit qu’il n’y a rien à contester plutôt que de disparaître', () => {
     const empty = { ...result(), topPlayers: [] };
-    const { container } = render(<ReferenceLabels result={empty} />);
+    render(<ReferenceLabels result={empty} />);
 
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.getByText(/Nothing to challenge/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Not comparable' })).not.toBeInTheDocument();
   });
 });
