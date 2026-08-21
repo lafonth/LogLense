@@ -108,8 +108,8 @@ describe('parseRaidRanking — repli DPS', () => {
     );
 
     expect(ranking?.criterion).toBe('dps');
-    expect(ranking?.criterionReason).toMatch(/DPS brut/);
-    expect(ranking?.criterionReason).toMatch(/sans entrée/);
+    expect(ranking?.criterionReason).toMatch(/raw DPS/);
+    expect(ranking?.criterionReason).toMatch(/without an entry/);
     // 300 000 dégâts sur 300 s.
     expect(ranking?.players.find((p) => p.name === 'Arms')?.dps).toBe(1000);
     // Le soigneur n'a aucune entrée au classement : son rôle est inconnu, il reste dans la
@@ -136,7 +136,7 @@ describe('parseRaidRanking — repli DPS', () => {
     );
 
     expect(ranking?.criterion).toBe('dps');
-    expect(ranking?.criterionReason).toMatch(/n'ont pas de percentile/);
+    expect(ranking?.criterionReason).toMatch(/no Warcraft Logs percentile/);
     // Le soigneur reste exclu : son rôle est connu, lui.
     expect(ranking?.players.map((p) => p.name)).toEqual(['Arms', 'Fury']);
   });
@@ -148,8 +148,8 @@ describe('parseRaidRanking — repli DPS', () => {
     );
 
     expect(ranking?.criterion).toBe('dps');
-    expect(ranking?.criterionReason).toMatch(/aucun classement/);
-    expect(ranking?.criterionReason).toMatch(/soigneurs et tanks/);
+    expect(ranking?.criterionReason).toMatch(/ranks nobody/);
+    expect(ranking?.criterionReason).toMatch(/healers and tanks/);
     // Faute de rôles, le soigneur est là — et l'écran le dit plutôt que de le cacher.
     expect(ranking?.players.map((p) => p.name)).toEqual(['Healbot', 'Arms', 'Fury']);
   });

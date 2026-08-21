@@ -14,7 +14,7 @@ import { getDpsSpecsForClass } from '@/lib/specs';
 const DIFFICULTY_NAMES: Record<number, string> = { 5: 'Mythic', 4: 'Heroic', 3: 'Normal' };
 
 function fightLabel(fight: ReportFight): string {
-  const difficulty = DIFFICULTY_NAMES[fight.difficulty] ?? `Difficulté ${fight.difficulty}`;
+  const difficulty = DIFFICULTY_NAMES[fight.difficulty] ?? `Difficulty ${fight.difficulty}`;
   const seconds = Math.round((fight.endTime - fight.startTime) / 1000);
   const duration = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   return `${fight.name} — ${difficulty} — ${fight.kill ? 'Kill' : 'Wipe'} — ${duration}`;
@@ -132,7 +132,7 @@ function PullSidePicker({
             value={actorId}
             onChange={(e) => handleActorChange(Number(e.target.value))}
           >
-            <option value="">— Choisir un personnage —</option>
+            <option value="">— Select a character —</option>
             {[...meta.actors]
               .sort((a, b) => a.name.localeCompare(b.name))
               .map((a) => (
@@ -147,7 +147,7 @@ function PullSidePicker({
             onChange={(e) => handleFightChange(Number(e.target.value))}
             disabled={!actorId}
           >
-            <option value="">— Choisir une pull —</option>
+            <option value="">— Select a pull —</option>
             {fights.map((f) => (
               <option key={f.id} value={f.id}>
                 {fightLabel(f)}

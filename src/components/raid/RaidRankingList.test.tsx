@@ -13,7 +13,7 @@ function ranking(over: Partial<RaidRanking> = {}): RaidRanking {
     kill: true,
     fightMs: 300_000,
     criterion: 'percentile',
-    criterionReason: 'Classé par percentile : tous les DPS du combat en ont un.',
+    criterionReason: 'Ranked by percentile: every DPS on this pull has one.',
     players: [
       {
         actorId: 1,
@@ -44,7 +44,7 @@ describe('le raid trié à l’écran', () => {
   it('nomme l’axe du tri — jamais un classement dont on ignore l’axe', () => {
     render(<RaidRankingList ranking={ranking()} onOpen={vi.fn()} />);
 
-    expect(screen.getByText(/Classé par percentile/)).toBeInTheDocument();
+    expect(screen.getByText(/Ranked by percentile/)).toBeInTheDocument();
   });
 
   it('annonce le repli DPS plutôt que de le passer pour un percentile', () => {
@@ -52,14 +52,13 @@ describe('le raid trié à l’écran', () => {
       <RaidRankingList
         ranking={ranking({
           criterion: 'dps',
-          criterionReason:
-            'Classé par DPS brut : 1 joueur du combat est sans entrée au classement WCL.',
+          criterionReason: 'Ranked by raw DPS: 1 player of this pull has no WCL ranking entry.',
         })}
         onOpen={vi.fn()}
       />
     );
 
-    expect(screen.getByText(/DPS brut/)).toBeInTheDocument();
+    expect(screen.getByText(/raw DPS/)).toBeInTheDocument();
     // La colonne de droite bascule avec l'axe : c'est le DPS qui porte le tri.
     expect(screen.getByText('1.0k')).toBeInTheDocument();
   });

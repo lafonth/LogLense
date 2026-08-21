@@ -180,7 +180,7 @@ export function parseRaidRanking(payload: RawRaidRanking, code: string): RaidRan
       ...base,
       criterion: 'percentile',
       criterionReason:
-        'Classés par percentile Warcraft Logs : la position de chacun dans la distribution de sa spec sur ce boss. Le plus bas a le plus de marge.',
+        'Ranked by Warcraft Logs percentile: where each player sits in the distribution for their spec on this boss. The lowest has the most room to gain.',
       players,
     };
   }
@@ -220,13 +220,13 @@ export function parseRaidRanking(payload: RawRaidRanking, code: string): RaidRan
   players.sort((a, b) => a.dps - b.dps || a.name.localeCompare(b.name));
 
   const brut =
-    "l'ordre est celui du DPS brut, pas d'une position dans une distribution : les specs faibles du tier sont mécaniquement en bas pour cette seule raison.";
+    'the order is raw DPS, not a position in a distribution: specs that are weak this tier sit at the bottom for that reason alone.';
   const reason =
     allRanked.length === 0
-      ? `Warcraft Logs ne rend aucun classement sur ce combat, ${brut} Les rôles sont inconnus, soigneurs et tanks apparaissent donc dans la liste.`
+      ? `Warcraft Logs ranks nobody on this pull, ${brut} Roles are unknown, so healers and tanks show up in the list.`
       : uncovered.length > 0
-        ? `Le classement Warcraft Logs laisse ${uncovered.length} joueur(s) de ce combat sans entrée sur ${damagers.length} qui ont infligé des dégâts, ${brut}`
-        : `${missingPercentile.length} des ${rankedDps.length} DPS de ce combat n'ont pas de percentile chez Warcraft Logs, ${brut}`;
+        ? `The Warcraft Logs ranking leaves ${uncovered.length} player(s) of this pull without an entry, out of ${damagers.length} who dealt damage, ${brut}`
+        : `${missingPercentile.length} of the ${rankedDps.length} DPS on this pull have no Warcraft Logs percentile, ${brut}`;
 
   return { ...base, criterion: 'dps', criterionReason: reason, players };
 }

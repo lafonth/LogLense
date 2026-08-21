@@ -17,7 +17,7 @@ import { getDpsSpecsForClass } from '@/lib/specs';
 const DIFFICULTY_NAMES: Record<number, string> = { 5: 'Mythic', 4: 'Heroic', 3: 'Normal' };
 
 function fightLabel(fight: ReportFight): string {
-  const difficulty = DIFFICULTY_NAMES[fight.difficulty] ?? `Difficulté ${fight.difficulty}`;
+  const difficulty = DIFFICULTY_NAMES[fight.difficulty] ?? `Difficulty ${fight.difficulty}`;
   const seconds = Math.round((fight.endTime - fight.startTime) / 1000);
   const duration = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   return `${fight.name} — ${difficulty} — ${fight.kill ? 'Kill' : 'Wipe'} — ${duration}`;
@@ -124,7 +124,7 @@ export function RaidForm({ onOpenPlayer, onBack }: RaidFormProps) {
               value={fightID}
               onChange={(e) => handleFightChange(Number(e.target.value))}
             >
-              <option value="">— Choisir une pull —</option>
+              <option value="">— Select a pull —</option>
               {fights.map((f) => (
                 <option key={f.id} value={f.id}>
                   {fightLabel(f)}
@@ -135,7 +135,7 @@ export function RaidForm({ onOpenPlayer, onBack }: RaidFormProps) {
             {rankingError && <ErrorBanner message={rankingError} />}
             {rankingLoading && (
               <div role="status">
-                <LoadingSpinner label="Classement du raid…" />
+                <LoadingSpinner label="Ranking the raid…" />
               </div>
             )}
             {ranking && !rankingLoading && (

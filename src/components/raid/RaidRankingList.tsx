@@ -30,7 +30,7 @@ export function RaidRankingList({ ranking, onOpen }: RaidRankingListProps) {
         </div>
         <div className="text-dim text-2xs font-mono">
           {ranking.kill ? 'Kill' : 'Wipe'} —{' '}
-          <span className="font-mono">{ranking.players.length}</span> joueur(s) classé(s)
+          <span className="font-mono">{ranking.players.length}</span> player(s) ranked
         </div>
       </div>
 
@@ -50,7 +50,7 @@ export function RaidRankingList({ ranking, onOpen }: RaidRankingListProps) {
               <span className="text-dim text-2xs font-mono">
                 {player.specName && player.className
                   ? `${player.specName} ${player.className}`
-                  : (player.className ?? 'Spec inconnue')}
+                  : (player.className ?? 'Unknown spec')}
                 {player.tierPieces !== null && (
                   <>
                     {' — '}
@@ -70,7 +70,7 @@ export function RaidRankingList({ ranking, onOpen }: RaidRankingListProps) {
                   <span className="text-deviation font-mono text-sm">{formatDps(player.dps)}</span>
                   <span className="text-dim text-2xs font-mono">
                     {player.percentile === null ? (
-                      'pas de percentile'
+                      'no percentile'
                     ) : (
                       <>
                         <span className="font-mono">{player.percentile}</span> pct
