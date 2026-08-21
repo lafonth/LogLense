@@ -1,8 +1,8 @@
 import type { NextRequest } from 'next/server';
-import type { StoredCharacter } from '@/types';
 import { getServerSession } from 'next-auth/next';
 import { NextResponse } from 'next/server';
-import { isRecord, isStr, readJson } from '@/lib/api/parse';
+import { readJson } from '@/lib/api/parse';
+import { charKey, parseStoredCharacter, readStoredCharacters } from '@/lib/api/stored-character';
 import { authOptions } from '@/lib/auth';
 import { redisGet, redisSet } from '@/lib/redis';
 
@@ -16,47 +16,6 @@ export const runtime = 'nodejs';
  * Personne ne joue cinquante personnages de front.
  */
 const MAX_FAVOURITES = 50;
-
-function charKey(c: StoredCharacter) {
-  return `${c.name.toLowerCase()}-${c.realmSlug.toLowerCase()}-${c.region.toLowerCase()}`;
-}
-
-/**
- * Valide le personnage entrant, ou rend `null`.
- *
- * Le corps arrive du navigateur et repart tel quel dans Redis, puis dans le rendu : un
- * champ manquant faisait jeter `charKey` en 500, et un champ de taille arbitraire
- * gonflait une clé qu'aucun code ne raccourcit.
- */
-function parseStoredCharacter(input: unknown): StoredCharacter | null {
-  if (!isRecord(input)) return null;
-
-  const { name, realmName, realmSlug, region, class: klass } = input;
-
-  if (!isStr(name) || !isStr(realmName) || !isStr(realmSlug)) return null;
-  if (!isStr(region) || !isStr(klass)) return null;
-
-  return { name, realmName, realmSlug, region, class: klass };
-}
-
-/**
- * Relit la liste stockée sans jeter.
- *
- * Ce qui a été écrit par une version antérieure du code n'a pas forcément la forme
- * d'aujourd'hui, et une clé illisible ne doit pas empêcher d'en épingler un de plus :
- * on repart d'une liste vide plutôt que de rendre un 500 dont l'appelant ne peut rien.
- */
-function readFavourites(raw: string | null): StoredCharacter[] {
-  if (!raw) return [];
-
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(parseStoredCharacter).filter((c): c is StoredCharacter => c !== null);
-  } catch {
-    return [];
-  }
-}
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -74,7 +33,7 @@ export async function POST(req: NextRequest) {
   const key = `user:${userId}:favourites`;
 
   const raw = await redisGet(key);
-  const current = readFavourites(raw);
+  const current = readStoredCharacters(raw);
 
   const idx = current.findIndex((c) => charKey(c) === charKey(char));
 

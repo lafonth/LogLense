@@ -25,7 +25,7 @@ function makeRequest(body: unknown) {
 beforeEach(() => {
   vi.mocked(getServerSession).mockResolvedValue({ user: { name: 'Jumbaa#1234' } } as never);
   vi.mocked(redisGet).mockResolvedValue(null);
-  vi.mocked(redisSet).mockResolvedValue(undefined);
+  vi.mocked(redisSet).mockClear().mockResolvedValue(undefined);
 });
 
 describe('pOST /api/user/recents', () => {
@@ -57,5 +57,34 @@ describe('pOST /api/user/recents', () => {
     const body = (await res.json()) as { recents: StoredCharacter[] };
     expect(body.recents).toHaveLength(5);
     expect(body.recents[0].name).toBe('NewChar');
+  });
+
+  // Les deux mêmes défauts que sur les favoris, sur la même clé et la même forme : le corps
+  // entrait sans contrôle, et la liste stockée était relue par un `JSON.parse` nu.
+  it('returns 400 on a character without a realmSlug, without writing', async () => {
+    const res = await POST(
+      makeRequest({ name: 'Jumbaa', realmName: 'Ysondre', region: 'EU', class: 'Druid' })
+    );
+    expect(res.status).toBe(400);
+    expect(redisSet).not.toHaveBeenCalled();
+  });
+
+  it('recovers from an unreadable stored list rather than throwing', async () => {
+    vi.mocked(redisGet).mockResolvedValue('{ not json');
+    const res = await POST(makeRequest(makeChar('Jumbaa')));
+    const body = (await res.json()) as { recents: StoredCharacter[] };
+    expect(res.status).toBe(200);
+    expect(body.recents.map((c) => c.name)).toEqual(['Jumbaa']);
+  });
+
+  // Une entrée écrite par une version antérieure du code peut ne plus avoir la forme
+  // d'aujourd'hui : elle sort de la liste, elle n'emporte pas la requête.
+  it('drops the stored entries that no longer have the expected shape', async () => {
+    vi.mocked(redisGet).mockResolvedValue(
+      JSON.stringify([{ name: 'Legacy' }, makeChar('Altchar')])
+    );
+    const res = await POST(makeRequest(makeChar('Jumbaa')));
+    const body = (await res.json()) as { recents: StoredCharacter[] };
+    expect(body.recents.map((c) => c.name)).toEqual(['Jumbaa', 'Altchar']);
   });
 });
