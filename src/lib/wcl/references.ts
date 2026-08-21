@@ -450,9 +450,18 @@ export async function resolveReferences(
   const slots = explored ? TOP_N - 1 : TOP_N;
   const chosen = qualified.slice(0, slots);
   const substitutes = eliminated.slice(0, slots - chosen.length);
-  const references = [...chosen, ...substitutes, ...(explored ? [explored] : [])];
+  const attemptedReferences = [...chosen, ...substitutes, ...(explored ? [explored] : [])];
 
-  const topPlayers = await Promise.all(references.map((v) => buildTopPlayer(token, v)));
+  // Une référence dont les dégâts ne se chargent pas ne doit pas coûter l'analyse entière :
+  // `all` rejette au premier échec, `allSettled` laisse passer les autres. Celle qui manque
+  // sort aussi de `references` — le vivier capturé et les compteurs de comparabilité décrivent
+  // le panel réellement rendu, pas celui qu'on espérait rendre.
+  const built = await Promise.allSettled(attemptedReferences.map((v) => buildTopPlayer(token, v)));
+  const topPlayers = built
+    .filter((r): r is PromiseFulfilledResult<TopPlayer> => r.status === 'fulfilled')
+    .map((r) => r.value);
+  const references = attemptedReferences.filter((_, i) => built[i].status === 'fulfilled');
+  const keptSubstitutes = substitutes.filter((v) => references.includes(v));
 
   // Le vivier est capturé ici et pas dans les pipelines, ni dans la route : c'est le seul
   // point du code qui connaisse les écartés. Un pipeline ne reçoit que le panel et
@@ -466,7 +475,7 @@ export async function resolveReferences(
       [...closest, ...(exploration ? [exploration] : [])],
       verified,
       new Set(references.map((v) => fightKey(v.scored.candidate))),
-      new Set(substitutes.map((v) => fightKey(v.scored.candidate)))
+      new Set(keptSubstitutes.map((v) => fightKey(v.scored.candidate)))
     ),
     {
       ...context,
@@ -481,7 +490,7 @@ export async function resolveReferences(
   const comparability: Comparability = {
     // A substituted panel is not comparable, whatever the distances say: the criterion
     // that eliminated the substitute is eliminatory, and the distance never saw it.
-    level: substitutes.length > 0 ? 'poor' : comparabilityLevel(scored),
+    level: keptSubstitutes.length > 0 ? 'poor' : comparabilityLevel(scored),
     referenceIlvl: medianOf(referenceIlvls),
     referenceIlvlCount: referenceIlvls.length,
     myIlvl,
@@ -491,7 +500,7 @@ export async function resolveReferences(
     pagesFetched: pool.pagesFetched,
     disqualified: eliminated.length,
     unverifiable: attempted - verified.length,
-    substituted: substitutes.length,
+    substituted: keptSubstitutes.length,
   };
 
   return { topPlayers, sample: sampleOf(verified), comparability };

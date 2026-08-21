@@ -627,6 +627,46 @@ describe('resolveReferences', () => {
     expect(sample[0].stats.avgIlvl).toBe(640);
   });
 
+  /**
+   * Une référence dont les données de combat ne se chargent pas ne doit pas emporter
+   * l'analyse entière : sous `Promise.all` un seul rejet rendait zéro référence, donc un
+   * rapport vide pour un incident survenu sur le rapport d'un tiers. Ce qui reste est rendu,
+   * et les compteurs décrivent le panel réellement affiché — la référence perdue sort aussi
+   * de `references`, donc du vivier marqué « montré ».
+   */
+  it('renders the other references when one fails to build', async () => {
+    mockFights();
+    recordPool.mockClear();
+
+    // Le rapport passe la vérification puis devient illisible : c'est l'ordre réel d'un log
+    // repassé en privé entre les deux requêtes.
+    const answer = globalThis.fetch as unknown as (u: string, i: RequestInit) => Promise<Response>;
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string, init: RequestInit) => {
+      const body = String(init.body);
+      const { variables } = JSON.parse(body) as { variables: { code: string } };
+      if (variables.code === 'broken' && body.includes('DamageDone')) {
+        return {
+          ok: true,
+          json: async () => ({ errors: [{ message: 'You do not have permission' }] }),
+        } as Response;
+      }
+      return answer(url, init);
+    });
+
+    const { topPlayers, comparability } = await resolve([
+      ranking('near', MY_ILVL),
+      ranking('broken', MY_ILVL + 1),
+      ranking('far', MY_ILVL + 2),
+    ]);
+
+    expect(topPlayers).toHaveLength(2);
+    expect(topPlayers.map((p) => p.provenance.name)).toEqual(['near', 'far']);
+    expect(comparability.substituted).toBe(0);
+
+    const [observations] = recordPool.mock.calls[0] as [Array<{ code: string; shown: boolean }>];
+    expect(observations.filter((o) => o.shown).map((o) => o.code)).toEqual(['near', 'far']);
+  });
+
   describe('exploration slot', () => {
     /** Un tirage scripté : le premier nombre ouvre la fente, le second choisit le candidat. */
     function draws(...values: number[]): () => number {
