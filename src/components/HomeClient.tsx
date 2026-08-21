@@ -340,6 +340,7 @@ export function HomeClient() {
         zonesLoading={zonesLoading}
         zonesError={zonesError}
         onZonesRetry={retryZones}
+        onBack={() => setMode(null)}
       />
     );
   }

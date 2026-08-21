@@ -3,6 +3,7 @@
 import type { AnalysisInput, StoredCharacter, WowCharacter, Zone } from '@/types';
 import { useEffect, useState } from 'react';
 import { EncounterSelector } from '@/components/forms/EncounterSelector';
+import { BackLink } from '@/components/ui/BackLink';
 import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Select } from '@/components/ui/Select';
@@ -17,6 +18,7 @@ interface LoggedInCharacterFormProps {
   zonesLoading: boolean;
   zonesError: string | null;
   onZonesRetry?: () => void;
+  onBack: () => void;
 }
 
 function toStored(c: WowCharacter, region: string): StoredCharacter {
@@ -79,6 +81,7 @@ export function LoggedInCharacterForm({
   zonesLoading,
   zonesError,
   onZonesRetry,
+  onBack,
 }: LoggedInCharacterFormProps) {
   const [region, setRegion] = useState<AnalysisInput['region']>('EU');
   const [characters, setCharacters] = useState<WowCharacter[]>([]);
@@ -215,6 +218,13 @@ export function LoggedInCharacterForm({
     <div className="flex h-full flex-col items-center justify-center px-5 py-10">
       <h1 className="font-display text-brass mb-2 text-4xl tracking-wide">LogLense</h1>
       <p className="text-dim mb-10 font-mono text-xs">WarcraftLogs analyser</p>
+
+      {/* Les trois autres modes offraient un retour, celui-ci non : le choix du mode était
+          irréversible sans passer par la barre d'adresse, `mode` étant un état React et non
+          un paramètre d'URL. */}
+      <div className="w-full max-w-[560px]">
+        <BackLink onClick={onBack} />
+      </div>
 
       <form
         onSubmit={handleSubmit}

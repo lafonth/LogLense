@@ -2,6 +2,7 @@
 
 import type { ReportActor, ReportFight } from '@/types';
 import { useState } from 'react';
+import { BackLink } from '@/components/ui/BackLink';
 import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Input } from '@/components/ui/Input';
@@ -56,13 +57,7 @@ export function ReportForm({ onSubmit, loading, onBack }: ReportFormProps) {
   return (
     <div className="flex h-full items-center justify-center px-6 py-10">
       <div className="w-full max-w-[480px]">
-        <button
-          type="button"
-          onClick={onBack}
-          className="text-dim hover:text-text mb-6 cursor-pointer border-none bg-transparent p-0 font-mono text-xs"
-        >
-          ← Back
-        </button>
+        <BackLink onClick={onBack} />
 
         <form onSubmit={handleLoadReport} className="flex flex-col gap-4">
           <Input

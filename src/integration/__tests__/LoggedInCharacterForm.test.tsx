@@ -60,9 +60,21 @@ const defaultProps = {
   zones: [zone],
   zonesLoading: false,
   zonesError: null,
+  onBack: vi.fn(),
 };
 
 describe('loggedInCharacterForm integration', () => {
+  // Les trois autres modes offraient un retour, celui-ci non — et `mode` étant un état React,
+  // le retour du navigateur ne rattrapait rien.
+  it('laisse revenir au choix du mode', () => {
+    const onBack = vi.fn();
+    render(<LoggedInCharacterForm {...defaultProps} onBack={onBack} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '← Back' }));
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
   it('fetches and displays characters for the default EU region', async () => {
     render(<LoggedInCharacterForm {...defaultProps} />);
     await waitFor(() => expect(screen.getByText('Jumbaa-Ysondre')).toBeInTheDocument());

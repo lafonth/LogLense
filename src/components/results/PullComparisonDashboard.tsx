@@ -1,4 +1,5 @@
 import type { PullComparisonResult } from '@/lib/wcl/pull-pipeline';
+import { BackLink } from '@/components/ui/BackLink';
 import { Card } from '@/components/ui/Card';
 import { DamageBreakdown } from './DamageBreakdown';
 import { PullContextCard } from './PullContextCard';
@@ -22,13 +23,7 @@ export function PullComparisonDashboard({ result, onBack }: PullComparisonDashbo
   return (
     <div className="flex h-full flex-col overflow-y-auto px-6 py-10">
       <div className="mx-auto w-full max-w-[1100px]">
-        <button
-          type="button"
-          onClick={onBack}
-          className="text-dim hover:text-text mb-6 cursor-pointer border-none bg-transparent p-0 font-mono text-xs"
-        >
-          ← Back
-        </button>
+        <BackLink onClick={onBack} />
 
         {/* Cet écran n'a pas d'autre titre : commencer à `h2` ouvrait la hiérarchie sur un
             niveau manquant. `font-sans` l'emporte sur la règle d'élément, le rendu ne bouge pas. */}

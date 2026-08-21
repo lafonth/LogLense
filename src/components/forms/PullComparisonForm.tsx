@@ -3,6 +3,7 @@
 import type { PullPointer } from '@/lib/wcl/pull-pipeline';
 import type { ReportFight } from '@/types';
 import { useState } from 'react';
+import { BackLink } from '@/components/ui/BackLink';
 import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Input } from '@/components/ui/Input';
@@ -178,13 +179,7 @@ export function PullComparisonForm({ onSubmit, loading, onBack, error }: PullCom
   return (
     <div className="flex h-full justify-center overflow-y-auto px-6 py-10">
       <div className="w-full max-w-[900px]">
-        <button
-          type="button"
-          onClick={onBack}
-          className="text-dim hover:text-text mb-6 cursor-pointer border-none bg-transparent p-0 font-mono text-xs"
-        >
-          ← Back
-        </button>
+        <BackLink onClick={onBack} />
 
         {/* La maquette ne prévoit pas de titre visible ici, mais l'écran en avait besoin d'un :
             sa hiérarchie commençait à « Before »/« After », deux `h3` sous aucun `h1`. Le titre
