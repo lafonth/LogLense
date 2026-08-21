@@ -3,7 +3,6 @@ import type { Encounter } from '@/types';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { DamageBreakdown } from './DamageBreakdown';
-import { DpsBanner } from './DpsBanner';
 import { StatsTable } from './StatsTable';
 import { TrajectoryChart } from './TrajectoryChart';
 
@@ -48,14 +47,6 @@ export function OverviewTab({ encounter, bossState, specName, onRetry }: Overvie
 
   return (
     <div>
-      <DpsBanner
-        dps={result.character.dps}
-        overallPct={result.character.overallPct}
-        ilvl={result.character.stats.avgIlvl}
-        killTime={result.character.killTime}
-        bossDps={result.character.bossDps}
-        bossDpsPct={result.character.bossDpsPct}
-      />
       {/* Avant les stats : le rapport isolé décrit un soir, la trajectoire le situe. Le
           composant se tait entièrement — titre compris — quand la source n'a rendu qu'un kill. */}
       <TrajectoryChart trajectory={result.character.trajectory} />

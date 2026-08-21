@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { AIReportTab } from '@/components/ai/AIReportTab';
 import { BossSidebar } from '@/components/results/BossSidebar';
 import { ComparisonTab } from '@/components/results/ComparisonTab';
+import { DpsBanner } from '@/components/results/DpsBanner';
 import { OverviewTab } from '@/components/results/OverviewTab';
 import { VerdictBanner } from '@/components/results/VerdictBanner';
 import { Button } from '@/components/ui/Button';
@@ -118,6 +119,18 @@ export function BossContentPanel({
       {activeBossResult && (
         <div className="mb-6">
           <VerdictBanner result={activeBossResult} />
+          {/* Monté ici plutôt que dans chaque onglet : le même DPS s'y lisait une fois par
+              onglet, en plus du verdict qui l'énonce déjà. Ce qui reste — le percentile, la
+              durée du kill, l'ilvl, le DPS sur le boss seul — ne se lit nulle part ailleurs,
+              et vaut pour tous les onglets, `ai-report` compris. */}
+          <DpsBanner
+            dps={activeBossResult.character.dps}
+            overallPct={activeBossResult.character.overallPct}
+            ilvl={activeBossResult.character.stats.avgIlvl}
+            killTime={activeBossResult.character.killTime}
+            bossDps={activeBossResult.character.bossDps}
+            bossDpsPct={activeBossResult.character.bossDpsPct}
+          />
         </div>
       )}
 

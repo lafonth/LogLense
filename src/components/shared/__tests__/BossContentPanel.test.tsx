@@ -43,18 +43,28 @@ function SidebarDouble({ activeIdx }: { activeIdx: number }) {
 function VerdictDouble({ result }: { result: BossResult }) {
   return <div data-testid="verdict">{result.encounter}</div>;
 }
+function DpsDouble({ dps }: { dps: number }) {
+  return <div data-testid="dps">{dps}</div>;
+}
 
 vi.mock('@/components/results/OverviewTab', () => ({ OverviewTab: OverviewDouble }));
 vi.mock('@/components/results/ComparisonTab', () => ({ ComparisonTab: ComparisonDouble }));
 vi.mock('@/components/ai/AIReportTab', () => ({ AIReportTab: AIReportDouble }));
 vi.mock('@/components/results/BossSidebar', () => ({ BossSidebar: SidebarDouble }));
 vi.mock('@/components/results/VerdictBanner', () => ({ VerdictBanner: VerdictDouble }));
+vi.mock('@/components/results/DpsBanner', () => ({ DpsBanner: DpsDouble }));
 
 const DRUID_BALANCE = 102;
 const SHADOW_PRIEST = 258;
 
 function bossResult(specId: number, encounter: string): BossResult {
-  return { specId, encounter, encounterId: 1 } as BossResult;
+  // `character` est là pour le seul `DpsBanner`, que le panneau monte désormais lui-même.
+  return {
+    specId,
+    encounter,
+    encounterId: 1,
+    character: { dps: 100000, stats: { avgIlvl: 285 } },
+  } as BossResult;
 }
 
 function ok(specId: number, encounter: string): BossState {
@@ -117,6 +127,21 @@ describe('bossContentPanel', () => {
     expect(verdict.compareDocumentPosition(screen.getByRole('tab', { name: 'Overview' }))).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
+  });
+
+  // Le chiffre était monté une fois par onglet, en plus du verdict qui l'énonce : trois
+  // lectures du même DPS. Il est maintenant au-dessus des onglets, comme le verdict.
+  it('ne fait lire le DPS qu’une fois, sur tous les onglets', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    expect(screen.getAllByTestId('dps')).toHaveLength(1);
+
+    await user.click(screen.getByRole('tab', { name: 'Comparison' }));
+    expect(screen.getAllByTestId('dps')).toHaveLength(1);
+
+    await user.click(screen.getByRole('tab', { name: 'AI Report' }));
+    expect(screen.getAllByTestId('dps')).toHaveLength(1);
   });
 
   it('says nothing while the boss is still loading', () => {

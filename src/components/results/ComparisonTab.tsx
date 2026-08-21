@@ -4,7 +4,6 @@ import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { usableSample } from '@/lib/comparison/stat-distribution';
 import { ComparabilityBanner } from './ComparabilityBanner';
-import { DpsBanner } from './DpsBanner';
 import { OpeningChain } from './OpeningChain';
 import { ReferenceLabels } from './ReferenceLabels';
 import { RotationCards } from './RotationCards';
@@ -57,14 +56,6 @@ export function ComparisonTab({
 
   return (
     <div>
-      <DpsBanner
-        dps={result.character.dps}
-        overallPct={result.character.overallPct}
-        ilvl={result.character.stats.avgIlvl}
-        killTime={result.character.killTime}
-        bossDps={result.character.bossDps}
-        bossDpsPct={result.character.bossDpsPct}
-      />
       <div className="mt-6">
         <ComparabilityBanner comparability={result.comparability} />
       </div>
