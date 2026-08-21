@@ -10,10 +10,19 @@ import { consumeExposureQuota } from './rate-limit';
 /**
  * Écrit les paires de même spec d'une pull comme classe positive de haute confiance.
  *
- * Mêmes règles que `recordExposure`, pour les mêmes raisons : appelée côté serveur et
+ * Trois règles de `recordExposure`, pour les mêmes raisons : appelée côté serveur et
  * **attendue** avant la réponse, elle **ne jette jamais**, et elle **échoue fermé sur
  * l'identité** — `hashUserId` jette sans `LABEL_SALT`, l'exception remonte au `catch` et
  * rien n'entre au corpus plutôt qu'un `by: null` menteur.
+ *
+ * **La quatrième, non : ici `by === null` écrit quand même.** `recordExposure` refuse un
+ * rendu sans identité parce que la voie BYOK de `ai-report` en produit un par construction,
+ * et qu'aucun quota ne le bornait. Le mode raid n'a pas cette voie : son unique appelant,
+ * `api/raid/[code]`, passe par `guardWclSpend`, qui répond 401 sans session avant d'arriver
+ * jusqu'ici. Un lot anonyme n'y est donc pas un cas de figure mais une contradiction — et
+ * l'interdire coûterait une capture le jour où la route s'ouvrirait vraiment. Si elle
+ * s'ouvre, c'est cette ligne qu'il faut relire : le plafond mensuel resterait alors seul à
+ * borner une écriture que rien ne débite.
  *
  * Le classement lui-même n'est pas capturé : ce qui a une valeur d'étiquette, c'est la
  * paire, parce que sa comparabilité est un fait de construction et non une heuristique.

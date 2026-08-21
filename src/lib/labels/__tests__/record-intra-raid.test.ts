@@ -137,6 +137,18 @@ describe('recordIntraRaid', () => {
     expect(redisAppend).not.toHaveBeenCalled();
   });
 
+  // La divergence assumée avec `recordExposure`, qui refuse un rendu sans identité : ici la
+  // route amont impose la session, donc un lot anonyme n'arrive pas — mais si elle s'ouvrait,
+  // c'est ce test qui dirait ce que le code fait vraiment.
+  it('still writes an anonymous batch, and spends no token for it', async () => {
+    getServerSession.mockResolvedValue(null);
+
+    await recordIntraRaid(onePair());
+
+    expect(redisIncrBy).not.toHaveBeenCalled();
+    expect(written()[0].by).toBeNull();
+  });
+
   it('spends one exposure token per pair', async () => {
     await recordIntraRaid(threePairs());
 
