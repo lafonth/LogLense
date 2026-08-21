@@ -42,10 +42,31 @@ function plural(count: number, word: string): string {
  * libre. On peut parfaitement être en retard de DPS sur un sort qu'on lance **plus** que les
  * références. Une amorce qui affirme un manque ferait alors lire l'inverse de la donnée ;
  * les deux cadences, elles, disent la direction sans se tromper.
+ *
+ * La dernière ligne dit **sur quoi le chiffre se fonde**, et elle s'affiche en succès comme
+ * en repli. C'est le point qui manquait : la bannière ne parlait de comparabilité que
+ * lorsqu'elle était mauvaise, si bien que le seul cas où le produit a fait exactement ce
+ * qu'il vend — trois références au même palier de set bonus, sans externals, à portée
+ * d'ilvl et de kill time — était aussi le seul où l'écran se taisait. Un chiffre sans sa
+ * justification est substituable par n'importe quel site de parse ; c'est la justification
+ * qui n'est substituable par rien.
+ *
+ * Elle ne répète pas l'ilvl dans le cas `unreliable` : la phrase du dessus vient de le dire,
+ * et c'est là qu'il porte son sens, celui d'un motif de disqualification.
  */
 export function VerdictBanner({ result }: VerdictBannerProps) {
   const verdict = buildVerdict(result);
-  const { referenceDps, myDps, deltaDps, ilvlGap, myIlvl, approximate } = verdict;
+  const {
+    referenceDps,
+    referenceCount,
+    myDps,
+    deltaDps,
+    ilvlGap,
+    myIlvl,
+    killTimeGapPct,
+    allEligible,
+    approximate,
+  } = verdict;
   const lead = leadingGap(result);
 
   const reserve = approximate ? (
@@ -96,6 +117,24 @@ export function VerdictBanner({ result }: VerdictBannerProps) {
           <Figure>{lead.mine}</Figure> {plural(lead.mine, 'cast')} a minute against{' '}
           <Figure>{lead.reference}</Figure>, across <Figure>{lead.referenceTotal}</Figure>{' '}
           {plural(lead.referenceTotal, 'reference')}.
+        </p>
+      )}
+
+      {verdict.kind !== 'none' && referenceCount > 0 && (
+        <p className="text-dim text-2xs mt-3 font-sans">
+          Read from <Figure>{referenceCount}</Figure> reference {plural(referenceCount, 'log')}
+          {ilvlGap !== null && verdict.kind !== 'unreliable' && (
+            <>
+              , <Figure>{signed(ilvlGap)}</Figure> item {plural(Math.abs(ilvlGap), 'level')} from
+              your <Figure>{myIlvl}</Figure>
+            </>
+          )}
+          {killTimeGapPct !== null && (
+            <>
+              , their kills running <Figure>{`${signed(killTimeGapPct)}%`}</Figure> against yours
+            </>
+          )}
+          {allEligible && <> — all cleared the set bonus and externals checks</>}.
         </p>
       )}
 

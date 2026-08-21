@@ -144,6 +144,34 @@ describe('verdictBanner', () => {
     expect(screen.queryByText(/diverges most on/)).not.toBeInTheDocument();
   });
 
+  // Le point du lot : la bannière ne parlait de comparabilité que lorsqu'elle était mauvaise.
+  // Le seul cas où le produit fait exactement ce qu'il vend était le seul où l'écran se taisait.
+  it('dit sur quoi le chiffre se fonde quand le panel est légitime', () => {
+    render(
+      <VerdictBanner
+        result={result({ sample: [sample(115000), sample(120000), sample(130000)] })}
+      />
+    );
+
+    expect(screen.getByText(/Read from/)).toHaveTextContent(
+      'Read from 3 reference logs, +1 item level from your 284, their kills running +1.7% against yours — all cleared the set bonus and externals checks.'
+    );
+  });
+
+  it('le dit aussi en repli, sans répéter l’ilvl que la phrase du dessus porte', () => {
+    render(<VerdictBanner result={result({ comparability: { level: 'poor' } })} />);
+
+    const basis = screen.getByText(/Read from/);
+    expect(basis).toHaveTextContent('Read from 1 reference log');
+    expect(basis).not.toHaveTextContent('item level');
+  });
+
+  it('ne certifie pas les critères éliminatoires quand le panel a été complété', () => {
+    render(<VerdictBanner result={result({ comparability: { substituted: 1 } })} />);
+
+    expect(screen.getByText(/Read from/)).not.toHaveTextContent('all cleared');
+  });
+
   it('le dit au lieu de comparer à rien', () => {
     render(
       <VerdictBanner

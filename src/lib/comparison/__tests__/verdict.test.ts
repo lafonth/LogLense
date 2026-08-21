@@ -115,6 +115,53 @@ describe('buildVerdict', () => {
     expect(verdict.ilvlGap).toBe(8);
   });
 
+  // L'effectif est celui de la population du chiffre, pas celui des ilvl : un panel de trois
+  // dont une seule porte un ilvl donnerait deux effectifs différents pour la même phrase.
+  it('compte les références sur lesquelles le chiffre est pris', () => {
+    const verdict = buildVerdict(
+      result({ sample: [sample(115000), sample(120000), sample(130000)] })
+    );
+
+    expect(verdict.referenceCount).toBe(3);
+  });
+
+  it('ne compte pas les disqualifiés écartés de la médiane', () => {
+    const verdict = buildVerdict(
+      result({ sample: [sample(120000), sample(180000, false), sample(180000, false)] })
+    );
+
+    expect(verdict).toMatchObject({ referenceCount: 1, allEligible: true });
+  });
+
+  // Le second repli, celui que `substituted === 0` ne voit pas : personne n'a qualifié, la
+  // médiane est prise sur des disqualifiés faute de mieux.
+  it('ne certifie rien quand la médiane est prise sur des disqualifiés', () => {
+    const verdict = buildVerdict(
+      result({ sample: [sample(180000, false), sample(190000, false)] })
+    );
+
+    expect(verdict).toMatchObject({ referenceCount: 2, allEligible: false });
+  });
+
+  it('ne certifie rien quand le panel a été complété par des repêchés', () => {
+    const verdict = buildVerdict(result({ comparability: { substituted: 1 } }));
+
+    expect(verdict.allEligible).toBe(false);
+  });
+
+  it("signe l'écart de kill time en pourcents de ma durée", () => {
+    const verdict = buildVerdict(result({}));
+
+    expect(verdict.killTimeGapPct).toBe(1.7);
+  });
+
+  // Une durée nulle n'est pas une pull de zéro seconde, c'est une durée qu'on n'a pas.
+  it('se tait sur le kill time quand ma durée est absente', () => {
+    const verdict = buildVerdict(result({ comparability: { myKillTimeMs: 0 } }));
+
+    expect(verdict.killTimeGapPct).toBeNull();
+  });
+
   it('porte sa réserve quand la comparabilité est approximative', () => {
     const verdict = buildVerdict(result({ comparability: { level: 'approximate' } }));
 

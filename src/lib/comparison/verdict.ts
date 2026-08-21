@@ -1,4 +1,5 @@
 import type { BossResult } from '@/types';
+import { ilvlGapOf, killTimeGapPctOf } from './comparability-gaps';
 import { usableSample } from './stat-distribution';
 
 /**
@@ -32,9 +33,22 @@ export interface Verdict {
   myDps: number;
   /** Valeur absolue de l'écart — `kind` porte le sens. `null` hors des cas chiffrés. */
   deltaDps: number | null;
+  /** Sur combien de références `referenceDps` est pris. `0` quand il n'y en a aucune. */
+  referenceCount: number;
   /** Écart d'ilvl des références au joueur, signé. `null` quand la source se tait. */
   ilvlGap: number | null;
   myIlvl: number;
+  /** Écart de durée des kills de référence au mien, signé, en pourcents. */
+  killTimeGapPct: number | null;
+  /**
+   * Vrai quand chaque référence derrière le chiffre a passé les critères éliminatoires :
+   * aucune repêchée pour compléter le panel, aucune disqualifiée admise faute de mieux.
+   *
+   * C'est la seule affirmation de la bannière que la donnée ne porte pas d'elle-même —
+   * d'où sa place ici plutôt qu'un `substituted === 0` recopié dans le composant, qui
+   * raterait le second cas.
+   */
+  allEligible: boolean;
   /**
    * Vrai quand la comparabilité est `approximate` : le chiffre tient, mais la phrase
    * doit dire à quel titre.
@@ -55,28 +69,48 @@ function median(values: number[]): number | null {
  * L'échantillon vérifié d'abord — c'est la population sur laquelle l'écran raisonne
  * partout ailleurs — et les `topPlayers` en repli, pour un résultat ancien ou un chemin
  * qui n'aurait pas rempli `sample`. Les deux sont déjà en mémoire.
+ *
+ * L'effectif sort d'ici et non de `referenceIlvlCount` : c'est la population de **ce**
+ * chiffre-là. Un panel de trois dont une seule porte un ilvl donne trois DPS et une
+ * médiane d'ilvl sur une — annoncer le même effectif pour les deux ferait mentir l'un
+ * des deux.
  */
-function referenceDpsOf(result: BossResult): number | null {
-  const { entries } = usableSample(result.sample);
+function referenceDpsOf(result: BossResult): {
+  dps: number | null;
+  count: number;
+  qualifiedOnly: boolean;
+} {
+  const { entries, includesDisqualified } = usableSample(result.sample);
   const fromSample = median(entries.map((e) => e.dps));
-  if (fromSample !== null) return Math.round(fromSample);
+  if (fromSample !== null) {
+    return {
+      dps: Math.round(fromSample),
+      count: entries.length,
+      qualifiedOnly: !includesDisqualified,
+    };
+  }
 
   const fromTop = median(result.topPlayers.map((p) => p.stats.dps));
-  return fromTop === null ? null : Math.round(fromTop);
+  if (fromTop === null) return { dps: null, count: 0, qualifiedOnly: false };
+  return { dps: Math.round(fromTop), count: result.topPlayers.length, qualifiedOnly: true };
 }
 
 export function buildVerdict(result: BossResult): Verdict {
-  const { level, referenceIlvl, myIlvl, substituted } = result.comparability;
+  const { level, myIlvl, substituted } = result.comparability;
 
-  const referenceDps = referenceDpsOf(result);
+  const { dps: referenceDps, count: referenceCount, qualifiedOnly } = referenceDpsOf(result);
   const myDps = Math.round(result.character.dps);
-  const ilvlGap =
-    referenceIlvl === null
-      ? null
-      : Math.sign(referenceIlvl - myIlvl) *
-        (Math.round(Math.abs(referenceIlvl - myIlvl) * 10) / 10);
 
-  const base = { referenceDps, myDps, ilvlGap, myIlvl, approximate: level === 'approximate' };
+  const base = {
+    referenceDps,
+    referenceCount,
+    myDps,
+    ilvlGap: ilvlGapOf(result.comparability),
+    myIlvl,
+    killTimeGapPct: killTimeGapPctOf(result.comparability),
+    approximate: level === 'approximate',
+    allEligible: substituted === 0 && qualifiedOnly,
+  };
 
   if (referenceDps === null || level === 'none') {
     return { ...base, kind: 'none', deltaDps: null };
