@@ -1,1 +1,36 @@
-pnpm typecheck && pnpm lint && pnpm format:check && pnpm test
+# Les quatre portes. Chacune bloque le commit, aucune ne deverse sa sortie
+# quand elle passe : un commit qui reussit tient en quatre lignes.
+# En echec : extrait borne a l'ecran, journal complet sur disque.
+
+log="$(git rev-parse --git-dir)/pre-commit.log"
+max_lines=60
+
+# Sur un echec de vitest, la liste des fichiers verts precede le rapport
+# d'erreur : on part du bandeau "Failed Tests" quand il existe, sinon de la fin.
+excerpt() {
+  if grep -q 'Failed Tests' "$log"; then
+    sed -n '/Failed Tests/,$p' "$log" | tail -n "$max_lines"
+  else
+    tail -n "$max_lines" "$log"
+  fi
+}
+
+gate() {
+  name=$1
+  shift
+  if "$@" >"$log" 2>&1; then
+    printf '  [ok]   %s\n' "$name"
+  else
+    printf '  [FAIL] %s\n\n' "$name"
+    excerpt
+    printf '\n  journal complet : %s\n' "$log"
+    exit 1
+  fi
+}
+
+gate typecheck    pnpm typecheck
+gate lint         pnpm lint
+gate format:check pnpm format:check
+gate test         pnpm test
+
+rm -f "$log"
