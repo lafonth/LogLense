@@ -63,6 +63,19 @@ describe('le raid trié à l’écran', () => {
     expect(screen.getByText('1.0k')).toBeInTheDocument();
   });
 
+  // `player(s)` était un calque du `joueur(s)` d'origine : l'anglais accorde.
+  it('accorde l’effectif annoncé, au singulier comme au pluriel', () => {
+    const { rerender } = render(<RaidRankingList ranking={ranking()} onOpen={vi.fn()} />);
+
+    expect(screen.getByText(/players ranked/)).toBeInTheDocument();
+
+    rerender(
+      <RaidRankingList ranking={ranking({ players: [ranking().players[0]] })} onOpen={vi.fn()} />
+    );
+
+    expect(screen.getByText(/player ranked/)).toBeInTheDocument();
+  });
+
   it('ouvre le joueur cliqué, celui du classement et pas un autre', () => {
     const onOpen = vi.fn();
     render(<RaidRankingList ranking={ranking()} onOpen={onOpen} />);

@@ -30,7 +30,8 @@ export function RaidRankingList({ ranking, onOpen }: RaidRankingListProps) {
         </div>
         <div className="text-dim text-2xs font-mono">
           {ranking.kill ? 'Kill' : 'Wipe'} —{' '}
-          <span className="font-mono">{ranking.players.length}</span> player(s) ranked
+          <span className="font-mono">{ranking.players.length}</span>{' '}
+          {ranking.players.length === 1 ? 'player' : 'players'} ranked
         </div>
       </div>
 

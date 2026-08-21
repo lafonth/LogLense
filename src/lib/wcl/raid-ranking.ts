@@ -220,15 +220,26 @@ export function parseRaidRanking(payload: RawRaidRanking, code: string): RaidRan
   players.sort((a, b) => a.dps - b.dps || a.name.localeCompare(b.name));
 
   const brut =
-    'the order is raw DPS, not a position in a distribution: specs that are weak this tier sit at the bottom for that reason alone.';
+    'The order is raw DPS, not a position in a distribution: specs that are weak this tier sit at the bottom for that reason alone.';
   const reason =
     allRanked.length === 0
-      ? `Warcraft Logs ranks nobody on this pull, ${brut} Roles are unknown, so healers and tanks show up in the list.`
+      ? `Warcraft Logs ranks nobody on this pull. ${brut} Roles are unknown, so healers and tanks show up in the list.`
       : uncovered.length > 0
-        ? `The Warcraft Logs ranking leaves ${uncovered.length} player(s) of this pull without an entry, out of ${damagers.length} who dealt damage, ${brut}`
-        : `${missingPercentile.length} of the ${rankedDps.length} DPS on this pull have no Warcraft Logs percentile, ${brut}`;
+        ? `The Warcraft Logs ranking leaves ${plural(uncovered.length, 'player')} of this pull without an entry, out of the ${damagers.length} who dealt damage. ${brut}`
+        : `${missingPercentile.length} of the ${rankedDps.length} DPS on this pull have no Warcraft Logs percentile. ${brut}`;
 
   return { ...base, criterion: 'dps', criterionReason: reason, players };
+}
+
+/**
+ * Un effectif et son nom, accordé.
+ *
+ * L'anglais marque le pluriel, il ne le parenthèse pas : `1 player(s)` est un calque du
+ * français. Le compte est connu au moment où la phrase se construit, il n'y a rien à
+ * laisser au lecteur.
+ */
+function plural(count: number, word: string): string {
+  return `${count} ${word}${count === 1 ? '' : 's'}`;
 }
 
 /** Le classement d'un combat, en une requête. */

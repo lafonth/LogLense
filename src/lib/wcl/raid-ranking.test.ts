@@ -109,7 +109,9 @@ describe('parseRaidRanking — repli DPS', () => {
 
     expect(ranking?.criterion).toBe('dps');
     expect(ranking?.criterionReason).toMatch(/raw DPS/);
-    expect(ranking?.criterionReason).toMatch(/without an entry/);
+    // La phrase est figée mot pour mot : un `player(s)` qui reviendrait passerait un
+    // `/without an entry/`.
+    expect(ranking?.criterionReason).toContain('leaves 2 players of this pull without an entry');
     // 300 000 dégâts sur 300 s.
     expect(ranking?.players.find((p) => p.name === 'Arms')?.dps).toBe(1000);
     // Le soigneur n'a aucune entrée au classement : son rôle est inconnu, il reste dans la
