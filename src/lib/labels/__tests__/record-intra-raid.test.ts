@@ -152,6 +152,56 @@ describe('recordIntraRaid', () => {
     expect(redisAppend).not.toHaveBeenCalled();
   });
 
+  // Une pull de vingt joueurs produit bien plus de paires qu'une analyse ne produit de boss :
+  // les mettre en file, c'est autant d'allers-retours Upstash avant que la réponse parte.
+  it('issues the writes together rather than one after the other', async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const release: (() => void)[] = [];
+    redisAppend.mockImplementation(async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise<void>((resolve) => release.push(resolve));
+      inFlight -= 1;
+      return 1;
+    });
+
+    const done = recordIntraRaid(threePairs());
+    await vi.waitFor(() => expect(release).toHaveLength(3));
+    release.forEach((resolve) => resolve());
+    await done;
+
+    expect(peak).toBe(3);
+  });
+
+  // Un rejet rendrait la main sous `Promise.all`, et la fonction serverless emporterait les
+  // écritures encore en vol : le refus d'une capture ne doit pas coûter les autres.
+  it('waits for the other writes when one is refused', async () => {
+    let landed = 0;
+    redisAppend.mockRejectedValueOnce(new Error('upstash down')).mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      landed += 1;
+      return 1;
+    });
+
+    await recordIntraRaid(threePairs());
+
+    expect(landed).toBe(2);
+  });
+
+  // Le quota s'épuise au milieu du lot : les paires déjà autorisées ont payé leur jeton, elles
+  // s'écrivent. Les abandonner ferait payer un jeton pour rien.
+  it('writes the pairs that paid their token before the quota ran out', async () => {
+    redisIncrBy
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(2)
+      .mockResolvedValue(EXPOSURE_LIMIT + 1);
+
+    await recordIntraRaid(threePairs());
+
+    expect(redisAppend).toHaveBeenCalledTimes(2);
+  });
+
   // La capture ne doit jamais faire tomber la réponse du mode raid : c'est elle, le produit.
   it('never throws when the write fails', async () => {
     redisAppend.mockRejectedValue(new Error('upstash down'));

@@ -35,14 +35,25 @@ export async function recordIntraRaid(ranking: RaidRanking): Promise<void> {
     // Mesuré une fois pour le lot, pas une fois par paire : voir `hasCorpusRoom`.
     if (!(await hasCorpusRoom(key))) return;
 
+    // Les décomptes de quota restent séquentiels, comme dans `recordExposure` : le quota se
+    // prend une paire à la fois, et un plafond franchi par un lot compté en bloc n'est plus un
+    // plafond. C'est l'écriture, elle, qui n'a aucune raison d'attendre la précédente — et une
+    // pull de vingt joueurs en produit bien plus qu'une analyse ne produit de boss.
+    const payloads: string[] = [];
     for (const pair of pairs) {
       if (by) {
         const quota = await consumeExposureQuota(by, atMs);
-        // La suivante serait refusée pour la même raison : inutile d'insister.
-        if (!quota.allowed) return;
+        // La suivante serait refusée pour la même raison : inutile d'insister. `break` et non
+        // `return` : les paires déjà autorisées ont payé leur jeton, elles s'écrivent.
+        if (!quota.allowed) break;
       }
-      await redisAppend(key, JSON.stringify(pair));
+      payloads.push(JSON.stringify(pair));
     }
+
+    // `allSettled` et non `all` : sur un rejet, `all` rendrait la main pendant que les autres
+    // `RPUSH` sont encore en vol, et la fonction serverless les emporterait avec elle. Voir
+    // `recordExposure`, dont c'est le précédent.
+    await Promise.allSettled(payloads.map((payload) => redisAppend(key, payload)));
   } catch {
     // Avalé volontairement : voir l'en-tête.
   }
