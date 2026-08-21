@@ -44,7 +44,12 @@ export function BossSidebar({ encounters, bossStates, activeIdx, onSelect }: Bos
                 <LoadingSpinner label={`Loading ${enc.name}…`} labelHidden />
               )}
               {state?.status === 'success' && pct !== null && <Badge pct={pct} size="sm" />}
-              {state?.status === 'error' && <span className="text-danger text-2xs">err</span>}
+              {/* `err` ne disait ni ce qui a échoué ni qu'on pouvait y revenir. Le rail n'a pas
+                  la place du message — il porte l'état, la reprise est dans le panneau, à un
+                  clic sur la ligne. */}
+              {state?.status === 'error' && (
+                <span className="text-danger text-2xs font-mono">failed</span>
+              )}
             </button>
           );
         })}

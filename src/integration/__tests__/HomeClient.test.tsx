@@ -57,9 +57,6 @@ function ModeSelectorDouble({ onSelect }: { onSelect: (m: 'character' | 'report'
     </div>
   );
 }
-function AnonFormDouble() {
-  return <div data-testid="anon-form" />;
-}
 function LoggedInFormDouble({
   onSubmit,
 }: {
@@ -153,7 +150,6 @@ vi.mock('@/hooks/useReportMeta', () => ({ useReportMeta: vi.fn() }));
 vi.mock('@/components/landing/MarketingLanding', () => ({ MarketingLanding: LandingDouble }));
 vi.mock('@/components/auth/BetaClosedScreen', () => ({ BetaClosedScreen: BetaClosedDouble }));
 vi.mock('@/components/ui/ModeSelector', () => ({ ModeSelector: ModeSelectorDouble }));
-vi.mock('@/components/forms/CharacterForm', () => ({ CharacterForm: AnonFormDouble }));
 vi.mock('@/components/forms/LoggedInCharacterForm', () => ({
   LoggedInCharacterForm: LoggedInFormDouble,
 }));

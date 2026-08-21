@@ -330,6 +330,38 @@ describe('useAnalysis', () => {
     expect(vi.mocked(fetch).mock.calls.length).toBe(spent + 1);
   });
 
+  // Un boss ouvert sur une autre spec ou une autre pull a été demandé sous ce libellé-là.
+  // Reprendre au variant de base rendrait un résultat que personne n'a demandé.
+  it('retries the variant that failed, not the one the boss opened on', async () => {
+    const { result } = renderHook(() => useAnalysis());
+    await act(async () => {
+      await result.current.start(baseInput);
+    });
+    vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'));
+    await act(async () => {
+      await result.current.switchBossSpec(0, 102);
+    });
+    expect(result.current.bossStates[0].status).toBe('error');
+
+    await act(async () => {
+      await result.current.retryBoss(0);
+    });
+
+    const last = vi.mocked(fetch).mock.calls.at(-1);
+    expect(JSON.parse(String(last?.[1]?.body))).toMatchObject({ specIdOverride: 102 });
+    expect(result.current.bossStates[0].status).toBe('success');
+  });
+
+  it('spends nothing on a retry asked before any analysis', async () => {
+    const { result } = renderHook(() => useAnalysis());
+
+    await act(async () => {
+      await result.current.retryBoss(0);
+    });
+
+    expect(vi.mocked(fetch).mock.calls).toHaveLength(0);
+  });
+
   it('reset() clears all state', async () => {
     const { result } = renderHook(() => useAnalysis());
 

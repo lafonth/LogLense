@@ -40,6 +40,8 @@ interface BossContentPanelProps {
   analysisResult: { input: AnalysisInput; bosses: (BossResult | null)[]; generatedAt: string };
   onSwitchBossSpec?: (bossIdx: number, specId: number) => void;
   onSwitchBossFight?: (bossIdx: number, fight: { code: string; fightID: number }) => void;
+  /** Relance le boss affiché quand il a échoué. Absent = pas de reprise offerte. */
+  onRetryBoss?: (bossIdx: number) => void;
   /** Chemin rapport : les kills du rapport ouvert, par rencontre. */
   pulls?: Record<number, EncounterKill[]>;
   /** Chemin rapport : la pull retenue par rencontre. Absente = le dernier kill. */
@@ -55,6 +57,7 @@ export function BossContentPanel({
   analysisResult,
   onSwitchBossSpec,
   onSwitchBossFight,
+  onRetryBoss,
   pulls,
   selectedPull,
   onSelectPull,
@@ -216,7 +219,12 @@ export function BossContentPanel({
           )}
 
           {activeTab === 'overview' && activeEnc && (
-            <OverviewTab encounter={activeEnc} bossState={activeBossState} specName={specName} />
+            <OverviewTab
+              encounter={activeEnc}
+              bossState={activeBossState}
+              specName={specName}
+              onRetry={onRetryBoss && (() => onRetryBoss(safeIdx))}
+            />
           )}
           {activeTab === 'comparison' && activeEnc && (
             <ComparisonTab
@@ -224,6 +232,7 @@ export function BossContentPanel({
               bossState={activeBossState}
               specName={specName}
               talentNodes={talentNodes}
+              onRetry={onRetryBoss && (() => onRetryBoss(safeIdx))}
             />
           )}
           {activeTab === 'ai-report' && (

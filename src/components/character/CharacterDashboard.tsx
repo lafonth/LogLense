@@ -17,6 +17,7 @@ interface CharacterDashboardProps {
   onSwitchCharacter?: (name: string, realmSlug: string) => void;
   onSwitchBossSpec?: (bossIdx: number, specId: number) => void;
   onSwitchBossFight?: (bossIdx: number, fight: { code: string; fightID: number }) => void;
+  onRetryBoss?: (bossIdx: number) => void;
 }
 
 function buildAnalysisResult(input: AnalysisInput, bossStates: BossState[]) {
@@ -38,6 +39,7 @@ export function CharacterDashboard({
   onSwitchCharacter,
   onSwitchBossSpec,
   onSwitchBossFight,
+  onRetryBoss,
 }: CharacterDashboardProps) {
   const analysisResult = buildAnalysisResult(input, bossStates);
 
@@ -69,6 +71,7 @@ export function CharacterDashboard({
           analysisResult={analysisResult}
           onSwitchBossSpec={onSwitchBossSpec}
           onSwitchBossFight={onSwitchBossFight}
+          onRetryBoss={onRetryBoss}
         />
       </div>
     </div>

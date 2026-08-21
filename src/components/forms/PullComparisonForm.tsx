@@ -87,10 +87,12 @@ function PullSidePicker({
     });
   }
 
+  // La liste des pulls ne dépend pas du personnage : changer d'acteur après avoir choisi la
+  // pull vidait une sélection qui restait valable, et laissait le côté non résolu sans que
+  // rien ne le dise — le bouton d'envoi restait éteint pour un champ apparemment rempli.
   function handleActorChange(id: number) {
     setActorId(id);
-    setFightId('');
-    onResolved(null);
+    resolve(id, fightId);
   }
 
   function handleFightChange(id: number) {

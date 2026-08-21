@@ -7,7 +7,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { BetaClosedScreen } from '@/components/auth/BetaClosedScreen';
 import { CharacterDashboard } from '@/components/character/CharacterDashboard';
-import { CharacterForm } from '@/components/forms/CharacterForm';
 import { LoggedInCharacterForm } from '@/components/forms/LoggedInCharacterForm';
 import { PullComparisonForm } from '@/components/forms/PullComparisonForm';
 import { RaidForm } from '@/components/forms/RaidForm';
@@ -55,6 +54,7 @@ export function HomeClient() {
     start,
     switchBossSpec,
     switchBossFight,
+    retryBoss,
     reset,
   } = useAnalysis();
   const {
@@ -276,6 +276,7 @@ export function HomeClient() {
         onSwitchCharacter={session ? handleSwitchCharacter : undefined}
         onSwitchBossSpec={switchBossSpec}
         onSwitchBossFight={switchBossFight}
+        onRetryBoss={retryBoss}
       />
     );
   }
@@ -331,28 +332,18 @@ export function HomeClient() {
     );
   }
 
-  if (session) {
-    return (
-      <LoggedInCharacterForm
-        onSubmit={handleSubmit}
-        loading={isAnyLoading}
-        zones={zones}
-        zonesLoading={zonesLoading}
-        zonesError={zonesError}
-        onZonesRetry={retryZones}
-        onBack={() => setMode(null)}
-      />
-    );
-  }
-
+  // Plus haut, `unauthenticated` part sur la page publique et `loading` sur le spinner :
+  // arrivé ici la session existe. Le formulaire anonyme qui suivait cette branche n'a
+  // jamais pu se rendre.
   return (
-    <CharacterForm
+    <LoggedInCharacterForm
       onSubmit={handleSubmit}
       loading={isAnyLoading}
       zones={zones}
       zonesLoading={zonesLoading}
       zonesError={zonesError}
       onZonesRetry={retryZones}
+      onBack={() => setMode(null)}
     />
   );
 }

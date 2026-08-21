@@ -61,6 +61,11 @@ export function useAnalysis() {
   // relance pas les ~40 requêtes WCL de l'analyse. Seuls les succès y entrent : une erreur
   // réseau doit rester réessayable.
   const variantsRef = useRef(new Map<string, BossState>());
+  // Le dernier variant demandé pour chaque `difficulté:boss`. Réessayer, c'est relancer ce
+  // qui a échoué : sans cette mémoire, la reprise d'un boss ouvert sur une autre spec ou une
+  // autre pull retomberait sur le variant de base, et rendrait un résultat que personne n'a
+  // demandé sous le libellé de celui qu'on attendait.
+  const lastVariantRef = useRef(new Map<string, Variant>());
   const activeDiffRef = useRef<number | null>(null);
   const inputRef = useRef<AnalysisInput | null>(null);
 
@@ -85,6 +90,7 @@ export function useAnalysis() {
 
       const difficulty = currentInput.difficulty;
       const key = variantKey(difficulty, bossIdx, variant);
+      lastVariantRef.current.set(`${difficulty}:${bossIdx}`, variant);
 
       const known = variantsRef.current.get(key);
       if (known) {
@@ -122,6 +128,7 @@ export function useAnalysis() {
       ) {
         cacheRef.current = {};
         variantsRef.current.clear();
+        lastVariantRef.current.clear();
       }
       inputRef.current = analysisInput;
       setInput(analysisInput);
@@ -158,6 +165,22 @@ export function useAnalysis() {
     [runBoss]
   );
 
+  /**
+   * Une seconde chance sur le seul boss qui a échoué.
+   *
+   * Rien à invalider avant : `runBoss` ne met en cache que les succès, donc l'état en erreur
+   * n'a rien laissé derrière lui. La difficulté est celle de l'analyse en cours, pas celle
+   * de l'écran : `runBoss` lit `inputRef`, les deux ne peuvent pas diverger.
+   */
+  const retryBoss = useCallback(
+    async (bossIdx: number) => {
+      const difficulty = inputRef.current?.difficulty;
+      if (difficulty === undefined) return;
+      await runBoss(bossIdx, lastVariantRef.current.get(`${difficulty}:${bossIdx}`) ?? {});
+    },
+    [runBoss]
+  );
+
   const switchBossFight = useCallback(
     async (bossIdx: number, fight: { code: string; fightID: number }) => {
       await runBoss(bossIdx, { fightOverride: fight });
@@ -168,6 +191,7 @@ export function useAnalysis() {
   const reset = useCallback(() => {
     cacheRef.current = {};
     variantsRef.current.clear();
+    lastVariantRef.current.clear();
     activeDiffRef.current = null;
     setBossStates([]);
     setCurrentDifficulty(null);
@@ -187,6 +211,7 @@ export function useAnalysis() {
     changeDifficulty,
     switchBossSpec,
     switchBossFight,
+    retryBoss,
     reset,
   };
 }

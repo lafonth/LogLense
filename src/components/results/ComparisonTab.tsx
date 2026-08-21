@@ -16,9 +16,17 @@ interface ComparisonTabProps {
   bossState: BossState;
   specName: string;
   talentNodes: TalentNode[];
+  /** Une seconde chance sur ce boss seul. Absent quand le chemin n'en offre pas. */
+  onRetry?: () => void;
 }
 
-export function ComparisonTab({ encounter, bossState, specName, talentNodes }: ComparisonTabProps) {
+export function ComparisonTab({
+  encounter,
+  bossState,
+  specName,
+  talentNodes,
+  onRetry,
+}: ComparisonTabProps) {
   if (bossState.status === 'idle' || bossState.status === 'loading') {
     return (
       <div role="status" className="py-8">
@@ -28,7 +36,7 @@ export function ComparisonTab({ encounter, bossState, specName, talentNodes }: C
   }
 
   if (bossState.status === 'error') {
-    return <ErrorBanner message={bossState.message} />;
+    return <ErrorBanner message={bossState.message} onRetry={onRetry} />;
   }
 
   const result = bossState.result;

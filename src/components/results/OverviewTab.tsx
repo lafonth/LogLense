@@ -11,9 +11,11 @@ interface OverviewTabProps {
   encounter: Encounter;
   bossState: BossState;
   specName: string;
+  /** Une seconde chance sur ce boss seul. Absent quand le chemin n'en offre pas. */
+  onRetry?: () => void;
 }
 
-export function OverviewTab({ encounter, bossState, specName }: OverviewTabProps) {
+export function OverviewTab({ encounter, bossState, specName, onRetry }: OverviewTabProps) {
   if (bossState.status === 'idle' || bossState.status === 'loading') {
     return (
       // Le panneau change de contenu sur place quand on passe d'un boss à l'autre : sans
@@ -25,7 +27,7 @@ export function OverviewTab({ encounter, bossState, specName }: OverviewTabProps
   }
 
   if (bossState.status === 'error') {
-    return <ErrorBanner message={bossState.message} />;
+    return <ErrorBanner message={bossState.message} onRetry={onRetry} />;
   }
 
   const result = bossState.result;

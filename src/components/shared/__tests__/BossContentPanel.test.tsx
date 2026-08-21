@@ -14,11 +14,22 @@ import { BossContentPanel } from '../BossContentPanel';
 function OverviewDouble({
   encounter,
   specName,
+  onRetry,
 }: {
   encounter: { name: string };
   specName: string;
+  onRetry?: () => void;
 }) {
-  return <div data-testid="overview">{`${encounter.name} / ${specName}`}</div>;
+  return (
+    <div data-testid="overview">
+      {`${encounter.name} / ${specName}`}
+      {onRetry && (
+        <button type="button" onClick={onRetry}>
+          Retry
+        </button>
+      )}
+    </div>
+  );
 }
 function ComparisonDouble({ encounter }: { encounter: { name: string } }) {
   return <div data-testid="comparison">{encounter.name}</div>;
@@ -222,6 +233,23 @@ describe('bossContentPanel', () => {
     const feral = screen.getByRole('button', { name: 'Feral' });
     expect(feral).toBeInTheDocument();
     expect(feral).toBeDisabled();
+  });
+
+  it('asks for the retry on the boss in view, not on the first one', async () => {
+    const user = userEvent.setup();
+    const onRetryBoss = vi.fn();
+    renderPanel({ onRetryBoss, activeBossIdx: 1 });
+
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+
+    expect(onRetryBoss).toHaveBeenCalledWith(1);
+  });
+
+  it('offers no retry where the path cannot re-run a single boss', () => {
+    // Sans `onRetryBoss` — le chemin rapport — une reprise n'a personne à appeler.
+    renderPanel();
+
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
   });
 
   describe('pull picker', () => {
