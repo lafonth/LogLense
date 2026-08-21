@@ -145,12 +145,13 @@ describe('recordDemand', () => {
     await expect(recordDemand('analyze', 90, verdict(), USER)).resolves.toBeUndefined();
   });
 
-  // `hasCorpusRoom` échoue ouvert : un `LLEN` en panne ne doit pas faire perdre la ligne.
-  it('still writes when the length of the month cannot be read', async () => {
+  // `hasCorpusRoom` échoue fermé : ce qu'on n'a pas su compter, on ne l'écrit pas dans une
+  // clé que rien ne purge. Une ligne de demande perdue se rattrape à la requête suivante.
+  it('writes nothing when the length of the month cannot be read', async () => {
     redisLlen.mockRejectedValue(new Error('upstash down'));
 
     await recordDemand('analyze', 90, verdict(), USER);
 
-    expect(redisAppend).toHaveBeenCalledTimes(1);
+    expect(redisAppend).not.toHaveBeenCalled();
   });
 });

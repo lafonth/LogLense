@@ -68,7 +68,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const write = await appendToCorpus(reportMonthKey(at), JSON.stringify(record));
-    if (write === 'full') {
+    // Mois plein ou écriture refusée : dans les deux cas le retour n'est pas entré au
+    // corpus. Voir la route de comparabilité.
+    if (write !== 'written') {
       return NextResponse.json({ error: 'Feedback capture unavailable' }, { status: 503 });
     }
     return NextResponse.json({ ok: true });

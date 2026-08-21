@@ -75,10 +75,10 @@ export async function POST(req: NextRequest) {
     // La longueur renvoyée par Redis reste ici : elle mesure la croissance du corpus, qui
     // est l'actif du produit, et l'appelant n'en a aucun usage.
     const write = await appendToCorpus(monthKey(at), JSON.stringify(label));
-    // Un mois plein se dit comme une indisponibilité, pas comme un succès : le verdict
-    // n'est pas dans le corpus, et laisser croire le contraire est le seul mensonge que
-    // cette route puisse faire.
-    if (write === 'full') {
+    // Un mois plein — ou un `RPUSH` refusé — se dit comme une indisponibilité, pas comme un
+    // succès : le verdict n'est pas dans le corpus, et laisser croire le contraire est le
+    // seul mensonge que cette route puisse faire.
+    if (write !== 'written') {
       return NextResponse.json({ error: 'Label capture unavailable' }, { status: 503 });
     }
     return NextResponse.json({ ok: true });

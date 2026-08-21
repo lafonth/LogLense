@@ -29,21 +29,20 @@ describe('appendToCorpus', () => {
     expect(redisAppend).not.toHaveBeenCalled();
   });
 
-  // Le calcul se rattrape, la donnée non capturée jamais : ne pas savoir compter ne doit
-  // pas coûter une capture.
-  it('writes anyway when the length cannot be read', async () => {
+  // Écrire ce qu'on n'a pas su compter retirerait la borne exactement quand elle sert.
+  it('refuses to write when the length cannot be read', async () => {
     vi.mocked(redisLlen).mockRejectedValueOnce(new Error('redis down'));
 
-    await expect(appendToCorpus(KEY, '{}')).resolves.toBe('written');
-    expect(redisAppend).toHaveBeenCalledOnce();
+    await expect(appendToCorpus(KEY, '{}')).resolves.toBe('full');
+    expect(redisAppend).not.toHaveBeenCalled();
   });
 
-  // L'appelant sait déjà quoi faire d'une écriture perdue — les routes rendent un 503, les
-  // enregistreurs avalent. Masquer l'échec ici leur retirerait le choix.
-  it('lets a failed write through to the caller', async () => {
+  // L'appelant n'a rien à réessayer, mais il doit savoir : les routes rendent un 503 sur
+  // `'failed'` comme sur `'full'`, les enregistreurs ignorent le retour.
+  it('reports a failed write instead of throwing', async () => {
     vi.mocked(redisAppend).mockRejectedValueOnce(new Error('redis down'));
 
-    await expect(appendToCorpus(KEY, '{}')).rejects.toThrow('redis down');
+    await expect(appendToCorpus(KEY, '{}')).resolves.toBe('failed');
   });
 });
 
@@ -61,6 +60,13 @@ describe('hasCorpusRoom', () => {
 
   it('closes the month at the cap, not one write later', async () => {
     vi.mocked(redisLlen).mockResolvedValueOnce(CORPUS_MONTH_CAP);
+
+    await expect(hasCorpusRoom(KEY)).resolves.toBe(false);
+  });
+
+  // Le plafond borne une clé que rien ne purge : un compteur illisible ferme, il n'ouvre pas.
+  it('refuses when the length cannot be read', async () => {
+    vi.mocked(redisLlen).mockRejectedValueOnce(new Error('redis down'));
 
     await expect(hasCorpusRoom(KEY)).resolves.toBe(false);
   });

@@ -2,15 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LABEL_LIMIT } from '@/lib/labels/rate-limit';
 import { POST } from '../route';
 
-const { getServerSession, redisAppend, redisIncrBy, redisExpire } = vi.hoisted(() => ({
+const { getServerSession, redisAppend, redisLlen, redisIncrBy, redisExpire } = vi.hoisted(() => ({
   getServerSession: vi.fn(),
   redisAppend: vi.fn(),
+  redisLlen: vi.fn(),
   redisIncrBy: vi.fn(),
   redisExpire: vi.fn(),
 }));
 
 vi.mock('next-auth/next', () => ({ getServerSession }));
-vi.mock('@/lib/redis', () => ({ redisAppend, redisIncrBy, redisExpire }));
+vi.mock('@/lib/redis', () => ({ redisAppend, redisLlen, redisIncrBy, redisExpire }));
 vi.mock('@/lib/auth', () => ({ authOptions: {} }));
 
 function body(overrides: Record<string, unknown> = {}) {
@@ -40,6 +41,7 @@ describe('pOST /api/labels/report', () => {
     process.env.LABEL_SALT = 'pepper';
     getServerSession.mockResolvedValue({ user: { email: 'someone@example.com' } });
     redisAppend.mockResolvedValue(1);
+    redisLlen.mockResolvedValue(0);
     redisIncrBy.mockResolvedValue(1);
     redisExpire.mockResolvedValue(undefined);
   });

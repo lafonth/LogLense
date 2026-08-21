@@ -19,6 +19,10 @@ import { consumeExposureQuota } from './rate-limit';
  * **Échoue fermé sur l'identité.** `LABEL_SALT` absent alors qu'une session existe, on
  * n'écrit rien : se replier sur `by: null` affirmerait un anonymat faux et mélangerait dans
  * le corpus des identités salées et non salées, ce qui est irréversible.
+ *
+ * **N'écrit rien sans identité non plus.** Un rendu anonyme ne débite aucun quota : c'était
+ * la seule écriture du corpus que rien ne bornait, et le corpus est append-only et jamais
+ * purgé. Un enregistrement sans `by` n'est en outre ni déduplicable ni traçable en abus.
  */
 export async function recordExposure(bosses: (BossResult | null)[]): Promise<void> {
   try {
@@ -28,6 +32,9 @@ export async function recordExposure(bosses: (BossResult | null)[]): Promise<voi
     // `hashUserId` jette si le sel manque : l'exception remonte au `catch` du bas, et rien
     // n'est écrit. C'est l'échec fermé décrit en en-tête, pas un oubli.
     const by: string | null = userId ? hashUserId(userId) : null;
+
+    // Sans identité, rien à écrire : voir l'en-tête.
+    if (!by) return;
 
     // Un seul instant pour le lot : les rendus d'une même requête appartiennent au même mois
     // et au même instant d'exposition.
@@ -47,13 +54,10 @@ export async function recordExposure(bosses: (BossResult | null)[]): Promise<voi
       if (!boss) continue;
 
       // Le quota se compte sur l'identité hachée, jamais sur l'IP : c'est le compte qui
-      // écrit dans le corpus. Un rendu anonyme ne consomme rien — il n'a pas de compte à
-      // débiter, et c'est le plafond mensuel du corpus qui borne le reste.
-      if (by) {
-        const quota = await consumeExposureQuota(by, atMs);
-        // Le suivant serait refusé pour la même raison : inutile d'insister.
-        if (!quota.allowed) break;
-      }
+      // écrit dans le corpus.
+      const quota = await consumeExposureQuota(by, atMs);
+      // Le suivant serait refusé pour la même raison : inutile d'insister.
+      if (!quota.allowed) break;
 
       // La provenance du DPS n'est pas passée ici : elle est portée par le résultat lui-même
       // (`character.dpsSource`). Une route qui l'affirmerait mentirait dès que le pipeline

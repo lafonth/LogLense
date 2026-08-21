@@ -4,16 +4,17 @@ import { PROMPT_VERSION } from '@/lib/ai/prompt';
 import { EXPOSURE_LIMIT } from '../rate-limit';
 import { recordAdvice } from '../record-advice';
 
-const { getServerSession, redisAppend, redisIncrBy, redisExpire } = vi.hoisted(() => ({
+const { getServerSession, redisAppend, redisLlen, redisIncrBy, redisExpire } = vi.hoisted(() => ({
   getServerSession: vi.fn(),
   redisAppend: vi.fn(),
+  redisLlen: vi.fn(),
   redisIncrBy: vi.fn(),
   redisExpire: vi.fn(),
 }));
 
 vi.mock('next-auth/next', () => ({ getServerSession }));
 vi.mock('@/lib/auth', () => ({ authOptions: {} }));
-vi.mock('@/lib/redis', () => ({ redisAppend, redisIncrBy, redisExpire }));
+vi.mock('@/lib/redis', () => ({ redisAppend, redisLlen, redisIncrBy, redisExpire }));
 
 function boss(): BossResult {
   return {
@@ -88,6 +89,7 @@ describe('recordAdvice', () => {
     process.env.LABEL_SALT = 'pepper';
     getServerSession.mockResolvedValue(SESSION);
     redisAppend.mockResolvedValue(1);
+    redisLlen.mockResolvedValue(0);
     redisIncrBy.mockResolvedValue(1);
     redisExpire.mockResolvedValue(undefined);
   });
@@ -127,12 +129,16 @@ describe('recordAdvice', () => {
     expect(JSON.stringify(written())).not.toContain('raider@example.com');
   });
 
-  it('records an unauthenticated generation as anonymous', async () => {
+  // La voie BYOK arrive ici sans session : c'était la seule écriture du corpus que rien ne
+  // bornait. On s'arrête avant `appendToCorpus`, donc avant même de mesurer le mois.
+  it('writes nothing at all when the caller has no identity', async () => {
     getServerSession.mockResolvedValue(null);
 
     await recordAdvice(boss(), ARGS);
 
-    expect(written().by).toBeNull();
+    expect(redisAppend).not.toHaveBeenCalled();
+    expect(redisLlen).not.toHaveBeenCalled();
+    expect(redisIncrBy).not.toHaveBeenCalled();
   });
 
   // Même raison que pour l'exposition : plutôt rien qu'un anonymat faux.

@@ -145,12 +145,15 @@ describe('recordExposure', () => {
     expect(JSON.stringify(record)).not.toContain('raider@example.com');
   });
 
-  it('records an unauthenticated render as anonymous', async () => {
+  // Un rendu anonyme ne débitait aucun quota : c'était la seule écriture du corpus que rien
+  // ne bornait, dans une clé que rien ne purge.
+  it('writes nothing when the caller has no identity', async () => {
     getServerSession.mockResolvedValue(null);
 
     await recordExposure([boss('r1')]);
 
-    expect(written()[0].by).toBeNull();
+    expect(redisAppend).not.toHaveBeenCalled();
+    expect(redisLlen).not.toHaveBeenCalled();
   });
 
   // Se replier sur `by: null` affirmerait un anonymat faux et mélangerait dans le corpus des

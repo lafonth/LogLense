@@ -74,7 +74,10 @@ function parseAnalysisResult(raw: unknown): AnalysisResult | null {
  * Garde de la voie « clé serveur » : session obligatoire, puis quota horaire par compte.
  *
  * Rend la réponse de refus, ou `null` quand la dépense est autorisée. La voie BYOK ne passe
- * jamais ici — il n'y a rien à y protéger, et une friction y serait gratuite.
+ * jamais ici : elle ne dépense ni notre clé ni notre quota, et une friction y serait
+ * gratuite. Ce n'est pas dire qu'elle ne touche à rien de nôtre — elle atteint
+ * `recordAdvice`, donc le corpus. C'est `recordAdvice` qui borne cette écriture-là, en
+ * refusant d'écrire sans identité ; cette garde ne couvre que la dépense.
  */
 async function guardServerKey(): Promise<Response | null> {
   const session = await getServerSession(authOptions);

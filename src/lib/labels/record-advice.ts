@@ -32,12 +32,18 @@ export async function recordAdvice(
     // `hashUserId` jette si le sel manque : rien n'est écrit. Échec fermé, pas oubli.
     const by: string | null = userId ? hashUserId(userId) : null;
 
+    // Sans identité, on n'écrit pas. La voie BYOK ne passe ni par la session ni par
+    // `consumeAiQuota` — c'est voulu, il n'y a pas de dépense à y protéger — mais elle
+    // arrive quand même jusqu'ici, et un enregistrement sans `by` ne consomme aucun quota :
+    // c'était la seule écriture du corpus que rien ne bornait. Un rendu anonyme n'est de
+    // toute façon ni déduplicable ni traçable en abus, donc il ne vaut pas la place qu'il
+    // prend dans une clé que rien ne purge.
+    if (!by) return;
+
     const at = new Date().toISOString();
 
-    if (by) {
-      const quota = await consumeExposureQuota(by, Date.parse(at));
-      if (!quota.allowed) return;
-    }
+    const quota = await consumeExposureQuota(by, Date.parse(at));
+    if (!quota.allowed) return;
 
     const record: AdviceRecord = {
       v: 3,
