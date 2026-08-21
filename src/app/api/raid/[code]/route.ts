@@ -26,13 +26,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
     return NextResponse.json({ error: 'Invalid fight id' }, { status: 400 });
   }
 
+  // Les identifiants d'abord, le quota ensuite : une configuration absente ne doit rien
+  // prélever. C'est la forme de `zones/route.ts`, et la leçon de C2.
+  const clientId = process.env.WCL_CLIENT_ID;
+  const clientSecret = process.env.WCL_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    return NextResponse.json({ error: 'WCL credentials not configured' }, { status: 500 });
+  }
+
   const refusal = await guardWclSpend('raid', RAID_RANKING_UNITS);
   if (refusal) return refusal;
 
-  const token = await getWCLToken(process.env.WCL_CLIENT_ID!, process.env.WCL_CLIENT_SECRET!);
-
+  // L'obtention du jeton est dans le `try` : c'est un appel réseau comme le suivant, et
+  // il échoue pour les mêmes raisons. Le 502 dit ici « l'amont a échoué », plus précis
+  // que le 500 de `zones` — c'est le seul écart avec la forme de référence.
   let ranking: RaidRanking | null;
   try {
+    const token = await getWCLToken(clientId, clientSecret);
     ranking = await fetchRaidRanking(token, code, fightID);
   } catch {
     return NextResponse.json({ error: 'Warcraft Logs request failed' }, { status: 502 });

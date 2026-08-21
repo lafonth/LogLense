@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { getWCLToken } from '@/lib/wcl/auth';
 import { gql } from '@/lib/wcl/client';
 import { GET } from '../route';
 
@@ -146,6 +147,33 @@ describe('raid/[code] route sous le garde WCL', () => {
     const res = await GET(makeRequest('42'), makeParams(CODE));
 
     expect(res.status).toBe(429);
+    expect(gqlMock).not.toHaveBeenCalled();
+  });
+});
+
+// C2 disait : identifiants d'abord, quota ensuite, et rien hors du `try`. Le 502 est le
+// seul écart assumé avec `zones/route.ts` — l'amont a échoué, pas nous.
+describe('raid/[code] route sur la forme de zones', () => {
+  it('rend 500 sans rien prélever quand les identifiants manquent', async () => {
+    vi.stubEnv('WCL_CLIENT_ID', '');
+
+    const res = await GET(makeRequest('42'), makeParams(CODE));
+    const json = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(json.error).toMatch(/credentials/i);
+    expect(guardWclSpend).not.toHaveBeenCalled();
+    expect(gqlMock).not.toHaveBeenCalled();
+  });
+
+  it('rend 502 quand le jeton lui-même échoue, sans exception non capturée', async () => {
+    vi.mocked(getWCLToken).mockRejectedValueOnce(new Error('token refused'));
+
+    const res = await GET(makeRequest('42'), makeParams(CODE));
+    const json = await res.json();
+
+    expect(res.status).toBe(502);
+    expect(json.error).toBeTruthy();
     expect(gqlMock).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { getWCLToken } from '@/lib/wcl/auth';
 import { gql } from '@/lib/wcl/client';
 import { GET } from '../route';
 
@@ -149,5 +150,41 @@ describe('report/[code] route under the WCL guard', () => {
 
     expect(res.status).toBe(429);
     expect(gqlMock).not.toHaveBeenCalled();
+  });
+});
+
+// C2 disait : identifiants d'abord, quota ensuite, et rien hors du `try`. Ces trois tests
+// figent la forme de `zones/route.ts` sur cette route.
+describe('report/[code] route sur la forme de zones', () => {
+  it('rend 500 sans rien prélever quand les identifiants manquent', async () => {
+    vi.stubEnv('WCL_CLIENT_ID', '');
+
+    const res = await GET(makeRequest('abc123def456ghij'), makeParams('abc123def456ghij'));
+    const json = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(json.error).toMatch(/credentials/i);
+    expect(guardWclSpend).not.toHaveBeenCalled();
+    expect(gqlMock).not.toHaveBeenCalled();
+  });
+
+  it('rend 500 avec le message quand Warcraft Logs échoue', async () => {
+    gqlMock.mockRejectedValue(new Error('WCL rate limit'));
+
+    const res = await GET(makeRequest('abc123def456ghij'), makeParams('abc123def456ghij'));
+    const json = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(json.error).toBe('WCL rate limit');
+  });
+
+  it('rend 500 quand le jeton lui-même échoue, sans exception non capturée', async () => {
+    vi.mocked(getWCLToken).mockRejectedValueOnce(new Error('token refused'));
+
+    const res = await GET(makeRequest('abc123def456ghij'), makeParams('abc123def456ghij'));
+    const json = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(json.error).toBe('token refused');
   });
 });

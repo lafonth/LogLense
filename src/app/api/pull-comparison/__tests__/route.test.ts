@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import type { PullComparisonResult, PullPointer } from '@/lib/wcl/pull-pipeline';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { recordPullComparison } from '@/lib/labels/record-pull-comparison';
+import { getWCLToken } from '@/lib/wcl/auth';
 import { fetchPullComparison } from '@/lib/wcl/pull-pipeline';
 import { POST } from '../route';
 
@@ -156,6 +157,52 @@ describe('pull-comparison route under the WCL guard', () => {
     const res = await POST(makeRequest(validBody()));
 
     expect(res.status).toBe(429);
+    expect(fetchPullComparison).not.toHaveBeenCalled();
+  });
+});
+
+// C2 mot pour mot, sur une route écrite après C2 : le quota était débité avant le contrôle
+// des identifiants, et rien n'était dans un `try`. Ces trois tests figent le correctif.
+describe('pull-comparison route sur la forme de zones', () => {
+  beforeEach(() => {
+    vi.mocked(fetchPullComparison).mockReset().mockResolvedValue(mockResult);
+    vi.mocked(getWCLToken).mockReset().mockResolvedValue('mock-token');
+    guardWclSpend.mockReset().mockResolvedValue(null);
+    process.env.WCL_CLIENT_ID = 'test-id';
+    process.env.WCL_CLIENT_SECRET = 'test-secret';
+  });
+
+  it('ne prélève aucun quota quand les identifiants manquent', async () => {
+    delete process.env.WCL_CLIENT_ID;
+    delete process.env.WCL_CLIENT_SECRET;
+
+    const res = await POST(makeRequest(validBody()));
+    const json = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(json.error).toMatch(/credentials/i);
+    expect(guardWclSpend).not.toHaveBeenCalled();
+    expect(fetchPullComparison).not.toHaveBeenCalled();
+  });
+
+  it('rend 500 avec le message quand Warcraft Logs échoue', async () => {
+    vi.mocked(fetchPullComparison).mockRejectedValue(new Error('WCL rate limit'));
+
+    const res = await POST(makeRequest(validBody()));
+    const json = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(json.error).toBe('WCL rate limit');
+  });
+
+  it('rend 500 quand le jeton lui-même échoue, sans exception non capturée', async () => {
+    vi.mocked(getWCLToken).mockRejectedValueOnce(new Error('token refused'));
+
+    const res = await POST(makeRequest(validBody()));
+    const json = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(json.error).toBe('token refused');
     expect(fetchPullComparison).not.toHaveBeenCalled();
   });
 });

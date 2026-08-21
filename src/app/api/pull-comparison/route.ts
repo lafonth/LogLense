@@ -53,9 +53,8 @@ export async function POST(req: NextRequest) {
 
   const { specId, before, after } = body;
 
-  const refusal = await guardWclSpend('pull-comparison', PULL_COMPARISON_UNITS);
-  if (refusal) return refusal;
-
+  // Les identifiants d'abord, le quota ensuite : une configuration absente ne doit rien
+  // prélever. C'est la forme de `zones/route.ts`, et la leçon de C2.
   const clientId = process.env.WCL_CLIENT_ID;
   const clientSecret = process.env.WCL_CLIENT_SECRET;
 
@@ -63,17 +62,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'WCL credentials not configured' }, { status: 500 });
   }
 
-  const token = await getWCLToken(clientId, clientSecret);
+  const refusal = await guardWclSpend('pull-comparison', PULL_COMPARISON_UNITS);
+  if (refusal) return refusal;
 
-  const result = await fetchPullComparison(token, before, after, specId);
+  try {
+    const token = await getWCLToken(clientId, clientSecret);
 
-  if (!result) {
-    return NextResponse.json({ error: 'Pull not found' }, { status: 404 });
+    const result = await fetchPullComparison(token, before, after, specId);
+
+    if (!result) {
+      return NextResponse.json({ error: 'Pull not found' }, { status: 404 });
+    }
+
+    // Attendue avant la réponse, même contrat que `recordExposure` sur l'autre route : un
+    // corpus qui échoue à écrire ne doit jamais faire échouer l'écran.
+    await recordPullComparison(before, after, specId).catch(() => {});
+
+    return NextResponse.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to compare pulls';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  // Attendue avant la réponse, même contrat que `recordExposure` sur l'autre route : un
-  // corpus qui échoue à écrire ne doit jamais faire échouer l'écran.
-  await recordPullComparison(before, after, specId).catch(() => {});
-
-  return NextResponse.json(result);
 }

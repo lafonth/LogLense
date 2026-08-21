@@ -40,26 +40,38 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: 'Invalid report code' }, { status: 400 });
   }
 
+  // Les identifiants d'abord, le quota ensuite : une configuration absente ne doit rien
+  // prélever. C'est la forme de `zones/route.ts`, et la leçon de C2.
+  const clientId = process.env.WCL_CLIENT_ID;
+  const clientSecret = process.env.WCL_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    return NextResponse.json({ error: 'WCL credentials not configured' }, { status: 500 });
+  }
+
   const refusal = await guardWclSpend('report', METADATA_UNITS);
   if (refusal) return refusal;
 
-  const clientId = process.env.WCL_CLIENT_ID!;
-  const clientSecret = process.env.WCL_CLIENT_SECRET!;
-  const token = await getWCLToken(clientId, clientSecret);
+  try {
+    const token = await getWCLToken(clientId, clientSecret);
 
-  const data = await gql<RawReportMeta>(token, Q_REPORT_META, { code });
-  const report = data.reportData.report;
-  if (!report) {
-    return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+    const data = await gql<RawReportMeta>(token, Q_REPORT_META, { code });
+    const report = data.reportData.report;
+    if (!report) {
+      return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+    }
+
+    const meta: ReportMeta = {
+      title: report.title,
+      fights: report.fights
+        .filter((f) => f.encounterID > 0)
+        .map((f) => ({ ...f, kill: f.kill ?? false })),
+      actors: report.masterData.actors.filter((a) => a.type === 'Player'),
+    };
+
+    return NextResponse.json(meta);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch report';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  const meta: ReportMeta = {
-    title: report.title,
-    fights: report.fights
-      .filter((f) => f.encounterID > 0)
-      .map((f) => ({ ...f, kill: f.kill ?? false })),
-    actors: report.masterData.actors.filter((a) => a.type === 'Player'),
-  };
-
-  return NextResponse.json(meta);
 }
