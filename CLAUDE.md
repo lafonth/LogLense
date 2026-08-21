@@ -97,6 +97,7 @@ src/lib/comparison/
 src/lib/ai/           Construction du prompt et appel Claude
 src/lib/api/
   parse.ts            Validation des corps de requête — un `as` sur `req.json()` ne vérifie rien
+  response-error.ts   Ce qu'une réponse en échec dit au client, `Retry-After` compris
   wcl-guard.ts        Ce qu'un compte a le droit de dépenser chez WCL avant d'être refusé
 src/lib/labels/
   corpus.ts           Écriture bornée par mois, jamais purgée : le corpus est l'actif
@@ -109,7 +110,7 @@ src/lib/redis.ts      Upstash en REST — seule persistance existante. GET, SET,
                       INCRBY, EXPIRE, LLEN, RPUSH. Un refus jette, il ne rend pas `undefined`
 src/data/talents/     Arbres de talents par spec, générés par scripts/
 src/components/ui/    Les primitives : Button, Card, Input, Select, Tabs, ScrollArea,
-                      Sheet, Badge, ErrorBanner, LoadingSpinner, ProgressSteps
+                      Sheet, Badge, BackLink, ErrorBanner, LoadingSpinner, ProgressSteps
 ```
 
 Tous les modules de `comparison/` sont des fonctions pures, testables sans rendu. Ils sont
