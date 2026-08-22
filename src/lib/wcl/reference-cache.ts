@@ -1,6 +1,6 @@
 import type { CombatantEvent } from './combatant';
 import type { EligibilityProfile } from './eligibility';
-import type { CharacterStats, DamageEntry, RotationSummary } from '@/types';
+import type { CharacterStats, DamageEntry, FightTarget, RotationSummary } from '@/types';
 import { createHash } from 'node:crypto';
 import { redisGet, redisMGet, redisSetEx } from '@/lib/redis';
 import { OFFENSIVE_EXTERNALS } from './eligibility';
@@ -17,7 +17,7 @@ import { OFFENSIVE_EXTERNALS } from './eligibility';
 export const REFERENCE_TTL_SECONDS = 24 * 60 * 60;
 
 const VERIFICATION_CACHE_VERSION = 'v1';
-const FIGHT_DATA_CACHE_VERSION = 'v1';
+const FIGHT_DATA_CACHE_VERSION = 'v2';
 
 /**
  * Plafond de taille d'une entrée. Bien plus bas que celui du vivier : ici on écrit un
@@ -44,11 +44,12 @@ export interface CachedVerification {
   aurasRead: number;
 }
 
-/** Les trois champs de `fetchFightData` qu'une référence consomme. Le reste n'est pas lu. */
+/** Les quatre champs de `fetchFightData` qu'une référence consomme. Le reste n'est pas lu. */
 export interface CachedFightData {
   stats: CharacterStats;
   rotation: RotationSummary;
   damageEntries: DamageEntry[];
+  fightTargets: FightTarget[];
 }
 
 /**
@@ -159,6 +160,10 @@ function parseFightData(raw: string | null): CachedFightData | null {
     if (typeof entry?.stats !== 'object' || entry.stats === null) return null;
     if (typeof entry.rotation !== 'object' || entry.rotation === null) return null;
     if (!Array.isArray(entry.damageEntries)) return null;
+    // Le champ est arrivé avec la version `v2` de la clé : une entrée qui ne le porte pas
+    // vient d'une écriture qu'on ne sait pas dater, et un tableau de cibles absent se lirait
+    // comme un combat sans cible.
+    if (!Array.isArray(entry.fightTargets)) return null;
 
     return isCompleteFightData(entry) ? entry : null;
   } catch {

@@ -40,6 +40,7 @@ function topPlayer(name: string, rank: number): TopPlayer {
     },
     rotation: { name, dps: 123456, fightDurationMs: 317924, casts: {}, buffs: {}, opening: [] },
     damageTable: { entries: [] },
+    fightTargets: [],
     provenance: provenance(name, rank),
   };
 }

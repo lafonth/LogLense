@@ -35,6 +35,7 @@ function player(name: string, talents: Record<number, number>): TopPlayer {
     },
     rotation: { name, fightDurationMs: 263000, casts: {}, buffs: {}, opening: [] },
     damageTable: { entries: [] },
+    fightTargets: [],
     provenance: {
       code: `code-${name}`,
       fightID: 1,

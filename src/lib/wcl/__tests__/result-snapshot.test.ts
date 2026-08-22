@@ -77,6 +77,7 @@ const COMPLETE: BossResult = {
         opening: [],
       },
       damageTable: { entries: [{ guid: 44614, name: 'Frostbolt', total: 4_600_000 }] },
+      fightTargets: [],
       provenance: {
         code: 'ref',
         fightID: 3,

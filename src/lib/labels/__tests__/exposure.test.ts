@@ -40,6 +40,7 @@ function topPlayer(name: string, i: number, over: Partial<ReferenceProvenance> =
     },
     rotation: { name, dps: 123456, fightDurationMs: 317924, casts: {}, buffs: {}, opening: [] },
     damageTable: { entries: [] },
+    fightTargets: [],
     provenance: provenance(name, i, over),
   };
 }

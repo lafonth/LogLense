@@ -52,6 +52,7 @@ function fightData(over: Partial<CachedFightData> = {}): CachedFightData {
     },
     rotation: { name: 'Alpha', fightDurationMs: 300_000, casts: {}, buffs: {}, opening: [] },
     damageEntries: [{ guid: 133, name: 'Fireball', total: 900_000_000 }],
+    fightTargets: [{ name: 'Boss', type: 'NPC', damagePct: 100 }],
     ...over,
   };
 }
@@ -97,7 +98,7 @@ describe('verificationCacheKey', () => {
 describe('fightDataCacheKey', () => {
   it('keys on report, fight and actor only: a past pull no longer moves', () => {
     expect(fightDataCacheKey({ code: 'aaa', fightID: 7, sourceID: 11 })).toBe(
-      'wcl:fight:v1:aaa:7:11'
+      'wcl:fight:v2:aaa:7:11'
     );
   });
 });
@@ -175,6 +176,12 @@ describe('readCachedFightData', () => {
 
   it('drops an empty damage table: a ranked player dealt damage', async () => {
     redisGet.mockResolvedValue(JSON.stringify(fightData({ damageEntries: [] })));
+    await expect(readCachedFightData('k')).resolves.toBeNull();
+  });
+
+  it('drops an entry written before les cibles, que la version de clé sépare déjà', async () => {
+    const { fightTargets: _dropped, ...v1 } = fightData();
+    redisGet.mockResolvedValue(JSON.stringify(v1));
     await expect(readCachedFightData('k')).resolves.toBeNull();
   });
 

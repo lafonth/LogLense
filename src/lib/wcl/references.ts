@@ -301,9 +301,11 @@ function observationsOf(
  * Trois requêtes par référence, fois `TOP_N` : le dernier tiers de la facture d'une analyse.
  * Elles ne dépendent pas non plus du demandeur — le combat d'un joueur classé ne bouge plus.
  *
- * Seuls les trois champs consommés sont écrits. `fetchFightData` en rend davantage — cibles,
- * dps, éligibilité, contexte de raid — mais aucun n'est lu sur ce chemin, et les recopier
- * gonflerait l'entrée sans rien servir.
+ * Seuls les quatre champs consommés sont écrits. `fetchFightData` en rend davantage — dps,
+ * éligibilité, contexte de raid — mais aucun n'est lu sur ce chemin, et les recopier
+ * gonflerait l'entrée sans rien servir. Les cibles, elles, le sont depuis qu'un tableau de
+ * répartition oppose celles du sujet à celles de la cohorte : même réponse `Q_DAMAGE`,
+ * aucune requête de plus.
  */
 async function buildTopPlayer(token: string, verified: VerifiedCandidate): Promise<TopPlayer> {
   const { scored, combatant, profile, disqualifiedBy, explored } = verified;
@@ -314,7 +316,7 @@ async function buildTopPlayer(token: string, verified: VerifiedCandidate): Promi
   const cacheKey = fightDataCacheKey({ code, fightID, sourceID: combatant.sourceID });
   const cached = await readCachedFightData(cacheKey);
 
-  const { stats, rotation, damageEntries } =
+  const { stats, rotation, damageEntries, fightTargets } =
     cached ??
     (await fetchFightData(token, {
       code,
@@ -326,13 +328,14 @@ async function buildTopPlayer(token: string, verified: VerifiedCandidate): Promi
     }));
 
   if (!cached) {
-    await writeCachedFightData(cacheKey, { stats, rotation, damageEntries });
+    await writeCachedFightData(cacheKey, { stats, rotation, damageEntries, fightTargets });
   }
 
   return {
     stats: { ...stats, dps, killTime: fmtMs(candidate.duration) },
     rotation,
     damageTable: { entries: damageEntries },
+    fightTargets,
     provenance: {
       code,
       fightID,

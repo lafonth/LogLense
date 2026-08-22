@@ -33,6 +33,7 @@ function reference(name: string, perMin: Record<string, number>): TopPlayer {
       opening: [],
     },
     damageTable: { entries: [] },
+    fightTargets: [],
     provenance: {
       code: `code-${name}`,
       fightID: 1,

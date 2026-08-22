@@ -49,6 +49,7 @@ function reference(
       opening: [],
     },
     damageTable: { entries: damageEntries(damage) },
+    fightTargets: [],
     provenance: {
       code: `code-${name}`,
       fightID: 1,

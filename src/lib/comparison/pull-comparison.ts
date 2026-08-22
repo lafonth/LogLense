@@ -75,6 +75,9 @@ function asTopPlayer(pull: PullSnapshot): TopPlayer {
     stats: { ...pull.stats, dps: pull.dps, killTime: fmtMs(pull.fightMs) },
     rotation: pull.rotation,
     damageTable: { entries: pull.damageEntries },
+    // Le chemin des pulls ne récupère pas de répartition par cible : `PullSnapshot` n'en
+    // porte pas. Un tableau vide dit « pas de cibles connues », ce qu'il faut dire ici.
+    fightTargets: [],
     provenance: {
       code: pull.code,
       fightID: pull.fightId,

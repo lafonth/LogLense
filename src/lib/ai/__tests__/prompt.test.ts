@@ -124,6 +124,7 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
             { guid: 5221, name: 'Shred', total: 1500000 },
           ],
         },
+        fightTargets: [],
         provenance: {
           code: 'ref1',
           fightID: 4,

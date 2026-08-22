@@ -146,6 +146,13 @@ export interface TopPlayer {
   stats: CharacterStats & { dps: number; killTime: string };
   rotation: RotationSummary;
   damageTable: { entries: DamageEntry[] };
+  /**
+   * Où sont partis ses dégâts, cible par cible.
+   *
+   * Le sujet porte la même liste sur `BossResult`. Les deux ensemble font la seule lecture
+   * qui vaille : « 4 % sur les adds » ne dit rien tant qu'on ignore ce que la cohorte y met.
+   */
+  fightTargets: FightTarget[];
   provenance: ReferenceProvenance;
 }
 
