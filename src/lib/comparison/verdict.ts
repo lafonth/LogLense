@@ -1,5 +1,5 @@
 import type { BossResult } from '@/types';
-import { ilvlGapOf, killTimeGapPctOf } from './comparability-gaps';
+import { earlyDeathPctOf, ilvlGapOf, killTimeGapPctOf } from './comparability-gaps';
 import { usableSample } from './stat-distribution';
 
 /**
@@ -54,6 +54,16 @@ export interface Verdict {
    * doit dire à quel titre.
    */
   approximate: boolean;
+  /**
+   * Part du combat que le sujet a jouée avant de mourir, en pourcents, et seulement quand
+   * elle est assez basse pour que la comparaison en souffre. `null` le reste du temps.
+   *
+   * Le fait est ici et non recopié dans le composant, pour la même raison qu'`allEligible` :
+   * il se déduit de deux champs que le bandeau n'a pas à rapprocher lui-même. Il ne change
+   * ni `kind` ni le niveau de comparabilité — le niveau mesure la distance de la cohorte,
+   * celui-ci l'amputation du sujet, et confondre les deux rendrait le bandeau illisible.
+   */
+  earlyDeathPct: number | null;
 }
 
 function median(values: number[]): number | null {
@@ -110,6 +120,7 @@ export function buildVerdict(result: BossResult): Verdict {
     killTimeGapPct: killTimeGapPctOf(result.comparability),
     approximate: level === 'approximate',
     allEligible: substituted === 0 && qualifiedOnly,
+    earlyDeathPct: earlyDeathPctOf(result.character.context, result.comparability.myKillTimeMs),
   };
 
   if (referenceDps === null || level === 'none') {

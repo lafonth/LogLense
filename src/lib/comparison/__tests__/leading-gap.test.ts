@@ -43,6 +43,7 @@ function result(over: Over = {}): BossResult {
         fightDurationMs: (over.fightMinutes ?? FIGHT_MINUTES) * 60_000,
       },
       damageTable: { entries: damage(over.myDamage ?? {}) },
+      context: null,
     },
     sample: [{ dps: 120000, qualified: true }],
     topPlayers: (over.references ?? [{ Shred: 10 }, { Shred: 10 }]).map((perMin) => ({

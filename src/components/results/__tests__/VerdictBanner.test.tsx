@@ -30,6 +30,7 @@ function result(over: {
       // cadence en nombre de lancers avant de décider qu'il y a quelque chose à dire.
       rotation: { casts: casts(over.mine ?? {}), fightDurationMs: 240_000 },
       damageTable: { entries: [] },
+      context: null,
     },
     sample: over.sample ?? [sample(120000)],
     topPlayers: (over.references ?? []).map((perMin) => ({

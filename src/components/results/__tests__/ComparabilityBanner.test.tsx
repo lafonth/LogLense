@@ -146,3 +146,28 @@ describe('comparabilityBanner', () => {
     expect(screen.queryByText(/Not enough comparable logs/)).not.toBeInTheDocument();
   });
 });
+
+describe('comparabilityBanner, mort précoce', () => {
+  it('says the comparison is hard to defend, in the colour reserved for that', () => {
+    const { container } = render(
+      <ComparabilityBanner comparability={comparability()} earlyDeathPct={62} />
+    );
+
+    expect(screen.getByText(/hard to defend/i)).toBeInTheDocument();
+    expect(screen.getByText('62%')).toBeInTheDocument();
+    expect(container.innerHTML).toContain('text-danger');
+  });
+
+  it('says nothing at all when the share was not established', () => {
+    render(<ComparabilityBanner comparability={comparability()} earlyDeathPct={null} />);
+
+    expect(screen.queryByText(/hard to defend/i)).not.toBeInTheDocument();
+  });
+
+  it('never advises: it states the coverage and stops there', () => {
+    render(<ComparabilityBanner comparability={comparability()} earlyDeathPct={40} />);
+
+    const warning = screen.getByText(/hard to defend/i).textContent ?? '';
+    expect(warning).not.toMatch(/defensive|survive|died because|avoid/i);
+  });
+});

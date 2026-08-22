@@ -1,6 +1,11 @@
+import type { FightContext } from '@/lib/wcl/fight-context';
 import type { Comparability } from '@/types';
 import { describe, expect, it } from 'vitest';
-import { ilvlGapOf, killTimeGapPctOf } from '../comparability-gaps';
+import { earlyDeathPctOf, ilvlGapOf, killTimeGapPctOf } from '../comparability-gaps';
+
+function context(over: Partial<FightContext> = {}): FightContext {
+  return { deaths: 1, subjectDied: true, subjectDeathMs: 150_000, wipesBefore: 0, ...over };
+}
 
 function comparability(over: Partial<Comparability> = {}): Comparability {
   return {
@@ -59,5 +64,35 @@ describe('killTimeGapPctOf', () => {
 
   it('says nothing on a null duration, which is a duration we do not have', () => {
     expect(killTimeGapPctOf(comparability({ myKillTimeMs: 0 }))).toBeNull();
+  });
+});
+
+describe('earlyDeathPctOf', () => {
+  it('gives the share of the fight played when the death cuts it short', () => {
+    expect(earlyDeathPctOf(context({ subjectDeathMs: 186_000 }), 300_000)).toBe(62);
+  });
+
+  it('says nothing at the threshold itself, where the tolerance still holds', () => {
+    expect(earlyDeathPctOf(context({ subjectDeathMs: 240_000 }), 300_000)).toBeNull();
+    expect(earlyDeathPctOf(context({ subjectDeathMs: 239_999 }), 300_000)).toBe(80);
+    expect(earlyDeathPctOf(context({ subjectDeathMs: 240_001 }), 300_000)).toBeNull();
+  });
+
+  it('says nothing about a death near the end, which costs no comparability', () => {
+    expect(earlyDeathPctOf(context({ subjectDeathMs: 294_000 }), 300_000)).toBeNull();
+  });
+
+  it('stays silent when the context was not read at all', () => {
+    expect(earlyDeathPctOf(null, 300_000)).toBeNull();
+  });
+
+  it('stays silent when the death has no timestamp, even though the subject died', () => {
+    expect(
+      earlyDeathPctOf(context({ subjectDied: true, subjectDeathMs: null }), 300_000)
+    ).toBeNull();
+  });
+
+  it('stays silent on a null duration, which is a duration we do not have', () => {
+    expect(earlyDeathPctOf(context({ subjectDeathMs: 1_000 }), 0)).toBeNull();
   });
 });

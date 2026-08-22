@@ -23,6 +23,17 @@ export const RETRY_POLICY = { attempts: 3, baseDelayMs: 500, maxDelayMs: 8_000 }
 export const KILL_TIME_TOLERANCE = 0.2;
 export const TOP_N = 3;
 
+/**
+ * Part du combat qu'une mort du sujet peut lui coûter avant que sa comparaison cesse
+ * d'être défendable — 20 % de la pull restant à courir.
+ *
+ * La magnitude est celle de `KILL_TIME_TOLERANCE` et vient du même raisonnement : au-delà
+ * de ce cinquième, deux logs ne couvrent plus la même fenêtre de dégâts. Constante
+ * distincte malgré tout, parce que les deux bougeraient pour des raisons différentes —
+ * l'une mesure l'écart entre deux kills, l'autre l'amputation d'un seul.
+ */
+export const EARLY_DEATH_TOLERANCE = 0.2;
+
 /** Item levels of difference beyond which a reference stops being instructive. */
 export const ILVL_TOLERANCE = 4;
 

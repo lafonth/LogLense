@@ -3,6 +3,7 @@ import type { Encounter, TalentNode } from '@/types';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { usableSample } from '@/lib/comparison/stat-distribution';
+import { buildVerdict } from '@/lib/comparison/verdict';
 import { ComparabilityBanner } from './ComparabilityBanner';
 import { OpeningChain } from './OpeningChain';
 import { ReferenceLabels } from './ReferenceLabels';
@@ -57,7 +58,10 @@ export function ComparisonTab({
   return (
     <div>
       <div className="mt-6">
-        <ComparabilityBanner comparability={result.comparability} />
+        <ComparabilityBanner
+          comparability={result.comparability}
+          earlyDeathPct={buildVerdict(result).earlyDeathPct}
+        />
       </div>
       <div className="mt-6">
         <ReferenceLabels result={result} />

@@ -145,6 +145,20 @@ Faire converger les quatre n'est pas au programme : `PRODUCT_CONTEXT.md` §5 act
 pas davantage de travail de comparabilité à faire. Cette section dit donc l'état réel, pour
 qu'on ne s'appuie pas sur une garantie qui n'existe pas.
 
+### Arbitrages déjà tranchés
+
+**Mort précoce du sujet** (`EARLY_DEATH_TOLERANCE`, `earlyDeathPctOf`) — un sujet mort avant
+80 % de sa pull couvre une fenêtre de dégâts plus courte que celle des références, et le bandeau
+le dit. Le niveau de comparabilité ne bouge pas : il mesure la distance de la cohorte, pas
+l'amputation du sujet.
+
+| Pipeline | Décision |
+|---|---|
+| `pipeline.ts` | Oui — `context` déjà récupéré, bandeau rendu |
+| `report-pipeline.ts` | Oui — idem |
+| `pull-pipeline.ts` | Non — il affiche déjà les morts via `PullContextCard`, et ne compare pas à une cohorte |
+| `raid-ranking.ts` | Non — il ne récupère pas `context`, l'ajouter coûterait une requête par pull |
+
 ## Interface : tokens et primitives
 
 **Aucun `style={{}}` dans les composants.** Trois exceptions, toutes des géométries calculées

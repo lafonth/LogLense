@@ -1,3 +1,4 @@
+import type { FightContext } from '@/lib/wcl/fight-context';
 import type { BossResult, Comparability, ReferenceSample, TopPlayer } from '@/types';
 import { describe, expect, it } from 'vitest';
 import { buildVerdict } from '../verdict';
@@ -42,9 +43,10 @@ function result(over: {
   sample?: ReferenceSample[];
   topPlayers?: TopPlayer[];
   comparability?: Partial<Comparability>;
+  context?: FightContext | null;
 }): BossResult {
   return {
-    character: { dps: over.dps ?? 100000 },
+    character: { dps: over.dps ?? 100000, context: over.context ?? null },
     sample: over.sample ?? [sample(120000)],
     topPlayers: over.topPlayers ?? [],
     comparability: comparability(over.comparability),
@@ -166,5 +168,31 @@ describe('buildVerdict', () => {
     const verdict = buildVerdict(result({ comparability: { level: 'approximate' } }));
 
     expect(verdict).toMatchObject({ kind: 'gap', approximate: true });
+  });
+
+  it('porte la part de combat jouée quand le sujet est mort tôt', () => {
+    const verdict = buildVerdict(
+      result({
+        context: { deaths: 1, subjectDied: true, subjectDeathMs: 186_000, wipesBefore: 0 },
+        comparability: { myKillTimeMs: 300_000 },
+      })
+    );
+
+    expect(verdict.earlyDeathPct).toBe(62);
+  });
+
+  it("ne dit rien de l'amputation quand il n'y a pas de contexte", () => {
+    expect(buildVerdict(result({})).earlyDeathPct).toBeNull();
+  });
+
+  it("laisse le niveau de comparabilité intact : la cohorte n'a pas bougé", () => {
+    const verdict = buildVerdict(
+      result({
+        context: { deaths: 1, subjectDied: true, subjectDeathMs: 30_000, wipesBefore: 0 },
+        comparability: { myKillTimeMs: 300_000 },
+      })
+    );
+
+    expect(verdict).toMatchObject({ kind: 'gap', earlyDeathPct: 10 });
   });
 });

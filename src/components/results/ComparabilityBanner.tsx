@@ -5,6 +5,12 @@ import { ilvlGapOf, killTimeGapPctOf } from '@/lib/comparison/comparability-gaps
 
 interface ComparabilityBannerProps {
   comparability: Comparability;
+  /**
+   * Part du combat jouée avant la mort du sujet, quand elle est assez basse pour que la
+   * comparaison en souffre — `earlyDeathPctOf` a déjà tranché le seuil. Optionnel : les
+   * écrans qui ne portent pas de contexte de pull n'ont rien à en dire.
+   */
+  earlyDeathPct?: number | null;
 }
 
 const LEVEL_TONE: Record<ComparabilityLevel, string> = {
@@ -26,7 +32,10 @@ function signed(value: number): string {
   return value < 0 ? `−${Math.abs(value)}` : `+${value}`;
 }
 
-export function ComparabilityBanner({ comparability }: ComparabilityBannerProps) {
+export function ComparabilityBanner({
+  comparability,
+  earlyDeathPct = null,
+}: ComparabilityBannerProps) {
   const { level, referenceIlvl, referenceIlvlCount, myIlvl } = comparability;
   const tone = LEVEL_TONE[level];
 
@@ -46,6 +55,14 @@ export function ComparabilityBanner({ comparability }: ComparabilityBannerProps)
           <span className="font-mono">{signed(ilvlGap)}</span> against your{' '}
           <span className="font-mono">{myIlvl}</span>, and their kills run{' '}
           <span className="font-mono">{signed(killTimeGapPct)}%</span> against yours.
+        </p>
+      )}
+
+      {earlyDeathPct !== null && (
+        <p className="text-danger mt-2 font-sans text-xs">
+          You died <span className="font-mono">{earlyDeathPct}%</span> into the fight — your total
+          covers less of the pull than the references&apos; do, and the comparison below is hard to
+          defend.
         </p>
       )}
 
