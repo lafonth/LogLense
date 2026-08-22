@@ -226,7 +226,7 @@ export function parseRaidRanking(payload: RawRaidRanking, code: string): RaidRan
       ? `Warcraft Logs ranks nobody on this pull. ${brut} Roles are unknown, so healers and tanks show up in the list.`
       : uncovered.length > 0
         ? `The Warcraft Logs ranking leaves ${plural(uncovered.length, 'player')} of this pull without an entry, out of the ${damagers.length} who dealt damage. ${brut}`
-        : `${missingPercentile.length} of the ${rankedDps.length} DPS on this pull have no Warcraft Logs percentile. ${brut}`;
+        : `${missingPercentile.length} of the ${rankedDps.length} DPS on this pull ${missingPercentile.length === 1 ? 'has' : 'have'} no Warcraft Logs percentile. ${brut}`;
 
   return { ...base, criterion: 'dps', criterionReason: reason, players };
 }
@@ -237,6 +237,9 @@ export function parseRaidRanking(payload: RawRaidRanking, code: string): RaidRan
  * L'anglais marque le pluriel, il ne le parenthèse pas : `1 player(s)` est un calque du
  * français. Le compte est connu au moment où la phrase se construit, il n'y a rien à
  * laisser au lecteur.
+ *
+ * Tous les effectifs ne passent pas ici : « DPS » est invariable, donc c'est le verbe qui
+ * s'accorde et pas le nom. La règle est la même, le mot porteur change.
  */
 function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? '' : 's'}`;
