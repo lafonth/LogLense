@@ -18,6 +18,7 @@ import { PROMPT_AXES } from '@/lib/ai/prompt';
  * été conseillé à ce que le lecteur a jugé sans valeur.
  */
 const AXIS_LABELS: Record<PromptAxis, string> = {
+  targets: 'Target split',
   trajectory: 'Trajectory',
   stats: 'DPS & stats',
   'spell-usage': 'Spell usage',

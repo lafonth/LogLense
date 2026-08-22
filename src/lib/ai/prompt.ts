@@ -1,3 +1,5 @@
+import type { AbilityComparison } from '@/lib/comparison/rotation-stats';
+import type { TalentDiffEntry } from '@/lib/comparison/talent-diff';
 import type { TrendVerdict } from '@/lib/comparison/trend';
 import type { TrajectoryPoint } from '@/lib/wcl/trajectory';
 import type {
@@ -11,33 +13,52 @@ import type {
   TalentNode,
   TopPlayer,
 } from '@/types';
+import { leadingGap } from '@/lib/comparison/leading-gap';
 import { diffOpening } from '@/lib/comparison/opening-diff';
+import { compareCasts, compareUptimes } from '@/lib/comparison/rotation-stats';
 import { describeValues, STAT_AXES, usableSample } from '@/lib/comparison/stat-distribution';
+import { diffTalents } from '@/lib/comparison/talent-diff';
 import { analyseTrend } from '@/lib/comparison/trend';
+import { buildVerdict } from '@/lib/comparison/verdict';
 import { getSpecInfo } from '@/lib/specs';
 import { fmtMs } from '@/lib/wcl/parsers';
 
-export const SYSTEM_PROMPT = `You are a WarcraftLogs performance coach. Speak directly to the player. \
+export const SYSTEM_PROMPT = `You are a WarcraftLogs damage coach. Speak directly to the player. \
 Each ## section is one boss encounter — treat it as a single fight even if the name contains multiple names (council fights).
+
+Two rules govern everything below.
+
+TRACEABILITY — every recommendation must be traceable to something the reference cohort actually did on this boss at this difficulty. \
+The cohort is a set of ranked kills of the same encounter, filtered on item level, kill time, tier set and offensive externals; the tables are its numbers. \
+If a change is not visible in those numbers, do not recommend it: no theorycrafted priority list, no simulation result, no remembered guide. \
+Where the data is silent, say it is silent — that is an acceptable answer, an invented fix is not.
+
+SCOPE — outgoing damage only. Never advise on survival, defensives, deaths, interrupts, positioning or boss mechanics. \
+You are given no data on any of them, so anything said there would be invented.
 
 Follow this exact process for each boss:
 
-STEP 1 — FIGHT TYPE
-Read the "Fight targets" line. Count how many Boss and NPC targets appear.
-Single Boss = single-target fight. Multiple Boss targets = council/cleave fight. NPC adds = AoE/add-cleave fight.
-The fight type determines which abilities should be prioritised.
+STEP 1 — WHERE THE DAMAGE WENT
+Read the "Damage by Target" table: your damage split by target, and the same split for each reference. \
+Count the Boss and NPC targets — one Boss target is a single-target fight, several are a council/cleave fight, NPC adds make it an add-cleave fight.
+Then compare the splits. When you and the references hit the same targets in roughly the same proportions, the fight type is settled and you move on. \
+When you diverge on WHAT you hit rather than on HOW you hit it — adds you ignored, a target they left alone — that is a difference in assignment, not a mistake. \
+Name it as such and do not correct it: a rotation fix derived from a target split the player was never assigned is wrong advice.
 
-STEP 2 — FIND THE BIGGEST SPELL USAGE GAP
-Scan every row of the Spell Usage table. For each ability, compute the difference between your casts/min and the top players' average.
-The row with the largest gap IS the primary issue — lead with it. Read the exact numbers directly from the table; do not estimate.
-Look especially for SUBSTITUTION PAIRS: one ability you cast much more than top players, and another ability you cast much less. \
-On many specs this means a single-target ability is being used where the fight calls for its multi-target equivalent (or vice versa) — but not on all of them: \
-some specs cleave passively, or use the same buttons at every target count. Treat a substitution pair as a hypothesis and confirm it against the damage breakdown in STEP 3 before reporting it as the primary issue.
+STEP 2 — THE RANKED ROTATION GAPS
+The Spell Usage table is ALREADY ordered by damage impact: the deviation from the reference median, weighted by the share of damage the ability carries. \
+The top row is therefore the gap that costs the most, and you must not re-rank the table by raw casts/min difference — a cast missed on a filler is not a cast missed on the main damage source.
+Each row gives your rate, the field min, median and max, your deviation and that damage share. \
+A value inside the field's min–max range is not a gap whatever its deviation: the references disagree with each other there. Read the numbers off the table, never estimate them.
+Look for SUBSTITUTION PAIRS among the top rows: one ability you cast much more than the field, another much less. \
+On many specs this means a single-target ability is used where the fight calls for its multi-target equivalent (or vice versa) — but not on all of them: \
+some specs cleave passively, or press the same buttons at every target count. Treat a substitution pair as a hypothesis and confirm it in STEP 3 before reporting it as the primary issue.
 
 STEP 3 — DAMAGE BREAKDOWN
-Check whether the damage split reflects the fight type. On multi-target fights, AoE abilities should rank highly for top players. \
-If your damage is concentrated on a single-target ability that barely appears in top players' breakdowns, that confirms the substitution. \
-If the breakdown does not corroborate it, drop the substitution hypothesis and lead with the next largest gap instead.
+The table holds the union of your biggest damage sources and the field's, so an ability you barely press still appears when the field draws real damage from it. \
+The Gap column is the field median minus you, in points of total damage.
+A large positive gap is the strongest single finding available: the references convert something into damage that you do not. Name the ability, quote both shares, and tie it to its cast rate in STEP 2.
+A large negative gap on a single-target ability in a multi-target fight confirms a substitution. If the breakdown does not corroborate the hypothesis, drop it and lead with the next ranked gap instead.
 
 STEP 4 — STATS
 The Gear & Stats table gives, for each axis, your value and the comparable field's min, median, max and your percentile within it. \
@@ -64,17 +85,29 @@ The list contains ranked kills only, so say nothing about consistency, wipes or 
 
 Output format per boss:
 1. Trajectory — the verdict on the percentile and what it means, only if the section is present.
-2. Primary issue — the single largest gap, with exact numbers from the table.
-3. Secondary issues — other meaningful spell usage or damage split differences.
-4. Opening — the first divergence rank and the two abilities involved, only if there is one.
-5. Stats — where the player sits in the field, with the percentile and the gap to the median.
-6. Talents — only if impactful, with the adoption count.
-7. One thing to fix next raid.
+2. Primary issue — the top row of the ranked table, or the largest damage-breakdown gap when the two disagree, with exact numbers.
+3. Secondary issues — the next gaps in the same order: damage impact first, raw casts/min difference only as a tie-breaker.
+4. Target split — only when it diverges, and stated as a difference in assignment.
+5. Opening — the first divergence rank and the two abilities involved, only if there is one.
+6. Stats — where the player sits in the field, with the percentile and the gap to the median.
+7. Talents — only if impactful, with the adoption count.
+8. One thing to fix next raid.
 
-Be concise. Every number you cite must come directly from the data tables.`;
+Be concise. Every number you cite must come directly from the data tables, and every fix you name must be something a reference already does.`;
 
 function fmt(n: number): string {
   return n.toLocaleString('en-US');
+}
+
+function signedPct(n: number): string {
+  return `${n > 0 ? '+' : ''}${n.toFixed(1)}%`;
+}
+
+function medianOf(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
 const COMPARABILITY_LABEL: Record<BossResult['comparability']['level'], string> = {
@@ -84,9 +117,22 @@ const COMPARABILITY_LABEL: Record<BossResult['comparability']['level'], string> 
   none: 'No comparable logs',
 };
 
-/** Same arithmetic as ComparabilityBanner: gap = reference − mine. */
-function comparabilitySection(comparability: BossResult['comparability']): string {
-  const { level, referenceIlvl, myIlvl, referenceKillTimeMs, myKillTimeMs } = comparability;
+/**
+ * Ce sur quoi la comparaison repose — et ce qu'elle autorise à chiffrer.
+ *
+ * Le verdict et l'écart de tête sont déjà calculés pour l'écran. Les recopier ici évite que
+ * le modèle refasse l'arithmétique à sa façon et annonce un déficit là où l'écran a
+ * précisément décidé qu'aucun chiffre ne tenait.
+ *
+ * `character.context` n'entre pas, et l'`earlyDeathPct` du verdict est délibérément laissé
+ * de côté : une mort précoce est un avertissement de comparabilité rendu à l'écran, pas une
+ * matière à conseil. C'est ce qui tient la règle de périmètre du prompt par construction —
+ * faute de la moindre donnée de survie, le modèle ne peut pas en parler.
+ *
+ * Same arithmetic as ComparabilityBanner: gap = reference − mine.
+ */
+function comparabilitySection(boss: BossResult): string {
+  const { level, referenceIlvl, myIlvl, referenceKillTimeMs, myKillTimeMs } = boss.comparability;
 
   const lines = [`### Comparison basis`, `${COMPARABILITY_LABEL[level]}.`];
 
@@ -97,6 +143,53 @@ function comparabilitySection(comparability: BossResult['comparability']): strin
     lines.push(
       `References sit at ${referenceIlvl} item level (${sign(ilvlGap)}${ilvlGap.toFixed(1)} against your ${myIlvl}), ` +
         `kill time ${sign(killTimeGapPct)}${killTimeGapPct.toFixed(1)}% against yours.`
+    );
+  }
+
+  const verdict = buildVerdict(boss);
+  if (verdict.kind === 'gap' || verdict.kind === 'ahead') {
+    lines.push(
+      `Reference DPS ${fmt(verdict.referenceDps ?? 0)} over ${verdict.referenceCount} logs against your ` +
+        `${fmt(verdict.myDps)} — ${fmt(verdict.deltaDps ?? 0)} ${verdict.kind === 'gap' ? 'behind them' : 'ahead of them'}. ` +
+        `That is the only DPS gap you may quote.${
+          verdict.kind === 'ahead'
+            ? ' The player is already in front: look for what they can still convert, not for a deficit to explain.'
+            : ''
+        }`
+    );
+  } else if (verdict.kind === 'unreliable') {
+    lines.push(
+      'The field is not solid enough to carry a figure — describe the differences in behaviour ' +
+        'and state no DPS deficit at all.'
+    );
+  } else {
+    lines.push(
+      'No usable reference DPS: say the comparison is missing rather than naming a target to reach.'
+    );
+  }
+
+  if (!verdict.allEligible && verdict.referenceCount > 0) {
+    lines.push(
+      'Some of these references were kept although they failed an eliminatory criterion — ' +
+        'say the panel is patched whenever you lean on it.'
+    );
+  }
+
+  const { tierPieces, externalUptime, externals } = boss.character.eligibility;
+  const tier = tierPieces === null ? 'tier set unknown' : `${tierPieces} tier set pieces`;
+  const external =
+    externals.length === 0
+      ? 'no offensive external received'
+      : `offensive externals received (${externals.join(', ')}) over ${externalUptime.toFixed(1)}% of the fight — ` +
+        'that share of the damage is not the player alone';
+  lines.push(`Player's own side of the eliminatory criteria: ${tier}, ${external}.`);
+
+  const gap = leadingGap(boss);
+  if (gap !== null) {
+    lines.push(
+      `Largest damage-weighted gap already computed: ${gap.ability} — you ${gap.mine.toFixed(2)} casts/min against ` +
+        `a reference median of ${gap.reference.toFixed(2)} (${signedPct(gap.deviationPct)}) over ${gap.referenceTotal} references. ` +
+        'Start there unless the damage breakdown contradicts it.'
     );
   }
 
@@ -177,9 +270,53 @@ function trajectorySection(trajectory: TrajectoryPoint[]): string {
   return lines.join('\n');
 }
 
-function fightTargetsLine(targets: FightTarget[]): string {
-  if (targets.length === 0) return 'unknown';
-  return targets.map((t) => `${t.name} (${t.type}, ${t.damagePct}%)`).join(', ');
+/**
+ * Où sont partis les dégâts, des deux côtés.
+ *
+ * Une ligne « 4 % sur les adds » ne dit rien seule : elle peut être une faute de priorité
+ * comme l'assignation exacte que le raid a donnée au joueur. Seule la colonne des références
+ * départage les deux, et c'est ce qui distingue une divergence de cible — qui se nomme — d'un
+ * écart de rotation — qui se corrige. Les cibles des références sont déjà en cache : le
+ * tableau ne coûte aucune requête supplémentaire.
+ */
+function targetTable(mine: FightTarget[], topPlayers: TopPlayer[]): string {
+  const all = [...mine, ...topPlayers.flatMap((p) => p.fightTargets)];
+  const names = [...new Set(all.map((t) => t.name))];
+  if (names.length === 0) return '';
+
+  const typeOf = (name: string) => all.find((t) => t.name === name)?.type ?? '?';
+  const shareIn = (list: FightTarget[], name: string) =>
+    list.length === 0 ? null : (list.find((t) => t.name === name)?.damagePct ?? 0);
+  const cell = (list: FightTarget[], name: string) => {
+    const share = shareIn(list, name);
+    return share === null ? '—' : share.toFixed(1);
+  };
+
+  const weight = (name: string) =>
+    Math.max(
+      shareIn(mine, name) ?? 0,
+      ...topPlayers.map((p) => shareIn(p.fightTargets, name) ?? 0),
+      0
+    );
+  const ordered = [...names].sort((a, b) => weight(b) - weight(a));
+
+  const headers = ['Target', 'Type', 'You %', ...topPlayers.map((_, i) => `P${i + 1} %`)];
+  const rows = ordered.map((name) => [
+    name,
+    typeOf(name),
+    cell(mine, name),
+    ...topPlayers.map((p) => cell(p.fightTargets, name)),
+  ]);
+
+  const withTargets = topPlayers.filter((p) => p.fightTargets.length > 0).length;
+  const note =
+    withTargets === 0
+      ? 'No reference target split available — read the fight type from your own row, and do not call any divergence.'
+      : `Reference splits available for ${withTargets} of ${topPlayers.length} references. ` +
+        'A dash means that reference reported no split at all; 0.0 means it reported one and put nothing on this target. ' +
+        'A divergence on WHICH targets take damage is a difference in assignment, not a mistake — name it, do not correct it.';
+
+  return [mdTable(headers, rows), '', note].join('\n');
 }
 
 function mdTable(headers: string[], rows: string[][]): string {
@@ -295,30 +432,62 @@ function statsTable(
   return [mdTable(headers, rows), '', ...notes].join('\n');
 }
 
-function spellUsageTable(charRotation: RotationSummary, topPlayers: TopPlayer[]): string {
-  const allAbilities = [
-    ...new Set([
-      ...Object.keys(charRotation.casts),
-      ...topPlayers.flatMap((p) => Object.keys(p.rotation.casts)),
-    ]),
-  ]
-    .filter((name) => {
-      const charCasts = charRotation.casts[name]?.casts ?? 0;
-      const topCasts = topPlayers.reduce((s, p) => s + (p.rotation.casts[name]?.casts ?? 0), 0);
-      return charCasts + topCasts > 0;
-    })
-    .sort((a, b) => (charRotation.casts[b]?.casts ?? 0) - (charRotation.casts[a]?.casts ?? 0));
+/** Une ligne de comparaison, fourchette du champ comprise. `—` quand la source se tait. */
+function abilityRow(c: AbilityComparison, withShare: boolean): string[] {
+  const num = (v: number | null) => (v === null ? '—' : v.toFixed(2));
+  const row = [
+    c.name,
+    c.mine.toFixed(2),
+    num(c.referenceMin),
+    num(c.referenceMedian),
+    num(c.referenceMax),
+    c.deviationPct === null ? '—' : signedPct(c.deviationPct),
+  ];
+  if (withShare) {
+    row.push(c.damageShare === null ? '—' : `${(c.damageShare * 100).toFixed(1)}%`);
+  }
+  return row;
+}
 
-  if (allAbilities.length === 0) return '';
+/**
+ * La cadence des sorts, déjà classée par ce qu'elle coûte.
+ *
+ * `compareCasts` rend ses lignes triées par |déviation| × part de dégâts. Le tableau entre
+ * dans le prompt **dans cet ordre**, et le prompt dit que l'ordre est celui de l'impact :
+ * sans quoi le modèle refait le tri à sa façon, sur l'écart brut de casts/min, et met en
+ * tête un filler manqué plutôt que la source de dégâts principale. La fourchette du champ
+ * part avec : un écart à la médiane qui reste dans le min–max n'est pas un écart, c'est un
+ * désaccord entre références.
+ */
+function spellUsageTable(
+  charRotation: RotationSummary,
+  topPlayers: TopPlayer[],
+  charDamage: DamageEntry[]
+): string {
+  const rows = compareCasts(charRotation, topPlayers, charDamage);
+  if (rows.length === 0) return '';
 
-  const headers = ['Ability (casts/min)', 'You', ...topPlayers.map((_, i) => `P${i + 1}`)];
-  const rows = allAbilities.map((name) => [
-    name,
-    charRotation.casts[name]?.perMin.toFixed(2) ?? '0',
-    ...topPlayers.map((p) => p.rotation.casts[name]?.perMin.toFixed(2) ?? '0'),
-  ]);
+  const headers = [
+    'Ability (casts/min)',
+    'You',
+    'Field min',
+    'Field median',
+    'Field max',
+    'Deviation',
+    'Damage share',
+  ];
 
-  return mdTable(headers, rows);
+  return [
+    mdTable(
+      headers,
+      rows.map((c) => abilityRow(c, true))
+    ),
+    '',
+    'Rows are ordered by damage impact — deviation from the reference median weighted by the share of damage ' +
+      'the ability carries — not by raw cast difference. The top row is the finding; do not re-rank the table. ' +
+      'Damage share is taken as the larger of yours and the references’, so an ability the field converts ' +
+      'and you never press still weighs its true cost.',
+  ].join('\n');
 }
 
 /**
@@ -360,63 +529,102 @@ function openingSection(charRotation: RotationSummary, topPlayers: TopPlayer[]):
 }
 
 function uptimeTable(charRotation: RotationSummary, topPlayers: TopPlayer[]): string {
-  const allBuffs = [
-    ...new Set([
-      ...Object.keys(charRotation.buffs),
-      ...topPlayers.flatMap((p) => Object.keys(p.rotation.buffs)),
-    ]),
-  ].filter((name) => {
-    const charPct = charRotation.buffs[name] ?? 0;
-    const topPct = topPlayers.reduce((s, p) => s + (p.rotation.buffs[name] ?? 0), 0);
-    return charPct + topPct > 0;
-  });
+  const rows = compareUptimes(charRotation, topPlayers);
+  if (rows.length === 0) return '';
 
-  if (allBuffs.length === 0) return '';
+  const headers = ['Buff uptime (%)', 'You', 'Field min', 'Field median', 'Field max', 'Deviation'];
 
-  const headers = ['Buff uptime (%)', 'You', ...topPlayers.map((_, i) => `P${i + 1}`)];
-  const rows = allBuffs.map((name) => [
-    name,
-    String(charRotation.buffs[name] ?? 0),
-    ...topPlayers.map((p) => String(p.rotation.buffs[name] ?? 0)),
-  ]);
-
-  return mdTable(headers, rows);
+  return [
+    mdTable(
+      headers,
+      rows.map((c) => abilityRow(c, false))
+    ),
+    '',
+    'Ordered by deviation from the reference median. No damage share applies here — an uptime is ' +
+      'a state, not a damage source — so read these rows as support for a rotation gap, never as the finding itself.',
+  ].join('\n');
 }
 
+/** Combien de sources de dégâts chaque côté fait entrer dans l'union. */
+const TOP_DAMAGE_SOURCES = 10;
+
+/**
+ * La répartition des dégâts, dans les deux sens.
+ *
+ * Ancrer le tableau sur mes seules dix premières sources rendait structurellement invisible
+ * le cas le plus actionnable : un sort dont les références tirent une part réelle de leurs
+ * dégâts et que je n'utilise presque pas n'apparaissait nulle part, faute de figurer dans ma
+ * propre tête de liste. L'union des deux têtes de liste le fait entrer, et la colonne d'écart
+ * le nomme — c'est le cœur de la question « où passent les dégâts qui me manquent ».
+ */
 function damageTable(charEntries: DamageEntry[], topPlayers: TopPlayer[]): string {
   const charTotal = charEntries.reduce((s, e) => s + e.total, 0);
-  if (charTotal === 0) return '';
-
   const topTotals = topPlayers.map((p) => p.damageTable.entries.reduce((s, e) => s + e.total, 0));
+  if (charTotal === 0 && topTotals.every((t) => t === 0)) return '';
 
-  const topAbilities = charEntries.slice(0, 10).map((e) => e.name);
+  const shareIn = (entries: DamageEntry[], total: number, name: string) =>
+    total > 0 ? ((entries.find((e) => e.name === name)?.total ?? 0) / total) * 100 : null;
 
-  const headers = ['Damage source', 'You %', ...topPlayers.map((_, i) => `P${i + 1} %`)];
-  const rows = topAbilities.map((name) => {
-    const charPct = (
-      ((charEntries.find((e) => e.name === name)?.total ?? 0) / charTotal) *
-      100
-    ).toFixed(1);
-    const topPcts = topPlayers.map((p, i) => {
-      const entry = p.damageTable.entries.find((e) => e.name === name);
-      return topTotals[i] > 0 ? (((entry?.total ?? 0) / topTotals[i]) * 100).toFixed(1) : '—';
-    });
-    return [name, charPct, ...topPcts];
+  const mineShare = (name: string) => shareIn(charEntries, charTotal, name) ?? 0;
+  const fieldShares = (name: string) =>
+    topPlayers
+      .map((p, i) => shareIn(p.damageTable.entries, topTotals[i], name))
+      .filter((v): v is number => v !== null);
+  const fieldMedian = (name: string) => medianOf(fieldShares(name));
+
+  const mineTop = [...charEntries]
+    .sort((a, b) => b.total - a.total)
+    .slice(0, TOP_DAMAGE_SOURCES)
+    .map((e) => e.name);
+
+  const everyName = [
+    ...new Set([
+      ...charEntries.map((e) => e.name),
+      ...topPlayers.flatMap((p) => p.damageTable.entries.map((e) => e.name)),
+    ]),
+  ];
+  const fieldTop = everyName
+    .map((name) => ({ name, median: fieldMedian(name) }))
+    .filter((x): x is { name: string; median: number } => x.median !== null)
+    .sort((a, b) => b.median - a.median)
+    .slice(0, TOP_DAMAGE_SOURCES)
+    .map((x) => x.name);
+
+  const names = [...new Set([...mineTop, ...fieldTop])].sort(
+    (a, b) =>
+      Math.max(mineShare(b), fieldMedian(b) ?? 0) - Math.max(mineShare(a), fieldMedian(a) ?? 0)
+  );
+  if (names.length === 0) return '';
+
+  const headers = [
+    'Damage source',
+    'You %',
+    'Field median %',
+    'Gap (pts)',
+    ...topPlayers.map((_, i) => `P${i + 1} %`),
+  ];
+  const rows = names.map((name) => {
+    const mine = mineShare(name);
+    const median = fieldMedian(name);
+    return [
+      name,
+      mine.toFixed(1),
+      median === null ? '—' : median.toFixed(1),
+      median === null ? '—' : signedPct(median - mine).replace('%', ''),
+      ...topPlayers.map((p, i) => {
+        const share = shareIn(p.damageTable.entries, topTotals[i], name);
+        return share === null ? '—' : share.toFixed(1);
+      }),
+    ];
   });
 
-  return mdTable(headers, rows);
-}
-
-function makeTalentNameFn(nodes: TalentNode[]) {
-  return function talentName(talentId: number): string {
-    const node = nodes.find((n) => n.talentIds.includes(talentId));
-    if (!node) return `#${talentId}`;
-    if (node.nodeType === 'choice') {
-      const idx = node.talentIds.indexOf(talentId);
-      return node.names[idx] ?? node.name;
-    }
-    return node.name;
-  };
+  return [
+    mdTable(headers, rows),
+    '',
+    'The union of your biggest damage sources and the field’s, so an ability you barely use still appears ' +
+      'when the references draw real damage from it. Gap = field median − you, in points of total damage: ' +
+      'a large positive gap is damage the field converts and you do not.',
+  ].join('\n');
 }
 
 /**
@@ -425,60 +633,44 @@ function makeTalentNameFn(nodes: TalentNode[]) {
  * « Deux références sur trois prennent X » et « onze sur douze prennent X » n'appellent pas
  * la même conclusion, et seule la seconde formulation permet au modèle de distinguer un
  * choix de niche d'un standard. Le dénominateur est donc toujours écrit.
+ *
+ * Le calcul est celui de `diffTalents`, celui de l'écran — et non plus une copie locale qui
+ * ignorait la fusion des variantes de spec à une même position de grille : elle pouvait
+ * nommer un talent fantôme, jamais montré au joueur, que le modèle lui reprochait ensuite.
  */
-function talentDiff(
+function talentSection(
+  nodes: TalentNode[],
   myTalents: Record<number, number>,
-  sample: ReferenceSample[],
-  talentName: (id: number) => string
+  sample: ReferenceSample[]
 ): string {
   const { entries } = usableSample(sample);
   if (entries.length === 0) return '';
 
-  const total = entries.length;
-  const takenBy = (id: number) => entries.filter((e) => e.stats.talents[id] !== undefined).length;
+  const lines = [`Field size: ${entries.length} comparable logs.`];
 
-  const myIds = new Set(Object.keys(myTalents).map(Number));
-  const fieldIds = new Set(entries.flatMap((e) => Object.keys(e.stats.talents).map(Number)));
-
-  const lines: string[] = [`Field size: ${total} comparable logs.`];
-
-  const mine = [...myIds]
-    .map((id) => ({ id, count: takenBy(id) }))
-    .filter(({ count }) => count < total)
-    .sort((a, b) => a.count - b.count);
-  if (mine.length > 0) {
+  // L'arbre est une donnée statique par spec : quand il manque, les ids de talents ne se
+  // traduisent pas en noms. Le dire vaut mieux que rendre une liste de `#123456`.
+  if (nodes.length === 0) {
     lines.push(
-      `Your picks the field does not share: ${mine
-        .map(({ id, count }) => `${talentName(id)} (${count}/${total})`)
-        .join(', ')}`
+      'Talent tree unavailable for this spec — the builds cannot be compared here, so say nothing about them.'
     );
+    return lines.join('\n');
   }
 
-  const theirs = [...fieldIds]
-    .filter((id) => !myIds.has(id))
-    .map((id) => ({ id, count: takenBy(id) }))
-    .sort((a, b) => b.count - a.count);
-  if (theirs.length > 0) {
-    lines.push(
-      `Taken by the field, not by you: ${theirs
-        .map(({ id, count }) => `${talentName(id)} (${count}/${total})`)
-        .join(', ')}`
-    );
+  const { mineOnly, theirsOnly, sharedCount } = diffTalents(nodes, myTalents, entries);
+  const describe = (e: TalentDiffEntry) => `${e.label} (${e.referenceCount}/${e.referenceTotal})`;
+
+  if (mineOnly.length > 0) {
+    lines.push(`Your picks the field does not share: ${mineOnly.map(describe).join(', ')}`);
+  }
+  if (theirsOnly.length > 0) {
+    lines.push(`Taken by the field, not by you: ${theirsOnly.map(describe).join(', ')}`);
+  }
+  if (mineOnly.length === 0 && theirsOnly.length === 0) {
+    lines.push(`Your build matches the field on all ${sharedCount} shared nodes.`);
   }
 
-  const rankDiffs = [...myIds].flatMap((id) => {
-    const ranks = entries
-      .map((e) => e.stats.talents[id])
-      .filter((r): r is number => r !== undefined);
-    const d = ranks.length > 0 ? describeValues(myTalents[id], ranks) : null;
-    if (!d || d.median === d.mine) return [];
-    return [
-      `${talentName(id)}: you rank ${d.mine}, field median ${d.median} (${ranks.length}/${total})`,
-    ];
-  });
-  if (rankDiffs.length > 0) lines.push(`Rank differences: ${rankDiffs.join('; ')}`);
-
-  return lines.length === 1 ? 'Your build matches the field on every node.' : lines.join('\n');
+  return lines.join('\n');
 }
 
 /**
@@ -487,7 +679,7 @@ function talentDiff(
  * Sans elle, le corpus de retours mélangerait des jugements portés sur deux conseils
  * différents sous une seule étiquette : « inutile » ne dirait plus de quel rapport on parle.
  */
-export const PROMPT_VERSION = 2;
+export const PROMPT_VERSION = 3;
 
 /**
  * Les axes que le rapport peut couvrir — le vocabulaire commun de l'empreinte du conseil
@@ -498,6 +690,7 @@ export const PROMPT_VERSION = 2;
  * distinctes rendraient cette confrontation impossible.
  */
 export const PROMPT_AXES = [
+  'targets',
   'trajectory',
   'stats',
   'spell-usage',
@@ -509,6 +702,7 @@ export const PROMPT_AXES = [
 export type PromptAxis = (typeof PROMPT_AXES)[number];
 
 const AXIS_HEADINGS: Record<PromptAxis, string> = {
+  targets: '### Damage by Target',
   trajectory: '### Trajectory',
   stats: '### Gear & Stats',
   'spell-usage': '### Spell Usage',
@@ -519,10 +713,7 @@ const AXIS_HEADINGS: Record<PromptAxis, string> = {
 };
 
 /** Le corps de chaque axe, vide quand l'axe n'a rien à dire. Source unique du prompt et de l'empreinte. */
-function axisBodies(
-  boss: BossResult,
-  talentName: (id: number) => string
-): Record<PromptAxis, string> {
+function axisBodies(boss: BossResult, talentNodes: TalentNode[]): Record<PromptAxis, string> {
   const topPlayers = boss.topPlayers.slice(0, 3);
   const charStats = {
     ...boss.character.stats,
@@ -534,13 +725,18 @@ function axisBodies(
   };
 
   return {
+    targets: targetTable(boss.fightTargets, topPlayers),
     trajectory: trajectorySection(boss.character.trajectory),
     stats: statsTable(charStats, boss.comparability.myKillTimeMs, boss.sample),
-    'spell-usage': spellUsageTable(boss.character.rotation, topPlayers),
+    'spell-usage': spellUsageTable(
+      boss.character.rotation,
+      topPlayers,
+      boss.character.damageTable.entries
+    ),
     opening: openingSection(boss.character.rotation, topPlayers),
     uptimes: uptimeTable(boss.character.rotation, topPlayers),
     damage: damageTable(boss.character.damageTable.entries, topPlayers),
-    talents: talentDiff(boss.character.stats.talents, boss.sample, talentName),
+    talents: talentSection(talentNodes, boss.character.stats.talents, boss.sample),
   };
 }
 
@@ -556,7 +752,7 @@ function axisBodies(
  * axes au corps non vide sont comptés.
  */
 export function coveredAxes(boss: BossResult, talentNodes: TalentNode[] = []): PromptAxis[] {
-  const bodies = axisBodies(boss, makeTalentNameFn(talentNodes));
+  const bodies = axisBodies(boss, talentNodes);
   return PROMPT_AXES.filter((axis) => bodies[axis].trim().length > 0);
 }
 
@@ -564,7 +760,6 @@ export function buildAnalysisPrompt(
   result: AnalysisResult,
   talentNodes: TalentNode[] = []
 ): string {
-  const talentName = makeTalentNameFn(talentNodes);
   const difficultyLabel: Record<number, string> = { 3: 'Normal', 4: 'Heroic', 5: 'Mythic' };
   const diff = difficultyLabel[result.input.difficulty] ?? `Difficulty ${result.input.difficulty}`;
 
@@ -585,23 +780,29 @@ export function buildAnalysisPrompt(
       // alors que les tableaux se lisent sur les seuls qualifiés donnerait deux effectifs
       // différents pour la même chose.
       const fieldSize = usableSample(boss.sample).entries.length;
-      const bodies = axisBodies(boss, talentName);
+      const bodies = axisBodies(boss, talentNodes);
 
       const sections: string[] = [
         `## ${boss.encounter}`,
-        `Fight targets: ${fightTargetsLine(boss.fightTargets)}`,
         '',
-        comparabilitySection(boss.comparability),
+        comparabilitySection(boss),
         '',
         // Les deux échantillons n'ont pas le même prix : stats et talents sortent d'un
-        // `CombatantInfo` déjà payé, dégâts et rotation coûtent une requête par référence.
+        // `CombatantInfo` déjà récupéré, dégâts et rotation coûtent une requête par référence.
         // Le modèle doit savoir sur combien de logs chaque tableau repose, sans quoi il
         // parlera d'une tendance là où il n'y a que trois joueurs.
         `Stats and talents are compared against the full comparable field (${fieldSize} logs). ` +
-          `Spell usage, buff uptimes and damage breakdown are compared against the ${topPlayers.length} closest of them only — ` +
+          `Spell usage, buff uptimes, damage breakdown and target split are compared against the ${topPlayers.length} closest of them only — ` +
           'do not present those as the behaviour of a whole population.',
         '',
       ];
+
+      // Premier, parce que la première question est « quel combat ». Une divergence de cible
+      // change la lecture de tous les tableaux qui suivent : un écart de rotation lu sans
+      // elle attribue au joueur ce qui était son assignation.
+      if (bodies.targets) {
+        sections.push(AXIS_HEADINGS.targets, bodies.targets, '');
+      }
 
       // Avant les tableaux du soir : ils décrivent un combat, la trajectoire dit s'il
       // s'inscrit dans une progression ou dans un palier. Un rapport isolé — source illisible
@@ -644,12 +845,14 @@ export function buildAnalysisPrompt(
     '---',
     '',
     'For each boss with data, provide:',
-    '1. The single most impactful rotation fix with exact numbers.',
-    '2. Any secondary rotation issues (cast frequency, damage contribution of key abilities).',
-    '3. Where the player sits in the comparable field on stats.',
-    '4. Talent notes if differences exist, with their adoption count.',
-    '5. One thing to focus on next raid.',
+    '1. The most impactful rotation fix — the top of the ranked table, or the largest damage-breakdown gap, with exact numbers.',
+    '2. The next gaps in the same order: damage impact first, raw cast difference only as a tie-breaker.',
+    '3. The target split, only when it diverges, and named as a difference in assignment.',
+    '4. Where the player sits in the comparable field on stats.',
+    '5. Talent notes if differences exist, with their adoption count.',
+    '6. One thing to focus on next raid.',
     '',
-    'Be concise. Cite exact numbers. Skip bosses marked "No data available".',
+    'Be concise. Cite exact numbers from the tables, recommend only what a reference already does, ' +
+      'and skip bosses marked "No data available".',
   ].join('\n');
 }

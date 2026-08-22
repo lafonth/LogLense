@@ -380,7 +380,7 @@ describe('comparability section', () => {
 describe('system prompt', () => {
   it('exists and describes the analysis process', () => {
     expect(SYSTEM_PROMPT).toContain('WarcraftLogs');
-    expect(SYSTEM_PROMPT).toContain('Fight targets');
+    expect(SYSTEM_PROMPT).toContain('Damage by Target');
     expect(SYSTEM_PROMPT).toContain('Spell Usage');
   });
 });
@@ -524,5 +524,156 @@ describe('coveredAxes', () => {
     for (const axis of coveredAxes(makeBoss())) {
       expect(PROMPT_AXES).toContain(axis);
     }
+  });
+});
+
+describe('spell usage ordering', () => {
+  // Le tri par écart brut mettrait Ferocious Bite (−16.7 %) devant Shred (−10.3 %). Pondéré
+  // par la part de dégâts, Shred passe devant : c'est lui qui coûte du DPS, l'autre non.
+  it('orders the rows by damage impact, not by raw deviation', () => {
+    const prompt = buildAnalysisPrompt(resultWith(makeBoss()));
+    const table = prompt.slice(prompt.indexOf('### Spell Usage'));
+
+    const at = (name: string) => table.indexOf(`| ${name} |`);
+
+    expect(at('Rip')).toBeGreaterThan(-1);
+    expect(at('Rip')).toBeLessThan(at('Shred'));
+    expect(at('Shred')).toBeLessThan(at('Ferocious Bite'));
+    expect(at('Ferocious Bite')).toBeLessThan(at('Berserk'));
+  });
+
+  // Le modèle refait le tri à sa façon s'il n'est pas prévenu que celui-ci porte un sens.
+  it('says the order is the impact order and forbids re-ranking', () => {
+    const prompt = buildAnalysisPrompt(resultWith(makeBoss()));
+
+    expect(prompt).toContain('ordered by damage impact');
+    expect(prompt).toContain('do not re-rank the table');
+  });
+});
+
+describe('talent section', () => {
+  /**
+   * Blizzard rend deux copies de spec à la même position de grille. Fusionnées, elles font
+   * un nœud que le joueur a rempli ; comptées séparément, la seconde devient un talent
+   * « pris par le champ, pas par toi » que l'écran n'a jamais montré.
+   */
+  const twinNodes = [
+    {
+      id: 900,
+      talentIds: [391528],
+      name: 'Convoke the Spirits',
+      names: ['Convoke the Spirits'],
+      spellId: 391528,
+      row: 1,
+      col: 0,
+      maxRanks: 1,
+      nodeType: 'single' as const,
+      treeType: 'spec' as const,
+      children: [],
+    },
+    {
+      id: 901,
+      talentIds: [395152],
+      name: '',
+      names: [],
+      spellId: 395152,
+      row: 1,
+      col: 0,
+      maxRanks: 1,
+      nodeType: 'single' as const,
+      treeType: 'spec' as const,
+      children: [],
+    },
+  ];
+
+  it('names no talent the player was never shown', () => {
+    const prompt = buildAnalysisPrompt(resultWith(makeBoss()), twinNodes);
+
+    expect(prompt).toContain('Talent Differences');
+    expect(prompt).toContain('shared nodes');
+    expect(prompt).not.toContain('Taken by the field, not by you');
+    expect(prompt).not.toContain('#395152');
+  });
+
+  it('says the tree is missing rather than listing raw ids', () => {
+    const prompt = buildAnalysisPrompt(resultWith(makeBoss()));
+
+    expect(prompt).toContain('Talent tree unavailable for this spec');
+  });
+});
+
+describe('damage breakdown', () => {
+  // Le cas que le produit vend : Rake est 27 % des dégâts de la référence et zéro des miens.
+  // Ancré sur mon seul top-N, il n'apparaissait pas — donc le rapport n'en parlait jamais.
+  it('holds an ability only the field converts', () => {
+    const prompt = buildAnalysisPrompt(resultWith(makeBoss()));
+    const table = prompt.slice(prompt.indexOf('### Damage Breakdown'));
+
+    expect(table).toContain('| Rake |');
+    expect(table).toContain('Gap (pts)');
+    // 0 % chez moi, 26.7 % chez la référence : l'écart est positif et se lit dans ce sens.
+    const row = table.split('\n').find((l) => l.startsWith('| Rake |')) ?? '';
+    expect(row).toContain('| 0.0 |');
+    expect(row).toContain('| +26.7 |');
+  });
+});
+
+describe('target split', () => {
+  it('puts the subject and each reference side by side', () => {
+    const boss = makeBoss();
+    boss.topPlayers[0].fightTargets = [
+      { name: 'Chimaerus', type: 'Boss', damagePct: 81.0 },
+      { name: 'Frenzied Whelp', type: 'NPC', damagePct: 19.0 },
+    ];
+
+    const prompt = buildAnalysisPrompt(resultWith(boss));
+    const table = prompt.slice(prompt.indexOf('### Damage by Target'));
+
+    expect(table).toContain('| Target | Type | You % | P1 % |');
+    expect(table).toContain('| Chimaerus | Boss | 95.0 | 81.0 |');
+    // Le sujet n'a rien mis sur l'add : la case dit 0.0, pas un tiret — il a bien un relevé.
+    expect(table).toContain('| Frenzied Whelp | NPC | 0.0 | 19.0 |');
+    expect(table).toContain('difference in assignment, not a mistake');
+  });
+
+  it('forbids calling a divergence when no reference reported a split', () => {
+    const prompt = buildAnalysisPrompt(resultWith(makeBoss()));
+
+    expect(prompt).toContain('No reference target split available');
+    expect(prompt).toContain('do not call any divergence');
+  });
+});
+
+describe('scope of the prompt', () => {
+  /**
+   * La mort précoce est un avertissement de comparabilité, rendu à l'écran par le bandeau.
+   * Elle n'entre pas dans le prompt : le modèle conseille les dégâts sortants, et une donnée
+   * de survie dans ses tableaux l'amènerait à coacher la survie — hors périmètre, et sur une
+   * seule pull, sans valeur.
+   */
+  it('lets no death data reach the model', () => {
+    const boss = makeBoss();
+    boss.character.context = {
+      deaths: 4,
+      subjectDied: true,
+      subjectDeathMs: 111600,
+      wipesBefore: 7,
+    };
+
+    const prompt = buildAnalysisPrompt(resultWith(boss));
+
+    expect(prompt).not.toMatch(/\bdeaths?\b/i);
+    expect(prompt).not.toMatch(/\bdied\b/i);
+    expect(prompt).not.toMatch(/\bwipes?\b/i);
+    expect(prompt).not.toContain('111,600');
+    // La formulation la plus forte : le contexte de pull ne change pas un caractère du
+    // prompt. L'`earlyDeathPct` du verdict, dérivé de ces mêmes champs, ne fuit donc pas non
+    // plus par la section de comparabilité.
+    expect(prompt).toBe(buildAnalysisPrompt(resultWith(makeBoss())));
+  });
+
+  it('tells the model to stay on outgoing damage', () => {
+    expect(SYSTEM_PROMPT).toContain('outgoing damage only');
+    expect(SYSTEM_PROMPT).toMatch(/never advise on survival/i);
   });
 });
