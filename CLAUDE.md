@@ -141,7 +141,7 @@ n'atteindra que deux écrans sur quatre.** Les deux autres ne bougeront pas, et 
 signalera : qui durcit la comparabilité doit trancher explicitement, pipeline par pipeline,
 si la règle s'y applique — et l'écrire ici.
 
-Faire converger les quatre n'est pas au programme : `PRODUCT_CONTEXT.md` §9 acte qu'il n'y a
+Faire converger les quatre n'est pas au programme : `PRODUCT_CONTEXT.md` §5 acte qu'il n'y a
 pas davantage de travail de comparabilité à faire. Cette section dit donc l'état réel, pour
 qu'on ne s'appuie pas sur une garantie qui n'existe pas.
 
@@ -187,9 +187,11 @@ pnpm format:check
 
 ## Contexte produit
 
-`PRODUCT_CONTEXT.md` contient le cadrage complet : friction centrale, critères de
-comparabilité, modèle de monétisation, architecture v1/v2, état vérifié du code et ordre
-des travaux.
+`PRODUCT_CONTEXT.md` est la revue produit et marché, refaite de zéro le 2026-08-22 : paysage
+concurrentiel, capacité réelle à acquérir des joueurs, modèle de pass de saison individuel et
+guilde, décisions closes et ordre des travaux ouverts. Il ne contient plus de technique —
+celle-ci vit dans `docs/`. Les documents de `docs/superpowers/` qui renvoient à ses anciennes
+sections numérotées pointent vers la version précédente et n'ont pas été réécrits.
 
 `ia-ml-architecture.md` complète le cadrage côté technique : distinction IA gadget /
 structurante, familles de modèles, et les architectures v0 / v1 / v2 en diagrammes.
