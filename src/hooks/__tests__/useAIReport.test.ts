@@ -16,12 +16,12 @@ const mockAnalysisResult: AnalysisResult = {
   generatedAt: '2026-05-13T00:00:00Z',
 };
 
-function makeStreamResponse(chunks: string[]): Response {
+function makeStreamResponse(chunks: (string | Uint8Array)[]): Response {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     start(controller) {
       for (const chunk of chunks) {
-        controller.enqueue(encoder.encode(chunk));
+        controller.enqueue(typeof chunk === 'string' ? encoder.encode(chunk) : chunk);
       }
       controller.close();
     },
@@ -142,6 +142,56 @@ describe('useAIReport', () => {
     expect(result.current.text).toBe('');
     expect(result.current.error).toBeNull();
     expect(result.current.loading).toBe(false);
+  });
+
+  /*
+   * Le défaut que ces trois cas ferment : une trame SSE coupée par la frontière de chunk
+   * partait en deux `JSON.parse` en échec, tous deux avalés par le `catch` — du texte perdu
+   * sans qu'aucune erreur ne le dise.
+   */
+  it('recolle une trame SSE coupée entre deux chunks', async () => {
+    const frame = sseChunk('Hello world');
+    const cut = Math.floor(frame.length / 2);
+    vi.mocked(fetch).mockResolvedValue(
+      makeStreamResponse([frame.slice(0, cut), frame.slice(cut), sseChunk('[DONE]')])
+    );
+
+    const { result } = renderHook(() => useAIReport());
+
+    await act(async () => {
+      await result.current.start(mockAnalysisResult, 'test-key', 'groq');
+    });
+
+    expect(result.current.text).toBe('Hello world');
+    expect(result.current.error).toBeNull();
+  });
+
+  it('lit la dernière trame même sans saut de ligne final', async () => {
+    vi.mocked(fetch).mockResolvedValue(makeStreamResponse([sseChunk('first '), 'data: "last"']));
+
+    const { result } = renderHook(() => useAIReport());
+
+    await act(async () => {
+      await result.current.start(mockAnalysisResult, 'test-key', 'groq');
+    });
+
+    expect(result.current.text).toBe('first last');
+  });
+
+  it('recolle un caractère multi-octets coupé entre deux chunks', async () => {
+    const frame = sseChunk('été');
+    const bytes = new TextEncoder().encode(frame);
+    // La coupure tombe au milieu des deux octets du « é ».
+    const cut = bytes.length - 3;
+    vi.mocked(fetch).mockResolvedValue(makeStreamResponse([bytes.slice(0, cut), bytes.slice(cut)]));
+
+    const { result } = renderHook(() => useAIReport());
+
+    await act(async () => {
+      await result.current.start(mockAnalysisResult, 'test-key', 'groq');
+    });
+
+    expect(result.current.text).toBe('été');
   });
 
   it('does not set error when aborted (AbortError is swallowed)', async () => {

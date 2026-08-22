@@ -50,28 +50,47 @@ export function useAIReport() {
         if (!reader) throw new Error('No response body');
 
         const decoder = new TextDecoder();
+        /*
+         * Une trame SSE n'a aucune raison de tomber sur une frontière de chunk. Sans tampon,
+         * la moitié d'un `data:` partait au `JSON.parse` du tour courant, l'autre moitié au
+         * suivant : deux échecs avalés par le `catch` ci-dessous, et du texte perdu sans
+         * qu'aucune erreur ne le dise. `{ stream: true }` traite le même problème un cran
+         * plus bas, sur les caractères multi-octets coupés en deux. Même construction que
+         * `gemini.ts` et `groq.ts`.
+         */
+        let buffer = '';
+
+        const handleLine = (line: string) => {
+          if (!line.startsWith('data: ')) return;
+          const raw = line.slice(6).trim();
+          if (!raw || raw === '[DONE]') return;
+          try {
+            const chunk = JSON.parse(raw) as string | UsageEvent;
+            if (chunk === '[DONE]') return;
+            if (typeof chunk === 'object' && chunk._meta === 'usage') {
+              const { _meta: _, ...data } = chunk;
+              setUsage(data as UsageData);
+            } else if (typeof chunk === 'string') {
+              setText((prev) => prev + chunk);
+            }
+          } catch {
+            // ignore malformed chunks
+          }
+        };
+
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
+          buffer += decoder.decode(value, { stream: true });
 
-          const lines = decoder.decode(value).split('\n');
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            const raw = line.slice(6);
-            try {
-              const chunk = JSON.parse(raw) as string | UsageEvent;
-              if (chunk === '[DONE]') break;
-              if (typeof chunk === 'object' && chunk._meta === 'usage') {
-                const { _meta: _, ...data } = chunk;
-                setUsage(data as UsageData);
-              } else if (typeof chunk === 'string') {
-                setText((prev) => prev + chunk);
-              }
-            } catch {
-              // ignore malformed chunks
-            }
-          }
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+          for (const line of lines) handleLine(line);
         }
+
+        // La dernière trame peut arriver sans saut de ligne final : elle est encore au tampon.
+        buffer += decoder.decode();
+        if (buffer) handleLine(buffer);
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           setError(err instanceof Error ? err.message : 'Unknown error');
