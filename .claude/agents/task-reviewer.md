@@ -3,6 +3,7 @@ name: task-reviewer
 description: Reviews one completed task against its brief — spec compliance plus code quality — on a diff that is already packaged into a file. Use after an implementer finishes a task, and for scoped re-reviews of a small fix diff. Read-only.
 tools: Read, Grep, Glob, Bash
 model: sonnet
+effort: xhigh
 ---
 
 You review one task's diff. You give two verdicts and both are required: **spec

@@ -41,9 +41,35 @@ laissé en contexte, et de la durée d'une session avant compaction.
 - **Filtrer la sortie de chaque commande.** `pnpm test` passe par
   `| grep -E "Tests |FAIL"`, un build par `| tail`. Un dump complet de vitest fait des
   centaines de lignes qui restent en contexte et sont relues à chaque tour suivant.
+- **Répartition des rôles, par défaut et sans qu'on la redemande.** La session principale
+  planifie, arbitre et rédige : Opus, effort `high` — réglé une fois dans
+  `~/.claude/settings.json` (`model`, `effortLevel`). L'exécution part en sous-agent, dont
+  le modèle et l'effort sont épinglés dans `.claude/agents/`. Le critère de délégation
+  n'est pas la difficulté de la tâche mais **le volume qu'elle déverse dans le
+  transcript** : lectures multiples, sorties de tests, édition sur plusieurs fichiers. Ce
+  qui tient en dix lignes de sortie se fait en ligne — un démarrage à froid coûte plus
+  cher que la tâche.
+- **La recherche ne se fait pas dans le transcript principal.** Un `grep` qui ramène vingt
+  fichiers coûte, à chaque tour suivant, le prix de sa relecture en Opus. Trois lectures
+  ciblées passent en ligne ; un balayage passe par `Explore`, qui tourne en Haiku et ne
+  rend que sa conclusion. C'est l'économie la plus rentable du dispositif : elle ne retire
+  rien à la qualité de ce qui est décidé ensuite.
 - **Choisir l'agent, pas le modèle.** Les définitions de `.claude/agents/` épinglent le
-  modèle : `implementer` et `task-reviewer` sur Sonnet, `branch-reviewer` sur Opus.
-  Ne pas passer par `general-purpose`, dont le défaut est `inherit` — donc Opus.
+  modèle **et l'effort**. Le routage se fait par type de tâche, jamais par difficulté :
+
+  | Tâche | Agent — modèle |
+  |---|---|
+  | Trouver où quelque chose est traité | `Explore` — Haiku |
+  | Transcrire un plan qui porte déjà le code | `implementer` — Sonnet/`high` |
+  | Relire un diff empaqueté contre son brief | `task-reviewer` — Sonnet/`xhigh` |
+  | Relire une branche entière, tous commits | `branch-reviewer` — Opus/`high` hérité |
+  | Concevoir, arbitrer, trancher produit | session principale — Opus/`high` |
+  | Déboguer une cause inconnue | en ligne — une mauvaise hypothèse coûte plus qu'un modèle |
+
+  Un palier plus bas ne fait économiser que s'il réussit du premier coup : une passe de
+  correction rejoue tout le contexte et annule l'écart. `xhigh` sur Opus reste le poste le
+  plus cher du dispositif. Ne jamais passer par `general-purpose` ni `claude` : leur défaut
+  est `inherit` — donc Opus — et `claude` a `tools: *`, donc un volume non borné.
 - **Une seule dispatch de revue, pas une chaîne.** Revue puis correctif puis re-revue,
   c'est trois démarrages à froid. Corriger soi-même les points mineurs et les vérifier ;
   ne déléguer que ce qui a réellement besoin d'un regard neuf.

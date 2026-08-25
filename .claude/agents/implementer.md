@@ -3,6 +3,7 @@ name: implementer
 description: Implements one task of an existing implementation plan, when the plan already specifies what to build. Use for well-specified, mechanical work — the plan carries the code, the file paths and the test cases. Not for design decisions or ambiguous requirements.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
+effort: high
 ---
 
 You implement exactly one task from an implementation plan, in the repository you are
