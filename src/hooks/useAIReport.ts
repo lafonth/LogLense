@@ -1,5 +1,6 @@
 'use client';
 
+import type { Provider } from '@/lib/ai/catalog';
 import type { UsageData } from '@/lib/ai/provider';
 import type { AnalysisResult } from '@/types';
 import { useCallback, useRef, useState } from 'react';
@@ -17,12 +18,7 @@ export function useAIReport() {
   const abortRef = useRef<AbortController | null>(null);
 
   const start = useCallback(
-    async (
-      result: AnalysisResult,
-      apiKey: string,
-      provider: 'claude' | 'gemini' | 'groq' = 'groq',
-      model?: string
-    ) => {
+    async (result: AnalysisResult, apiKey: string, provider: Provider = 'groq', model?: string) => {
       setText('');
       setUsage(null);
       setError(null);

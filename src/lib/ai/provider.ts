@@ -29,9 +29,17 @@ export interface ToolCall {
   input: unknown;
 }
 
-/** Ce qu'un outil rend au modèle, en texte. Rattaché à l'appel par son identifiant. */
+/**
+ * Ce qu'un outil rend au modèle, en texte. Rattaché à l'appel par son identifiant.
+ *
+ * `name` double l'identifiant parce que toutes les familles ne rattachent pas de la même
+ * façon : Anthropic et OpenAI renvoient l'identifiant de l'appel, Gemini ne connaît qu'un
+ * nom de fonction. Le porter ici évite de le déduire d'un identifiant fabriqué — un nom
+ * d'outil reconstruit par découpage de chaîne casse au premier outil renommé.
+ */
 export interface ToolResult {
   id: string;
+  name: string;
   content: string;
 }
 
@@ -55,9 +63,11 @@ export type AIChatChunk = AIStreamChunk | { type: 'tool_call'; call: ToolCall };
 /**
  * Un fournisseur capable de multi-tour outillé.
  *
- * Séparé de {@link AIProvider} parce que le support des outils est inégal : Groq et Gemini
- * implémentent `stream`, pas ceci. La boucle de chat exige donc ce type, et le refus se lit
- * à la compilation plutôt qu'au premier appel d'outil ignoré.
+ * Séparé de {@link AIProvider} parce que le support des outils est inégal : Claude, Gemini et
+ * OpenAI l'implémentent, Groq n'implémente que `stream` — les modèles servis là-bas rendent des
+ * appels d'outil trop irréguliers pour une boucle qui dépense chez Warcraft Logs. La boucle de
+ * chat exige donc ce type, et le refus se lit à la compilation plutôt qu'au premier appel
+ * d'outil ignoré.
  */
 export interface ToolCapableProvider extends AIProvider {
   streamTurn: (

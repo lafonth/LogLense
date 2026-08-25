@@ -1,7 +1,7 @@
 'use client';
 
 import type { BossState } from '@/hooks/useAnalysis';
-import type { Provider } from '@/hooks/useProvider';
+import type { Provider } from '@/lib/ai/catalog';
 import type { GroqModelId } from '@/lib/ai/groq';
 import type { AnalysisInput, AnalysisResult, BossResult } from '@/types';
 
@@ -12,8 +12,9 @@ import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { useAIReport } from '@/hooks/useAIReport';
-import { useApiKey } from '@/hooks/useApiKey';
 import { useProvider } from '@/hooks/useProvider';
+import { useProviderKeys } from '@/hooks/useProviderKeys';
+import { providerInfo, PROVIDERS } from '@/lib/ai/catalog';
 import { DEFAULT_GROQ_MODEL, GROQ_MODELS } from '@/lib/ai/groq';
 import { buildAnalysisPrompt } from '@/lib/ai/prompt';
 import { getSpecInfo } from '@/lib/specs';
@@ -26,41 +27,9 @@ interface AIReportTabProps {
   activeBossResult: BossResult | null;
 }
 
-const PROVIDERS: {
-  id: Provider;
-  label: string;
-  keyLabel: string;
-  placeholder: string;
-  keyHint: string;
-}[] = [
-  {
-    id: 'groq',
-    label: 'Groq',
-    keyLabel: 'Groq API Key',
-    placeholder: 'gsk_…',
-    keyHint: 'console.groq.com — free tier',
-  },
-  {
-    id: 'gemini',
-    label: 'Gemini Flash',
-    keyLabel: 'Google AI Studio Key',
-    placeholder: 'AIza…',
-    keyHint: 'aistudio.google.com — free tier',
-  },
-  {
-    id: 'claude',
-    label: 'Claude',
-    keyLabel: 'Anthropic API Key',
-    placeholder: 'sk-ant-…',
-    keyHint: 'console.anthropic.com',
-  },
-];
-
 export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTabProps) {
-  const [provider, setProvider] = useProvider();
-  const [claudeKey, setClaudeKey] = useApiKey('loglense_api_key');
-  const [geminiKey, setGeminiKey] = useApiKey('loglense_gemini_key');
-  const [groqKey, setGroqKey] = useApiKey('loglense_groq_key');
+  const [provider, setProvider] = useProvider('loglense_ai_provider', PROVIDERS, 'groq');
+  const [apiKey, setApiKey] = useProviderKeys()[provider];
   const [serverProviders, setServerProviders] = useState<string[]>([]);
   const [selectedBossIdx, setSelectedBossIdx] = useState<number>(() => {
     const first = bossStates.findIndex((s) => s.status === 'success' && s.result !== null);
@@ -101,11 +70,8 @@ export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTab
       .catch(() => {});
   }, []);
 
-  const active = PROVIDERS.find((p) => p.id === provider)!;
+  const active = providerInfo(provider);
   const serverHasKey = serverProviders.includes(provider);
-  const apiKey = provider === 'claude' ? claudeKey : provider === 'groq' ? groqKey : geminiKey;
-  const setApiKey =
-    provider === 'claude' ? setClaudeKey : provider === 'groq' ? setGroqKey : setGeminiKey;
 
   const availableBosses = bossStates
     .map((s, i) => ({

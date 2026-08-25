@@ -139,7 +139,16 @@ describe('runChatLoop', () => {
         text: 'Let me check. ',
         toolCalls: [{ id: 'call-1', name: 'decline_out_of_scope', input: { topic: 'defensives' } }],
       },
-      { role: 'tool', results: [{ id: 'call-1', content: expect.stringContaining('defensives') }] },
+      {
+        role: 'tool',
+        results: [
+          {
+            id: 'call-1',
+            name: 'decline_out_of_scope',
+            content: expect.stringContaining('defensives'),
+          },
+        ],
+      },
     ]);
   });
 

@@ -1,13 +1,17 @@
+import type { Provider } from '@/lib/ai/catalog';
 import type { ChatPromotion, ChatToolLog } from '@/lib/ai/chat-tools';
-import type { AIStreamChunk, ChatTurn } from '@/lib/ai/provider';
+import type { AIStreamChunk, ChatTurn, ToolCapableProvider } from '@/lib/ai/provider';
 import type { PromotionSubject } from '@/lib/wcl/promote';
 import type { BossResult, ReferenceSample, SnapshotRef, TopPlayer } from '@/types';
 import { getServerSession } from 'next-auth/next';
 
+import { CHAT_PROVIDERS, envKeyFor, isChatProvider } from '@/lib/ai/catalog';
 import { runChatLoop } from '@/lib/ai/chat-loop';
 import { buildChatSystemPrompt } from '@/lib/ai/chat-prompt';
 import { subjectKillTimeMs } from '@/lib/ai/chat-tools';
 import { ClaudeProvider } from '@/lib/ai/claude';
+import { GeminiProvider } from '@/lib/ai/gemini';
+import { OpenAIProvider } from '@/lib/ai/openai';
 import { isNum, isRecord, isStr } from '@/lib/api/parse';
 import { guardWclSpend, PROMOTION_UNITS } from '@/lib/api/wcl-guard';
 import { authOptions } from '@/lib/auth';
@@ -39,8 +43,11 @@ export const runtime = 'nodejs';
  * toute faite laisserait lire n'importe quelle entrée du cache, celle d'un autre joueur
  * comprise.
  *
- * Claude seul : la boucle passe par `streamTurn`, que `ToolCapableProvider` impose et que
- * Gemini comme Groq n'implémentent pas. Le type refuse à la compilation, pas à l'exécution.
+ * **Le fournisseur se choisit, sans être libre.** La boucle passe par `streamTurn`, que
+ * `ToolCapableProvider` impose : Claude, Gemini et OpenAI le servent, Groq non. La liste
+ * admissible se dérive de `CHAT_PROVIDERS`, et un nom hors liste est refusé en 400 — le laisser
+ * retomber en silence sur Claude ferait payer notre clé pour un fournisseur que l'utilisateur
+ * croyait avoir choisi.
  */
 
 /**
@@ -201,6 +208,30 @@ async function guardAiSpend(userId: string): Promise<Response | null> {
   return null;
 }
 
+/**
+ * Le fournisseur, à partir d'un nom déjà validé.
+ *
+ * Le type de retour est `ToolCapableProvider` : ajouter ici un fournisseur qui n'implémente pas
+ * `streamTurn` ne compile pas. C'est la même garantie que celle de la boucle, portée au seul
+ * endroit qui construit l'objet.
+ */
+function makeProvider(name: Provider, apiKey: string): ToolCapableProvider {
+  if (name === 'gemini') return new GeminiProvider(apiKey);
+  if (name === 'openai') return new OpenAIProvider(apiKey);
+  return new ClaudeProvider(apiKey);
+}
+
+/**
+ * Les fournisseurs que le chat peut servir sans clé personnelle.
+ *
+ * Séparé du `GET` de `/api/ai-report` : celui-là répond pour le rapport, qui accepte Groq. Les
+ * lire au même endroit ferait proposer dans le chat un fournisseur que la route refuse en 400.
+ */
+export async function GET() {
+  const configured = CHAT_PROVIDERS.filter((p) => envKeyFor(p.id)).map((p) => p.id);
+  return jsonResponse({ configuredProviders: configured });
+}
+
 export async function POST(req: Request) {
   try {
     // Avant tout le reste, et sans exception BYOK : lire un instantané exige une session.
@@ -208,8 +239,16 @@ export async function POST(req: Request) {
     const userId = session?.user?.email ?? session?.user?.name ?? '';
     if (!userId) return jsonResponse({ error: 'Sign in to use the chat' }, 401);
 
+    const requested = req.headers.get('x-ai-provider')?.trim() || 'claude';
+    if (!isChatProvider(requested)) {
+      const names = CHAT_PROVIDERS.map((p) => p.id).join(', ');
+      return jsonResponse({ error: `Unsupported chat provider — expected ${names}` }, 400);
+    }
+    const providerName: Provider = requested;
+
     const headerKey = req.headers.get('x-ai-key')?.trim() ?? '';
-    const apiKey = headerKey || process.env.ANTHROPIC_API_KEY || '';
+    // BYOK d'abord, comme le rapport : qui fournit sa clé paie avec elle.
+    const apiKey = headerKey || envKeyFor(providerName);
     if (!apiKey) {
       return jsonResponse(
         { error: 'API key required — enter one in the UI or set it in the server environment' },
@@ -254,7 +293,7 @@ export async function POST(req: Request) {
       if (refusal) return refusal;
     }
 
-    const provider = new ClaudeProvider(apiKey);
+    const provider = makeProvider(providerName, apiKey);
     const systemPrompt = buildChatSystemPrompt(boss, getTalentNodes(boss.specId));
 
     const history: ChatTurn[] = body.messages.map((m) =>
@@ -297,7 +336,7 @@ export async function POST(req: Request) {
         // Attendue à l'intérieur du `flush` — la fonction vit tant que le flux n'est pas clos,
         // donc c'est le dernier instant où une écriture est encore sûre de partir.
         await recordChat(boss, {
-          provider: 'claude',
+          provider: providerName,
           model: null,
           turn: body.messages.filter((m) => m.role === 'user').length,
           logs,

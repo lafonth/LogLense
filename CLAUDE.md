@@ -113,6 +113,8 @@ src/lib/wcl/
   comparability.ts    Le calcul : distance d'un candidat, sélection, niveau. Importé par
                       references.ts seul
   references.ts       Sélection des logs de comparaison et récupération des joueurs
+  result-snapshot.ts  Le BossResult rendu, relisible 24 h — ce que le chat rejoue
+  promote.ts          Un candidat du `sample` promu en référence complète : trois requêtes
   pipeline.ts         Analyse par personnage : nom → rankings → meilleur parse → rapport
   report-pipeline.ts  Analyse par rapport WCL : code + acteur → rapport
   pull-pipeline.ts    Comparaison de deux pulls du même joueur — sans références
@@ -120,7 +122,19 @@ src/lib/wcl/
 src/lib/comparison/
   talent-diff.ts      Écarts de build : toi seul / eux seuls / communs, avec le compte k sur n
   rotation-stats.ts   Par sort : fourchette des références, médiane, écart, tri par écart
-src/lib/ai/           Construction du prompt et appel Claude
+  cohort.ts           Resélection de la cohorte sur le `sample` — zéro requête WCL
+src/lib/ai/
+  prompt.ts           Le prompt du rapport one-shot, PROMPT_VERSION comprise
+  provider.ts         Les types partagés : AIProvider, ToolCapableProvider, ChatTurn
+  catalog.ts          Les fournisseurs : libellé, clé de stockage, variable d'env, outillé ou non.
+                      La seule liste — route et interface la lisent toutes deux
+  claude.ts gemini.ts openai.ts
+                      Rapport et chat : ils implémentent `streamTurn`
+  groq.ts             Rapport one-shot seulement : pas d'outils, donc pas de chat
+  chat-prompt.ts      Le system prompt du chat : périmètre dégâts, refus hors périmètre
+  chat-tools.ts       Les quatre outils : resélection, comparaison, promotion, refus
+  chat-loop.ts        La boucle agentique — modèle, outils, tours, jusqu'à la réponse
+  markdown.ts         Rendu minimal des tableaux et listes du modèle, sans dépendance
 src/lib/api/
   parse.ts            Validation des corps de requête — un `as` sur `req.json()` ne vérifie rien
   response-error.ts   Ce qu'une réponse en échec dit au client, `Retry-After` compris
@@ -129,6 +143,7 @@ src/lib/labels/
   corpus.ts           Écriture bornée par mois, jamais purgée : le corpus est l'actif
   record-exposure.ts  Capture de ce qui a été rendu, avec la provenance du DPS
   record-advice.ts    Capture des rapports IA rendus
+  record-chat.ts      Capture d'un tour de chat : axe, outils, filtre, refus. Jamais de verbatim
   rate-limit.ts       Quotas : `consumeQuota` échoue ouvert, `consumeStrictQuota` fermé
   schema.ts           Validation des soumissions entrant au corpus (plafonds de corpus)
 src/lib/specs.ts      Table des specs (id → nom de spec et de classe)
@@ -184,6 +199,30 @@ l'amputation du sujet.
 | `report-pipeline.ts` | Oui — idem |
 | `pull-pipeline.ts` | Non — il affiche déjà les morts via `PullContextCard`, et ne compare pas à une cohorte |
 | `raid-ranking.ts` | Non — il ne récupère pas `context`, l'ajouter coûterait une requête par pull |
+
+## Le chat
+
+Le différenciateur, et la seule partie outillée du produit. Il relit l'instantané du
+`BossResult` (`result-snapshot.ts`, 24 h) et rejoue la cohorte à la demande. Quatre invariants,
+tous portés par `src/app/api/chat/route.ts` :
+
+- **La session est exigée pour toute requête, BYOK comprise.** Une clé personnelle achète le
+  modèle, pas le droit de lire nos données dérivées de Warcraft Logs. Le rapport, lui, laisse
+  passer qui apporte sa clé — son corps porte déjà l'analyse.
+- **Le client désigne l'instantané, il ne le nomme pas.** La clé Redis se reforme côté serveur
+  depuis royaume / personnage / rencontre. Accepter une clé toute faite laisserait lire le cache
+  d'un autre joueur.
+- **La resélection est gratuite, la promotion s'annonce.** `cohort.ts` rejoue `scoreCandidate`,
+  `selectClosest` et `comparabilityLevel` sans une requête ; `promote.ts` en coûte trois, passe
+  par `wcl-guard` et le dit avant de dépenser.
+- **Le refus hors périmètre est la position produit**, pas une limite subie : ni survie, ni
+  défensives, ni mécaniques de boss que nous ne voyons pas.
+
+Le chat exige `ToolCapableProvider` (`streamTurn`) et non `AIProvider` : un fournisseur sans
+outils est refusé à la compilation, jamais au premier appel d'outil ignoré. Claude, Gemini et
+OpenAI le servent ; Groq reste au rapport. La liste admissible est `CHAT_PROVIDERS` — le chat
+choisit son fournisseur sous sa propre clé de stockage, sinon un rapport laissé sur Groq
+ouvrirait le chat sur un fournisseur que la route refuse en 400.
 
 ## Interface : tokens et primitives
 

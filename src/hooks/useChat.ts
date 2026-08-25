@@ -1,5 +1,6 @@
 'use client';
 
+import type { Provider } from '@/lib/ai/catalog';
 import type { UsageData } from '@/lib/ai/provider';
 import type { SnapshotRef } from '@/types';
 import { useCallback, useRef, useState } from 'react';
@@ -34,8 +35,12 @@ const MAX_SENT_MESSAGES = 24;
  * Même consommation SSE que `useAIReport` — tampon de ligne, `{ stream: true }`, sentinelle
  * `[DONE]`, trames `_meta: 'usage'`. Ce qui change est la destination du texte : il s'écrit
  * dans le dernier message de la liste au lieu d'un état à lui.
+ *
+ * `provider` voyage en en-tête, comme la clé et comme dans le rapport : le corps porte la
+ * conversation, pas la façon de la servir. Il part toujours, clé personnelle ou non — sans lui
+ * la route retomberait sur Claude, et l'utilisateur paierait un modèle qu'il n'a pas choisi.
  */
-export function useChat(snapshot: SnapshotRef | undefined, apiKey: string) {
+export function useChat(snapshot: SnapshotRef | undefined, apiKey: string, provider: Provider) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -82,6 +87,7 @@ export function useChat(snapshot: SnapshotRef | undefined, apiKey: string) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'x-ai-provider': provider,
             ...(apiKey ? { 'x-ai-key': apiKey } : {}),
           },
           body: JSON.stringify({
@@ -146,7 +152,7 @@ export function useChat(snapshot: SnapshotRef | undefined, apiKey: string) {
         setLoading(false);
       }
     },
-    [apiKey, loading, messages, snapshot]
+    [apiKey, loading, messages, provider, snapshot]
   );
 
   const reset = useCallback(() => {

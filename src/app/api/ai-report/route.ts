@@ -1,11 +1,14 @@
+import type { Provider } from '@/lib/ai/catalog';
 import type { GroqModelId } from '@/lib/ai/groq';
-import type { AIStreamChunk } from '@/lib/ai/provider';
+import type { AIProvider, AIStreamChunk } from '@/lib/ai/provider';
 import type { AnalysisResult } from '@/types';
 import { getServerSession } from 'next-auth/next';
 
+import { envKeyFor, isProvider, PROVIDERS } from '@/lib/ai/catalog';
 import { ClaudeProvider } from '@/lib/ai/claude';
 import { GeminiProvider } from '@/lib/ai/gemini';
 import { DEFAULT_GROQ_MODEL, GROQ_MODELS, GroqProvider } from '@/lib/ai/groq';
+import { OpenAIProvider } from '@/lib/ai/openai';
 import { buildAnalysisPrompt, SYSTEM_PROMPT } from '@/lib/ai/prompt';
 import { authOptions } from '@/lib/auth';
 import { hashUserId } from '@/lib/labels/identity';
@@ -15,13 +18,12 @@ import { getTalentNodes } from '@/lib/talent-loader';
 
 export const runtime = 'nodejs';
 
-/**
- * Les seuls fournisseurs acceptés. La liste est fermée parce qu'un nom inconnu retombait
- * silencieusement sur Claude, donc sur la clé serveur : un en-tête mal orthographié suffisait
- * à faire payer l'hôte.
+/*
+ * Les fournisseurs acceptés viennent du catalogue, et la liste reste fermée : un nom inconnu
+ * retombait silencieusement sur Claude, donc sur la clé serveur, et un en-tête mal orthographié
+ * suffisait à faire payer l'hôte. Le rapport les prend tous, y compris Groq — il n'appelle pas
+ * d'outil, donc rien n'y exige `streamTurn`.
  */
-const PROVIDERS = ['claude', 'gemini', 'groq'] as const;
-type ProviderName = (typeof PROVIDERS)[number];
 
 /**
  * Plafond du corps entrant. Une analyse complète d'un raid tient largement en dessous ; le
@@ -39,14 +41,12 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
   });
 }
 
-function isProviderName(v: string): v is ProviderName {
-  return (PROVIDERS as readonly string[]).includes(v);
-}
-
-function envKeyFor(provider: ProviderName): string {
-  if (provider === 'gemini') return process.env.GEMINI_API_KEY ?? '';
-  if (provider === 'groq') return process.env.GROQ_API_KEY ?? '';
-  return process.env.ANTHROPIC_API_KEY ?? '';
+/** Le fournisseur, à partir d'un nom déjà validé. Seul Groq lit le modèle demandé. */
+function makeProvider(name: Provider, apiKey: string, groqModel: GroqModelId): AIProvider {
+  if (name === 'gemini') return new GeminiProvider(apiKey);
+  if (name === 'groq') return new GroqProvider(apiKey, groqModel);
+  if (name === 'openai') return new OpenAIProvider(apiKey);
+  return new ClaudeProvider(apiKey);
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -107,10 +107,7 @@ async function guardServerKey(): Promise<Response | null> {
 }
 
 export async function GET() {
-  const configured: string[] = [];
-  if (process.env.GEMINI_API_KEY) configured.push('gemini');
-  if (process.env.GROQ_API_KEY) configured.push('groq');
-  if (process.env.ANTHROPIC_API_KEY) configured.push('claude');
+  const configured = PROVIDERS.filter((p) => envKeyFor(p.id)).map((p) => p.id);
   return jsonResponse({ configuredProviders: configured });
 }
 
@@ -119,8 +116,9 @@ export async function POST(req: Request) {
     const headerKey = req.headers.get('x-ai-key')?.trim() ?? '';
     const providerName = req.headers.get('x-ai-provider') ?? 'claude';
 
-    if (!isProviderName(providerName)) {
-      return jsonResponse({ error: `Unknown AI provider — expected ${PROVIDERS.join(', ')}` }, 400);
+    if (!isProvider(providerName)) {
+      const names = PROVIDERS.map((p) => p.id).join(', ');
+      return jsonResponse({ error: `Unknown AI provider — expected ${names}` }, 400);
     }
 
     // BYOK d'abord : qui fournit sa clé paie avec elle. La clé serveur n'est qu'un secours.
@@ -172,12 +170,7 @@ export async function POST(req: Request) {
       if (refusal) return refusal;
     }
 
-    const provider =
-      providerName === 'gemini'
-        ? new GeminiProvider(apiKey)
-        : providerName === 'groq'
-          ? new GroqProvider(apiKey, groqModel)
-          : new ClaudeProvider(apiKey);
+    const provider = makeProvider(providerName, apiKey, groqModel);
 
     const talentNodes = getTalentNodes(result.input.specId);
     const prompt = buildAnalysisPrompt(result, talentNodes);

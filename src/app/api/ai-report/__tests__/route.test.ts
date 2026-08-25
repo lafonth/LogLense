@@ -53,6 +53,12 @@ vi.mock('@/lib/ai/gemini', () => ({
   })),
 }));
 
+vi.mock('@/lib/ai/openai', () => ({
+  OpenAIProvider: vi.fn().mockImplementation(() => ({
+    stream: vi.fn().mockReturnValue(makeTextStream('OpenAI analysis.')),
+  })),
+}));
+
 vi.mock('@/lib/ai/groq', () => ({
   GroqProvider: vi.fn().mockImplementation(() => ({
     stream: vi.fn().mockReturnValue(makeTextStream('Groq analysis.')),
@@ -126,6 +132,16 @@ describe('ai-report route', () => {
     expect(GeminiProvider).toHaveBeenCalledWith('gemini-key');
     const text = await res.text();
     expect(text).toContain('Gemini analysis.');
+  });
+
+  it('uses OpenAIProvider when x-ai-provider is openai', async () => {
+    const { OpenAIProvider } = await import('@/lib/ai/openai');
+    const req = makeRequest(mockResult, { 'x-ai-key': 'openai-key', 'x-ai-provider': 'openai' });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(OpenAIProvider).toHaveBeenCalledWith('openai-key');
+    const text = await res.text();
+    expect(text).toContain('OpenAI analysis.');
   });
 
   it('uses GroqProvider when x-ai-provider is groq', async () => {

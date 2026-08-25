@@ -103,7 +103,11 @@ export function runChatLoop(args: ChatLoopArgs): ReadableStream<AIStreamChunk> {
           for (const call of calls) {
             const outcome = await runChatTool(context, call);
             if (outcome) onLog(outcome.log);
-            results.push({ id: call.id, content: outcome?.content ?? UNKNOWN_TOOL });
+            results.push({
+              id: call.id,
+              name: call.name,
+              content: outcome?.content ?? UNKNOWN_TOOL,
+            });
           }
           turns.push({ role: 'tool', results });
         }

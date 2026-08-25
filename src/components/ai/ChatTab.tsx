@@ -1,5 +1,6 @@
 'use client';
 
+import type { Provider } from '@/lib/ai/catalog';
 import type { BossResult } from '@/types';
 
 import { useEffect, useRef, useState } from 'react';
@@ -7,9 +8,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
-import { useApiKey } from '@/hooks/useApiKey';
 import { useChat } from '@/hooks/useChat';
+import { useProvider } from '@/hooks/useProvider';
+import { useProviderKeys } from '@/hooks/useProviderKeys';
+import { CHAT_PROVIDERS, providerInfo } from '@/lib/ai/catalog';
 import { StreamingText } from './StreamingText';
 
 interface ChatTabProps {
@@ -29,18 +33,24 @@ const SUGGESTIONS = [
 ];
 
 export function ChatTab({ boss }: ChatTabProps) {
-  const [apiKey, setApiKey] = useApiKey('loglense_api_key');
-  const [serverHasKey, setServerHasKey] = useState(false);
+  // Son propre choix, et sa propre clé de stockage : le rapport peut rester sur Groq, que le
+  // chat refuse. Un seul réglage partagé ouvrirait le chat sur un fournisseur que la route 400.
+  const [provider, setProvider] = useProvider('loglense_chat_provider', CHAT_PROVIDERS, 'claude');
+  const [apiKey, setApiKey] = useProviderKeys()[provider];
+  const [serverProviders, setServerProviders] = useState<string[]>([]);
   const [draft, setDraft] = useState('');
-  const { messages, usage, loading, error, send, reset } = useChat(boss?.snapshot, apiKey.trim());
+  const { messages, usage, loading, error, send, reset } = useChat(
+    boss?.snapshot,
+    apiKey.trim(),
+    provider
+  );
   const endRef = useRef<HTMLDivElement>(null);
 
+  // `/api/chat` et non `/api/ai-report` : le rapport annonce aussi Groq, que le chat ne sert pas.
   useEffect(() => {
-    fetch('/api/ai-report')
+    fetch('/api/chat')
       .then((r) => r.json())
-      .then((d: { configuredProviders: string[] }) =>
-        setServerHasKey(d.configuredProviders.includes('claude'))
-      )
+      .then((d: { configuredProviders: string[] }) => setServerProviders(d.configuredProviders))
       .catch(() => {});
   }, []);
 
@@ -66,6 +76,8 @@ export function ChatTab({ boss }: ChatTabProps) {
     );
   }
 
+  const active = providerInfo(provider);
+  const serverHasKey = serverProviders.includes(provider);
   const canSend = serverHasKey || !!apiKey.trim();
 
   function submit(text: string) {
@@ -82,18 +94,38 @@ export function ChatTab({ boss }: ChatTabProps) {
         scope: we do not read them, so we do not comment on them.
       </p>
 
-      {!serverHasKey && (
-        <div className="mb-4">
+      <div className="mb-4">
+        <Select
+          label="Provider"
+          value={provider}
+          disabled={loading}
+          onChange={(e) => setProvider(e.target.value as Provider)}
+        >
+          {CHAT_PROVIDERS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+            </option>
+          ))}
+        </Select>
+      </div>
+
+      <div className="mb-4">
+        {serverHasKey ? (
+          <p className="text-dim m-0 font-mono text-xs">
+            <span className="text-muted mr-1.5">●</span>
+            {active.keyLabel} configured on server
+          </p>
+        ) : (
           <Input
             type="password"
-            label="Anthropic API Key — console.anthropic.com"
-            placeholder="sk-ant-…"
+            label={`${active.keyLabel} — ${active.keyHint}`}
+            placeholder={active.placeholder}
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             disabled={loading}
           />
-        </div>
-      )}
+        )}
+      </div>
 
       {messages.length === 0 && (
         <div className="mb-4 flex flex-col items-start gap-2">
