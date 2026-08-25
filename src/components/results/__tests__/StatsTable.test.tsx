@@ -27,6 +27,8 @@ function sample(name: string, over: Partial<CharacterStats>, qualified = true): 
     dps: 250000,
     killTimeMs: 180000,
     qualified,
+    tierPieces: 2,
+    externalUptime: 0,
     explored: false,
   };
 }

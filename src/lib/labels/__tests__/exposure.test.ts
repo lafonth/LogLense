@@ -64,6 +64,8 @@ function sampleEntry(name: string, i: number, qualified = true, explored = false
     dps: 123456,
     killTimeMs: 317924,
     qualified,
+    tierPieces: 2,
+    externalUptime: 0,
     explored,
   };
 }

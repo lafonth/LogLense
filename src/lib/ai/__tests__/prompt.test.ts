@@ -32,6 +32,8 @@ function sampleEntry(
     dps,
     killTimeMs: 175000,
     qualified,
+    tierPieces: 2,
+    externalUptime: 0,
     explored: false,
   };
 }

@@ -101,6 +101,26 @@ const mockBossResult: BossResult = {
   },
 };
 
+/**
+ * La désignation de l'instantané, telle que la route la recompose depuis le corps reçu : elle
+ * en tire à la fois la clé Redis et la marque frappée sur chaque résultat rendu. C'est cette
+ * marque, et elle seule, que le chat renverra pour relire la même clé — le client ne fournit
+ * jamais de chaîne de clé.
+ */
+const KEY_ARGS = { code: 'abc', actorId: 63, encounterId: 3306, fightId: 17, difficulty: 5 };
+
+/**
+ * Le résultat tel qu'il part. La route frappe la désignation sur tout ce qu'elle rend, y
+ * compris sur une rencontre servie depuis l'instantané : la marque est idempotente, et un lien
+ * partagé ouvre donc le chat exactement comme une analyse fraîche.
+ */
+function stamped(
+  boss: BossResult = mockBossResult,
+  over: Partial<typeof KEY_ARGS> = {}
+): BossResult {
+  return { ...boss, snapshot: { kind: 'report', ...KEY_ARGS, ...over } };
+}
+
 function makeRequest(body: Record<string, unknown>) {
   return new Request('http://localhost/api/report/analyze', {
     method: 'POST',
@@ -221,7 +241,7 @@ describe('report analyze route', () => {
     const body = await res.json();
 
     expect(recordExposure).toHaveBeenCalledTimes(1);
-    expect(recordExposure).toHaveBeenCalledWith([mockBossResult]);
+    expect(recordExposure).toHaveBeenCalledWith([stamped()]);
     // La réponse est inchangée par la capture.
     expect(body.bosses[0].renderId).toBe('render-1');
   });
@@ -252,7 +272,6 @@ describe('report analyze route', () => {
  * autres depuis le cache et ne recalculer que celle-là.
  */
 describe('report analyze route, shared link', () => {
-  const KEY_ARGS = { code: 'abc', actorId: 63, encounterId: 3306, fightId: 17, difficulty: 5 };
   const KEY = reportSnapshotKey(KEY_ARGS);
 
   const SECOND = { id: 3310, name: 'Nexus-King', fightId: 21, fightMs: 240000 };
@@ -273,7 +292,7 @@ describe('report analyze route, shared link', () => {
     await POST(makeRequest(validBody()));
 
     expect(readSnapshot).not.toHaveBeenCalled();
-    expect(writeSnapshot).toHaveBeenCalledWith(KEY, mockBossResult);
+    expect(writeSnapshot).toHaveBeenCalledWith(KEY, stamped());
   });
 
   it('serves the snapshot without touching Warcraft Logs when the marker is set', async () => {
@@ -290,7 +309,7 @@ describe('report analyze route, shared link', () => {
     expect(getWCLToken).not.toHaveBeenCalled();
     expect(analyzeReportBoss).not.toHaveBeenCalled();
     expect(writeSnapshot).not.toHaveBeenCalled();
-    expect(recordExposure).toHaveBeenCalledWith([shared]);
+    expect(recordExposure).toHaveBeenCalledWith([stamped(shared)]);
   });
 
   // Le cas réel du partage en guilde : le lien porte tout le rapport, une seule rencontre a
@@ -318,7 +337,10 @@ describe('report analyze route, shared link', () => {
     expect(getWCLToken).toHaveBeenCalledTimes(1);
     // Et seule celle-là est écrite — l'autre garderait sinon une expiration repoussée.
     expect(writeSnapshot).toHaveBeenCalledTimes(1);
-    expect(writeSnapshot).toHaveBeenCalledWith(SECOND_KEY, mockBossResult);
+    expect(writeSnapshot).toHaveBeenCalledWith(
+      SECOND_KEY,
+      stamped(mockBossResult, { encounterId: 3310, fightId: 21 })
+    );
   });
 
   // Une rencontre qui a échoué revient en `null` : la figer servirait le trou pendant vingt-

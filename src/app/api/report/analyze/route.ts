@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import type { BossResult } from '@/types';
+import type { BossResult, ReportSnapshotRef } from '@/types';
 import { NextResponse } from 'next/server';
 import { isNum, isRecord, isStr, readJson } from '@/lib/api/parse';
 import {
@@ -116,15 +116,18 @@ export async function POST(req: NextRequest) {
 
   return guardMeteredWclSpend('report-analyze', units, async () => {
     try {
-      const snapshotKeys = encounters.map((enc) =>
-        reportSnapshotKey({
-          code,
-          actorId,
-          encounterId: enc.id,
-          fightId: enc.fightId,
-          difficulty,
-        })
-      );
+      // Les désignations d'abord, les clés ensuite : les deux ne peuvent plus diverger, et ce
+      // sont ces mêmes désignations qui sont frappées sur les résultats pour que le chat les
+      // renvoie.
+      const refs: ReportSnapshotRef[] = encounters.map((enc) => ({
+        kind: 'report',
+        code,
+        actorId,
+        encounterId: enc.id,
+        fightId: enc.fightId,
+        difficulty,
+      }));
+      const snapshotKeys = refs.map((ref) => reportSnapshotKey(ref));
 
       // Lus à l'intérieur du garde, jamais dans une route à part : la réservation a déjà refusé
       // l'appelant anonyme, ce qui est tout ce que §2a demande. Un instantané servi ne dépense
@@ -157,7 +160,7 @@ export async function POST(req: NextRequest) {
       const combatants =
         coldFightIds.length > 0 ? fetchReportCombatants(token, code, coldFightIds) : undefined;
 
-      const bosses = await Promise.all(
+      const analysed = await Promise.all(
         encounters.map(
           (enc, i) =>
             snapshots[i] ??
@@ -176,6 +179,11 @@ export async function POST(req: NextRequest) {
             ).catch(() => null)
         )
       );
+
+      // Frappée par la route, pas par le pipeline : `analyzeReportBoss` reçoit les champs de la
+      // désignation éclatés en arguments, et ne les rassemble jamais. Réappliquée sans condition
+      // aux rencontres servies par un instantané — la valeur y est déjà la même.
+      const bosses = analysed.map((boss, i) => (boss ? { ...boss, snapshot: refs[i] } : null));
 
       // Écrit les seules rencontres calculées à froid : réécrire un instantané qu'on vient de
       // lire repousserait son expiration à chaque ouverture du lien, et une durée de vie qu'on

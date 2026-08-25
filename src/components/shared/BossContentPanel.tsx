@@ -5,6 +5,7 @@ import type { EncounterKill } from '@/lib/report-kills';
 import type { AnalysisInput, BossResult, TalentNode } from '@/types';
 import { useEffect, useState } from 'react';
 import { AIReportTab } from '@/components/ai/AIReportTab';
+import { ChatTab } from '@/components/ai/ChatTab';
 import { BossSidebar } from '@/components/results/BossSidebar';
 import { ComparisonTab } from '@/components/results/ComparisonTab';
 import { DpsBanner } from '@/components/results/DpsBanner';
@@ -25,12 +26,13 @@ function shortDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-type TabId = 'overview' | 'comparison' | 'ai-report';
+type TabId = 'overview' | 'comparison' | 'ai-report' | 'chat';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'comparison', label: 'Comparison' },
   { id: 'ai-report', label: 'AI Report' },
+  { id: 'chat', label: 'Chat' },
 ];
 
 interface BossContentPanelProps {
@@ -139,7 +141,7 @@ export function BossContentPanel({
       </div>
 
       <div className="flex flex-col gap-6 md:flex-row">
-        {activeTab !== 'ai-report' && encounters.length > 0 && (
+        {activeTab !== 'ai-report' && activeTab !== 'chat' && encounters.length > 0 && (
           <BossSidebar
             encounters={encounters}
             bossStates={bossStates}
@@ -247,6 +249,14 @@ export function BossContentPanel({
               talentNodes={talentNodes}
               onRetry={onRetryBoss && (() => onRetryBoss(safeIdx))}
             />
+          )}
+          {/*
+            Remonté sur le `renderId` du boss : le chat n'a pas d'état serveur, donc changer de
+            boss sans jeter la conversation la ferait poser des questions sur un instantané et
+            en montrer les réponses sous un autre.
+          */}
+          {activeTab === 'chat' && (
+            <ChatTab key={activeBossResult?.renderId ?? 'none'} boss={activeBossResult} />
           )}
           {activeTab === 'ai-report' && (
             <AIReportTab

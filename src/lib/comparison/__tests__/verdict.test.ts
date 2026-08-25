@@ -13,6 +13,8 @@ function sample(dps: number, qualified = true): ReferenceSample {
     dps,
     killTimeMs: 300000,
     qualified,
+    tierPieces: 2,
+    externalUptime: 0,
     explored: false,
   };
 }

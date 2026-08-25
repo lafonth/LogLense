@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth';
 import { consumeWclQuota, settleWclQuota } from '@/lib/labels/rate-limit';
 import { recordDemand } from '@/lib/labels/record-demand';
 import { meterWclCalls } from '@/lib/wcl/meter';
+import { PROMOTION_WCL_CALLS } from '@/lib/wcl/promote';
 
 /**
  * Ce qu'une analyse de boss **réserve** sur le budget Warcraft Logs, en appels.
@@ -40,6 +41,21 @@ export const RAID_RANKING_UNITS = 3;
  * `BOSS_ANALYSIS_UNITS` — c'est précisément ce qui rend l'écran bon marché à ouvrir.
  */
 export const PULL_COMPARISON_UNITS = 10;
+
+/**
+ * Coût de la promotion d'un candidat en référence complète, depuis le chat.
+ *
+ * Réservation **exacte**, pas un forfait : `promoteReference` fait trois requêtes ou zéro, et
+ * le règlement de `guardMeteredWclSpend` n'est pas jouable ici — il solde quand `run` se
+ * résout, or la promotion part de l'intérieur d'un corps SSE déjà commencé. Le chiffre vient
+ * donc de `PROMOTION_WCL_CALLS` plutôt que d'être recopié : un quatrième appel ajouté à
+ * `fetchFightData` doit se voir sur le budget le jour où il est ajouté, pas au relevé suivant.
+ *
+ * Une promotion servie par le cache de dégâts ne dépense rien chez Warcraft Logs mais débite
+ * quand même le quota. C'est assumé : la réservation est prise avant de savoir si le cache
+ * répond, et un plafond qui se laisse sonder gratuitement n'en est plus un.
+ */
+export const PROMOTION_UNITS = PROMOTION_WCL_CALLS;
 
 /**
  * Bosses analysables en une requête de `/api/report/analyze`.

@@ -241,6 +241,8 @@ function sampleOf(verified: VerifiedCandidate[]): ReferenceSample[] {
         dps: Math.round(candidate.amount),
         killTimeMs: candidate.duration,
         qualified: v.disqualifiedBy.length === 0,
+        tierPieces: v.profile.tierPieces,
+        externalUptime: v.profile.externalUptime,
         explored: v.explored,
       },
     ];

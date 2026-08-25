@@ -175,6 +175,16 @@ export interface ReferenceSample {
   killTimeMs: number;
   /** Faux quand un critère éliminatoire l'a écarté : la distribution doit pouvoir l'exclure. */
   qualified: boolean;
+  /**
+   * Pièces du set de tier, `null` quand l'équipement est absent — jamais zéro par défaut.
+   *
+   * Recopié de l'`EligibilityProfile` déjà payé pour juger le candidat, comme sur
+   * {@link ReferenceProvenance}. C'est ce qui rend une resélection « seulement le 4p »
+   * jouable sur l'instantané, sans une requête de plus.
+   */
+  tierPieces: number | null;
+  /** Points de durée de combat sous buff offensif reçu. Même source, même raison. */
+  externalUptime: number;
   /** Même marque que sur {@link ReferenceProvenance} : tirée hors fenêtre, pas sélectionnée. */
   explored: boolean;
 }
@@ -216,6 +226,43 @@ export interface Comparability {
   substituted: number;
 }
 
+/**
+ * Ce qui désigne une analyse, et donc son instantané : exactement les champs qui entrent dans
+ * la clé Redis, un variant par pipeline.
+ *
+ * Frappé sur le `BossResult` par la route qui l'a produit, parce que le rendu ne suffit pas à
+ * le reconstituer. Un combat forcé et un meilleur parse qui tombe sur ce même combat donnent
+ * deux résultats identiques et deux clés différentes — la variante demandée n'est nulle part
+ * dans ce qu'on affiche. Le chat en a besoin pour relire l'instantané, et il ne peut pas la
+ * deviner.
+ *
+ * C'est une **désignation**, jamais une clé : le client la renvoie telle quelle, le serveur
+ * la revalide et reforme la clé lui-même. Accepter une clé toute faite laisserait lire
+ * n'importe quelle entrée du cache, celle d'un autre joueur comprise.
+ */
+export interface CharacterSnapshotRef {
+  kind: 'character';
+  region: string;
+  serverSlug: string;
+  characterName: string;
+  encounterId: number;
+  difficulty: number;
+  specId: number;
+  specIdOverride?: number;
+  fightOverride?: { code: string; fightID: number };
+}
+
+export interface ReportSnapshotRef {
+  kind: 'report';
+  code: string;
+  actorId: number;
+  encounterId: number;
+  fightId: number;
+  difficulty: number;
+}
+
+export type SnapshotRef = CharacterSnapshotRef | ReportSnapshotRef;
+
 export interface BossResult {
   /**
    * Identifie ce rendu-ci. Les verdicts « pas comparable » le reprennent : sans lui, un
@@ -223,6 +270,11 @@ export interface BossResult {
    * même combat en produit un nouveau — c'est une nouvelle exposition, pas un doublon.
    */
   renderId: string;
+  /**
+   * De quoi relire l'instantané de ce rendu. Absent quand l'analyse n'a pas été instantanée —
+   * un résultat incomplet ne s'écrit pas — et le chat est alors indisponible pour ce boss.
+   */
+  snapshot?: SnapshotRef;
   encounter: string;
   encounterId: number;
   specId: number;

@@ -1,4 +1,4 @@
-import type { AnalysisInput } from '@/types';
+import type { AnalysisInput, CharacterSnapshotRef } from '@/types';
 import { NextResponse } from 'next/server';
 import { isNum, isOneOf, isRecord, isStr, readJson } from '@/lib/api/parse';
 import { BOSS_ANALYSIS_UNITS, guardMeteredWclSpend } from '@/lib/api/wcl-guard';
@@ -109,7 +109,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
   // boss coûte une poignée d'appels — c'est ici que l'économie revient à l'utilisateur.
   return guardMeteredWclSpend('analyze', BOSS_ANALYSIS_UNITS, async () => {
     try {
-      const snapshotKey = characterSnapshotKey({
+      // La désignation d'abord, la clé ensuite : les deux ne peuvent plus diverger, et c'est
+      // cette même désignation qui est frappée sur le résultat pour que le chat la renvoie.
+      const ref: CharacterSnapshotRef = {
+        kind: 'character',
         region: body.region,
         serverSlug: body.serverSlug,
         characterName: body.characterName,
@@ -118,7 +121,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
         specId: body.specId,
         specIdOverride: body.specIdOverride,
         fightOverride: body.fightOverride,
-      });
+      };
+      const snapshotKey = characterSnapshotKey(ref);
 
       // Lu à l'intérieur du garde, jamais dans une route à part : la réservation a déjà refusé
       // l'appelant anonyme, ce qui est tout ce que §2a demande. Un instantané servi ne dépense
@@ -145,7 +149,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
         specId: body.specId,
       };
 
-      const result = await analyzeBoss(
+      const analysed = await analyzeBoss(
         token,
         input,
         encounterIdNum,
@@ -153,6 +157,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
         body.specIdOverride,
         body.fightOverride
       );
+
+      // Frappée par la route, pas par le pipeline : la variante demandée n'existe en un seul
+      // morceau qu'ici, et `analyzeBoss` la reçoit éclatée en arguments.
+      const result = analysed ? { ...analysed, snapshot: ref } : null;
 
       // Attendue, pas mise en `void` : sur un runtime serverless, une promesse non attendue
       // part avec la fonction, et c'est toute la classe positive qui disparaît. La provenance

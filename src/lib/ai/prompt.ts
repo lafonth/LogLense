@@ -23,18 +23,27 @@ import { buildVerdict } from '@/lib/comparison/verdict';
 import { getSpecInfo } from '@/lib/specs';
 import { fmtMs } from '@/lib/wcl/parsers';
 
+/**
+ * Les deux règles qui gouvernent tout ce qu'un modèle dit de ces données, extraites parce
+ * que le chat les porte aussi. Recopiées, elles dériveraient : le rapport interdirait un
+ * conseil que le chat autorise, et le périmètre du produit dépendrait de la porte empruntée.
+ */
+export const TRACEABILITY_RULE = `TRACEABILITY — every recommendation must be traceable to something the reference cohort actually did on this boss at this difficulty. \
+The cohort is a set of ranked kills of the same encounter, filtered on item level, kill time, tier set and offensive externals; the tables are its numbers. \
+If a change is not visible in those numbers, do not recommend it: no theorycrafted priority list, no simulation result, no remembered guide. \
+Where the data is silent, say it is silent — that is an acceptable answer, an invented fix is not.`;
+
+export const SCOPE_RULE = `SCOPE — outgoing damage only. Never advise on survival, defensives, deaths, interrupts, positioning or boss mechanics. \
+You are given no data on any of them, so anything said there would be invented.`;
+
 export const SYSTEM_PROMPT = `You are a WarcraftLogs damage coach. Speak directly to the player. \
 Each ## section is one boss encounter — treat it as a single fight even if the name contains multiple names (council fights).
 
 Two rules govern everything below.
 
-TRACEABILITY — every recommendation must be traceable to something the reference cohort actually did on this boss at this difficulty. \
-The cohort is a set of ranked kills of the same encounter, filtered on item level, kill time, tier set and offensive externals; the tables are its numbers. \
-If a change is not visible in those numbers, do not recommend it: no theorycrafted priority list, no simulation result, no remembered guide. \
-Where the data is silent, say it is silent — that is an acceptable answer, an invented fix is not.
+${TRACEABILITY_RULE}
 
-SCOPE — outgoing damage only. Never advise on survival, defensives, deaths, interrupts, positioning or boss mechanics. \
-You are given no data on any of them, so anything said there would be invented.
+${SCOPE_RULE}
 
 Follow this exact process for each boss:
 
@@ -756,10 +765,15 @@ export function coveredAxes(boss: BossResult, talentNodes: TalentNode[] = []): P
   return PROMPT_AXES.filter((axis) => bodies[axis].trim().length > 0);
 }
 
-export function buildAnalysisPrompt(
-  result: AnalysisResult,
-  talentNodes: TalentNode[] = []
-): string {
+/**
+ * Les données d'un boss mises en tableaux, sans la moindre consigne de sortie.
+ *
+ * Séparé du prompt de rapport parce que le chat lit les mêmes tableaux pour une tout autre
+ * tâche : il répond à une question posée, il ne rédige pas les six points d'un rapport. Ce
+ * qui est commun est le contexte ; ce qui diffère est la consigne, et elle reste chez
+ * l'appelant.
+ */
+export function buildBossContext(result: AnalysisResult, talentNodes: TalentNode[] = []): string {
   const difficultyLabel: Record<number, string> = { 3: 'Normal', 4: 'Heroic', 5: 'Mythic' };
   const diff = difficultyLabel[result.input.difficulty] ?? `Difficulty ${result.input.difficulty}`;
 
@@ -841,6 +855,15 @@ export function buildAnalysisPrompt(
     specLine,
     '',
     bossSections,
+  ].join('\n');
+}
+
+export function buildAnalysisPrompt(
+  result: AnalysisResult,
+  talentNodes: TalentNode[] = []
+): string {
+  return [
+    buildBossContext(result, talentNodes),
     '',
     '---',
     '',

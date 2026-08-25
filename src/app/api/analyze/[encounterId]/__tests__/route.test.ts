@@ -1,4 +1,4 @@
-import type { BossResult } from '@/types';
+import type { BossResult, CharacterSnapshotRef } from '@/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { recordExposure } from '@/lib/labels/record-exposure';
 import { getWCLToken } from '@/lib/wcl/auth';
@@ -99,6 +99,37 @@ const mockBossResult: BossResult = {
     substituted: 0,
   },
 };
+
+/**
+ * Le sujet, sous la forme que la route recompose : elle en tire à la fois la clé et la
+ * désignation frappée sur le résultat.
+ */
+const SUBJECT = {
+  region: 'EU' as const,
+  serverSlug: 'ysondre',
+  characterName: 'Jumbaa',
+  encounterId: 3306,
+  difficulty: 5,
+  specId: 103,
+};
+
+/**
+ * Le résultat tel qu'il part : la route y frappe la désignation de l'instantané, seule forme
+ * que le chat renverra pour relire cette même clé. Elle n'existe en un seul morceau qu'ici —
+ * `analyzeBoss` la reçoit éclatée en arguments — donc c'est bien la route qu'on vérifie.
+ */
+function stamped(over: Partial<CharacterSnapshotRef> = {}): BossResult {
+  return {
+    ...mockBossResult,
+    snapshot: {
+      kind: 'character',
+      ...SUBJECT,
+      specIdOverride: undefined,
+      fightOverride: undefined,
+      ...over,
+    },
+  };
+}
 
 function makeRequest(body: Record<string, unknown>, encounterId = '3306') {
   return new Request(`http://localhost/api/analyze/${encounterId}`, {
@@ -269,7 +300,7 @@ describe('analyze route', () => {
     const body = await res.json();
 
     expect(recordExposure).toHaveBeenCalledTimes(1);
-    expect(recordExposure).toHaveBeenCalledWith([mockBossResult]);
+    expect(recordExposure).toHaveBeenCalledWith([stamped()]);
     // La réponse ne change pas : la capture s'ajoute au rendu, elle ne le reformule pas.
     expect(body.encounter).toBe('Chimaerus');
   });
@@ -318,16 +349,7 @@ describe('analyze route', () => {
  * route à part — c'est la réservation qui refuse l'appelant anonyme, ce que le §2a demande.
  */
 describe('analyze route, shared link', () => {
-  const KEY_ARGS = {
-    region: 'EU',
-    serverSlug: 'ysondre',
-    characterName: 'Jumbaa',
-    encounterId: 3306,
-    difficulty: 5,
-    specId: 103,
-  };
-
-  const KEY = characterSnapshotKey(KEY_ARGS);
+  const KEY = characterSnapshotKey(SUBJECT);
 
   const BODY = {
     characterName: 'Jumbaa',
@@ -358,7 +380,7 @@ describe('analyze route, shared link', () => {
     await post(BODY);
 
     expect(readSnapshot).not.toHaveBeenCalled();
-    expect(writeSnapshot).toHaveBeenCalledWith(KEY, mockBossResult);
+    expect(writeSnapshot).toHaveBeenCalledWith(KEY, stamped());
   });
 
   it('serves the snapshot without touching Warcraft Logs when the marker is set', async () => {
@@ -389,7 +411,7 @@ describe('analyze route, shared link', () => {
     expect(res.status).toBe(200);
     expect(body.renderId).toBe('render-1');
     expect(analyzeBoss).toHaveBeenCalledTimes(1);
-    expect(writeSnapshot).toHaveBeenCalledWith(KEY, mockBossResult);
+    expect(writeSnapshot).toHaveBeenCalledWith(KEY, stamped());
   });
 
   // La variante n'est jamais lue mais elle est écrite : sous la clé de base, un basculement de
@@ -398,8 +420,8 @@ describe('analyze route, shared link', () => {
     await post({ ...BODY, specIdOverride: 62 });
 
     expect(writeSnapshot).toHaveBeenCalledWith(
-      characterSnapshotKey({ ...KEY_ARGS, specIdOverride: 62 }),
-      mockBossResult
+      characterSnapshotKey({ ...SUBJECT, specIdOverride: 62 }),
+      stamped({ specIdOverride: 62 })
     );
   });
 

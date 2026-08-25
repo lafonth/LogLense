@@ -5,6 +5,7 @@ import {
   readSnapshot,
   reportSnapshotKey,
   SNAPSHOT_TTL_SECONDS,
+  snapshotKey,
   writeSnapshot,
 } from '../result-snapshot';
 
@@ -130,8 +131,8 @@ describe('snapshot keys', () => {
   // Sans version dans la clé, un changement de forme de `BossResult` servirait pendant
   // vingt-quatre heures des instantanés que l'écran courant ne sait plus lire.
   it('carries the cache version, and separates the two pipelines', () => {
-    expect(characterSnapshotKey(CHAR_ARGS)).toContain('wcl:snap:v1:char:');
-    expect(reportSnapshotKey(REPORT_ARGS)).toContain('wcl:snap:v1:report:');
+    expect(characterSnapshotKey(CHAR_ARGS)).toContain('wcl:snap:v3:char:');
+    expect(reportSnapshotKey(REPORT_ARGS)).toContain('wcl:snap:v3:report:');
   });
 
   // La variante n'est jamais lue, mais elle est écrite : sans elle dans la clé, un
@@ -165,6 +166,36 @@ describe('snapshot keys', () => {
     expect(reportSnapshotKey({ ...REPORT_ARGS, fightId: 18 })).not.toBe(
       reportSnapshotKey(REPORT_ARGS)
     );
+  });
+});
+
+/**
+ * Le chat ne forme pas la clé : il reçoit la désignation que le rendu porte et la rend telle
+ * quelle. C'est ce qui interdit au client d'adresser une clé Redis arbitraire — il ne fournit
+ * que des champs, jamais une chaîne de clé.
+ */
+describe('snapshotKey', () => {
+  it('routes each kind to the key its own pipeline would have formed', () => {
+    expect(snapshotKey({ kind: 'character', ...CHAR_ARGS })).toBe(characterSnapshotKey(CHAR_ARGS));
+    expect(snapshotKey({ kind: 'report', ...REPORT_ARGS })).toBe(reportSnapshotKey(REPORT_ARGS));
+  });
+
+  it('keeps the variant of a character ref, which the chat carries back unchanged', () => {
+    const ref = { kind: 'character' as const, ...CHAR_ARGS, specIdOverride: 62 };
+
+    expect(snapshotKey(ref)).toBe(characterSnapshotKey({ ...CHAR_ARGS, specIdOverride: 62 }));
+    expect(snapshotKey(ref)).not.toBe(snapshotKey({ kind: 'character', ...CHAR_ARGS }));
+  });
+
+  // Les deux chemins partagent le préfixe et la version : ce qui les sépare est le segment de
+  // pipeline, pas un hasard de composition.
+  it('never returns the same key for two different kinds', () => {
+    const asChar = snapshotKey({ kind: 'character', ...CHAR_ARGS });
+    const asReport = snapshotKey({ kind: 'report', ...REPORT_ARGS });
+
+    expect(asChar).not.toBe(asReport);
+    expect(asChar.startsWith('wcl:snap:v3:')).toBe(true);
+    expect(asReport.startsWith('wcl:snap:v3:')).toBe(true);
   });
 });
 

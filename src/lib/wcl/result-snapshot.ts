@@ -1,4 +1,4 @@
-import type { BossResult } from '@/types';
+import type { BossResult, SnapshotRef } from '@/types';
 import { randomUUID } from 'node:crypto';
 import { redisGet, redisSetEx } from '@/lib/redis';
 
@@ -33,7 +33,17 @@ import { redisGet, redisSetEx } from '@/lib/redis';
  */
 export const SNAPSHOT_TTL_SECONDS = 24 * 60 * 60;
 
-const SNAPSHOT_CACHE_VERSION = 'v1';
+/**
+ * Version de clé. Frappée à `v2` quand `ReferenceSample` a gagné `tierPieces` et
+ * `externalUptime` : sans bump, les instantanés écrits sous `v1` continueraient d'être servis
+ * pendant vingt-quatre heures sans ces champs, et la resélection de cohorte qui s'appuie
+ * dessus disparaîtrait en silence au lieu d'échouer.
+ *
+ * `v3` pour `snapshot`, la désignation que le chat renvoie pour relire l'instantané. Un rendu
+ * servi sans elle n'ouvre pas le chat : la dégradation est visible, mais elle durerait une
+ * journée entière sur des instantanés parfaitement valides par ailleurs.
+ */
+const SNAPSHOT_CACHE_VERSION = 'v3';
 
 /**
  * Plafond de taille d'une entrée. Bien plus haut que celui des caches de référence : un
@@ -92,6 +102,17 @@ export function reportSnapshotKey(args: {
   const { actorId, encounterId, fightId, difficulty } = args;
 
   return `wcl:snap:${SNAPSHOT_CACHE_VERSION}:report:${difficulty}:${encounterId}:${fightId}:${actorId}:${encodeURIComponent(args.code)}`;
+}
+
+/**
+ * La clé d'une désignation, quel que soit son pipeline.
+ *
+ * Le point d'entrée des appelants qui reçoivent un `SnapshotRef` du client plutôt que de
+ * former ses champs eux-mêmes — le chat aujourd'hui. Les deux fonctions ci-dessus restent
+ * publiques : les routes d'analyse, elles, connaissent leur pipeline à la compilation.
+ */
+export function snapshotKey(ref: SnapshotRef): string {
+  return ref.kind === 'character' ? characterSnapshotKey(ref) : reportSnapshotKey(ref);
 }
 
 /**

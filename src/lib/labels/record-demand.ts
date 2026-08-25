@@ -19,7 +19,8 @@ export type WclRoute =
   | 'report'
   | 'zones'
   | 'realm-search'
-  | 'pull-comparison';
+  | 'pull-comparison'
+  | 'promote-reference';
 
 export type DemandOutcome = 'allowed' | 'denied' | 'unavailable';
 
