@@ -1,7 +1,7 @@
 import type { TalentDiffEntry, TalentDiffResult, TalentSource } from '@/lib/comparison/talent-diff';
 import type { TalentNode } from '@/types';
 import { Card } from '@/components/ui/Card';
-import { diffTalents } from '@/lib/comparison/talent-diff';
+import { diffTalents, isMarginal } from '@/lib/comparison/talent-diff';
 
 interface TalentDiffProps {
   nodes: TalentNode[];
@@ -9,22 +9,6 @@ interface TalentDiffProps {
   /** Toute la fenêtre comparable, pas les trois références chères : l'adoption d'un talent
    * se lit sur un effectif, et douze en disent plus que trois pour le même prix. */
   references: TalentSource[];
-}
-
-/**
- * Au-delà de cette part de références, un nœud cesse d'être une information.
- *
- * Le seuil est le même des deux côtés, mais il ne coupe pas dans le même sens : à droite, un
- * talent pris par deux références sur onze est du bruit ; à gauche, c'est au contraire un
- * talent que *presque tout le monde partage avec moi* qui n'apprend rien — la divergence y
- * est marginale. Dans les deux colonnes, le bloc replié est donc la queue du tri.
- */
-const CONSENSUS = 2 / 3;
-
-function isMarginal(entry: TalentDiffEntry, accent: 'mine' | 'theirs'): boolean {
-  if (entry.referenceTotal === 0) return false;
-  const share = entry.referenceCount / entry.referenceTotal;
-  return accent === 'mine' ? share >= CONSENSUS : share < CONSENSUS;
 }
 
 function EntryRow({ entry, accent }: { entry: TalentDiffEntry; accent: 'mine' | 'theirs' }) {

@@ -618,6 +618,47 @@ describe('damage breakdown', () => {
     expect(row).toContain('| 0.0 |');
     expect(row).toContain('| +26.7 |');
   });
+
+  /**
+   * L'union et les médianes ont déménagé dans `comparison/damage-gap.ts`, que l'écran lit
+   * lui aussi ; seul le tri est resté ici, parce que le prompt classe par part de dégâts et
+   * l'écran par écart de dps. Ce cas épingle la sortie entière — en-têtes, ordre, tirets et
+   * phrase de pied — pour que le déménagement reste ce qu'il prétend être : sans effet.
+   */
+  it('renders the table exactly as before the move to damage-gap.ts', () => {
+    const prompt = buildAnalysisPrompt(resultWith(makeBoss()));
+    const body = prompt.slice(prompt.indexOf('| Damage source |')).split('\n###')[0].trim();
+
+    expect(body).toBe(
+      [
+        '| Damage source | You % | Field median % | Gap (pts) | P1 % |',
+        '|---|---|---|---|---|',
+        // Classé par la plus forte des deux parts : Shred 62,5 chez moi, Rip 53,3 chez eux,
+        // Rake 26,7 — l'ordre du prompt, et non celui de l'écart de dps.
+        '| Shred | 62.5 | 20.0 | -42.5 | 20.0 |',
+        '| Rip | 37.5 | 53.3 | +15.8 | 53.3 |',
+        '| Rake | 0.0 | 26.7 | +26.7 | 26.7 |',
+        '',
+        'The union of your biggest damage sources and the field’s, so an ability you barely use still appears ' +
+          'when the references draw real damage from it. Gap = field median − you, in points of total damage: ' +
+          'a large positive gap is damage the field converts and you do not.',
+      ].join('\n')
+    );
+  });
+
+  it('writes a dash rather than a zero when no reference table is readable', () => {
+    const boss = makeBoss();
+    boss.topPlayers[0].damageTable = { entries: [] };
+
+    const prompt = buildAnalysisPrompt(resultWith(boss));
+    // Le nom du sort ouvre aussi une ligne de la table de cadence, plus haut : on ne cherche
+    // que dans la section qui nous occupe.
+    const table = prompt.slice(prompt.indexOf('### Damage Breakdown'));
+    const row = table.split('\n').find((l) => l.startsWith('| Shred |')) ?? '';
+
+    // Une table vide est un log illisible, pas un joueur qui n'a rien fait sur ce sort.
+    expect(row).toBe('| Shred | 62.5 | — | — | — |');
+  });
 });
 
 describe('target split', () => {

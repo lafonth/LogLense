@@ -29,22 +29,27 @@ describe('comparabilityBanner', () => {
     expect(container.innerHTML).not.toContain('text-danger');
   });
 
-  it('signs the item-level gap upward', () => {
-    render(
+  // `VerdictBanner`, juste au-dessus des onglets, énonce déjà l'écart d'ilvl, celui de kill
+  // time et l'effectif du panel. Les redire ici, à quelques centimètres, faisait lire deux
+  // fois la même arithmétique avant la moindre donnée. Le test porte donc sur l'absence :
+  // c'est elle qui se casse silencieusement si quelqu'un réintroduit le paragraphe.
+  it('restates neither the item level nor the kill time', () => {
+    const { container } = render(
       <ComparabilityBanner
-        comparability={comparability({ level: 'poor', referenceIlvl: 292, myIlvl: 284 })}
+        comparability={comparability({
+          referenceIlvl: 292,
+          myIlvl: 284,
+          referenceKillTimeMs: 330000,
+          myKillTimeMs: 300000,
+        })}
       />
     );
 
-    expect(screen.getByText(/\+8/)).toBeInTheDocument();
-  });
-
-  it('signs the item-level gap downward', () => {
-    render(
-      <ComparabilityBanner comparability={comparability({ referenceIlvl: 280, myIlvl: 284 })} />
-    );
-
-    expect(screen.getByText(/−4/)).toBeInTheDocument();
+    const text = container.textContent ?? '';
+    expect(text).not.toMatch(/item level/i);
+    expect(text).not.toMatch(/kill/i);
+    // Ni les chiffres eux-mêmes, sous quelque signe que ce soit.
+    expect(text).not.toMatch(/284|292|\+8|\+10%/);
   });
 
   it('marks a poor comparison in red', () => {
@@ -67,37 +72,6 @@ describe('comparabilityBanner', () => {
     );
 
     expect(screen.getByText(/No comparable logs/i)).toBeInTheDocument();
-  });
-
-  it('signs the kill-time gap upward when references are slower', () => {
-    render(
-      <ComparabilityBanner
-        comparability={comparability({ referenceKillTimeMs: 330000, myKillTimeMs: 300000 })}
-      />
-    );
-
-    // (330000 - 300000) / 300000 * 100 = 10.0
-    expect(screen.getByText(/\+10%/)).toBeInTheDocument();
-  });
-
-  it('signs the kill-time gap downward when references are faster', () => {
-    render(
-      <ComparabilityBanner
-        comparability={comparability({ referenceKillTimeMs: 270000, myKillTimeMs: 300000 })}
-      />
-    );
-
-    // (270000 - 300000) / 300000 * 100 = -10.0
-    expect(screen.getByText(/−10%/)).toBeInTheDocument();
-  });
-
-  // Une médiane sur une seule référence se lisait comme une médiane sur trois : sans
-  // l'effectif, rien à l'écran ne distingue un panel plein d'un panel réduit à un log.
-  it('says on how many references the item level was taken', () => {
-    render(<ComparabilityBanner comparability={comparability({ referenceIlvlCount: 1 })} />);
-
-    expect(screen.getByText(/a median of/)).toBeInTheDocument();
-    expect(screen.getByText('1')).toBeInTheDocument();
   });
 
   it('reports how wide a net was cast', () => {

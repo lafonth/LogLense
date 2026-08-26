@@ -110,8 +110,9 @@ src/lib/wcl/
   eligibility.ts      Set bonus et externals d'un combattant : les critères éliminatoires
   fight-context.ts    Ce qui est arrivé au raid pendant la pull (morts, wipes, durée)
   pool-cache.ts       Cache à TTL du pool de candidats — jamais un pool incomplet
-  comparability.ts    Le calcul : distance d'un candidat, sélection, niveau. Importé par
-                      references.ts seul
+  comparability.ts    Le calcul : distance d'un candidat, sélection, niveau. `references.ts`
+                      en est l'appelant complet ; `cohort.ts` et `damage-gap.ts` n'en tirent
+                      que des primitives (`medianOf`, `selectClosest`, `comparabilityLevel`)
   references.ts       Sélection des logs de comparaison et récupération des joueurs
   result-snapshot.ts  Le BossResult rendu, relisible 24 h — ce que le chat rejoue
   promote.ts          Un candidat du `sample` promu en référence complète : trois requêtes
@@ -123,6 +124,15 @@ src/lib/comparison/
   talent-diff.ts      Écarts de build : toi seul / eux seuls / communs, avec le compte k sur n
   rotation-stats.ts   Par sort : fourchette des références, médiane, écart, tri par écart
   cohort.ts           Resélection de la cohorte sur le `sample` — zéro requête WCL
+  damage-gap.ts       Par sort : ma part de dégâts, celle du champ, l'écart en dps. Le tri est
+                      `|fieldDps − mineDps|` — symétrique, mesuré, dans l'unité de l'écran
+  findings.ts         Les constats classés : `rankedGaps` (verdict, plancher de bruit,
+                      effectif), leur cause probable, l'ouverture et le build. Un classement,
+                      un filtrage, une tête — la bannière nomme cette tête-là, jamais la sienne
+  leading-gap.ts      La phrase de la bannière : elle prend la tête de `rankedGaps` et ne dit
+                      rien si sa cadence n'est pas nommable. Aucun classement propre
+  naming-rights.ts    `isNameableGap` : quand une cadence a le droit d'être nommée. Sa seule
+                      raison d'être est d'avoir deux appelants qui ne peuvent pas s'importer
 src/lib/ai/
   prompt.ts           Le prompt du rapport one-shot, PROMPT_VERSION comprise
   provider.ts         Les types partagés : AIProvider, ToolCapableProvider, ChatTurn

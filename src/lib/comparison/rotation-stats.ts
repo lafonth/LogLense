@@ -178,3 +178,22 @@ export function compareUptimes(
     topPlayers.map((p) => p.rotation.buffs)
   );
 }
+
+/**
+ * Ma valeur tombe-t-elle **dans** la dispersion des références ?
+ *
+ * C'est le plancher mesuré du produit, et il est déjà à l'écran : `AbilityCard` dessine
+ * cette bande et ce marqueur. Dedans, la donnée ne me sépare pas du champ — la ligne se
+ * replie plutôt que de se faire passer pour un écart.
+ *
+ * Une fourchette absente n'est pas une fourchette qui me contient : sans référence sur ce
+ * sort il n'y a rien à quoi appartenir, et la ligne reste dépliée avec son effectif nul.
+ *
+ * Exporté parce que trois appelants en dépendent — `isNameableGap` dans `naming-rights.ts`,
+ * le repli de `RotationCards`, et le compte `matching` de `findings.ts`. La règle est la
+ * même partout ou l'écran se contredit sur le même log.
+ */
+export function inReferenceBand(row: AbilityComparison): boolean {
+  if (row.referenceMin === null || row.referenceMax === null) return false;
+  return row.mine >= row.referenceMin && row.mine <= row.referenceMax;
+}

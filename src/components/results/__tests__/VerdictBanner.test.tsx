@@ -1,4 +1,4 @@
-import type { BossResult, Comparability, ReferenceSample } from '@/types';
+import type { BossResult, Comparability, DamageEntry, ReferenceSample } from '@/types';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { VerdictBanner } from '../VerdictBanner';
@@ -7,13 +7,20 @@ function sample(dps: number): ReferenceSample {
   return { dps, qualified: true } as ReferenceSample;
 }
 
+/** Un guid réel par sort : c'est par lui que la ligne de dégâts et la ligne de cast se joignent. */
+const GUIDS: Record<string, number> = { Rip: 1079 };
+const guidOf = (name: string) => GUIDS[name] ?? 0;
+
 const casts = (perMin: Record<string, number>) =>
   Object.fromEntries(
     Object.entries(perMin).map(([name, v]) => [
       name,
-      { guid: 0, casts: Math.round(v * 4), perMin: v },
+      { guid: guidOf(name), casts: Math.round(v * 4), perMin: v },
     ])
   );
+
+const damage = (totals: Record<string, number>): DamageEntry[] =>
+  Object.entries(totals).map(([name, total]) => ({ guid: guidOf(name), name, total }));
 
 function result(over: {
   dps?: number;
@@ -29,13 +36,16 @@ function result(over: {
       // Quatre minutes, comme le `× 4` du helper ci-dessus : `leadingGap` convertit une
       // cadence en nombre de lancers avant de décider qu'il y a quelque chose à dire.
       rotation: { casts: casts(over.mine ?? {}), fightDurationMs: 240_000 },
-      damageTable: { entries: [] },
+      // Un seul sort porte tous les dégâts des deux côtés : la tête du classement en dps est
+      // donc Rip quoi qu'il arrive, et chaque cas n'exerce que la porte qu'il vise.
+      damageTable: { entries: damage({ Rip: 1000 }) },
       context: null,
     },
     sample: over.sample ?? [sample(120000)],
     topPlayers: (over.references ?? []).map((perMin) => ({
+      stats: { dps: 120000 },
       rotation: { casts: casts(perMin) },
-      damageTable: { entries: [] },
+      damageTable: { entries: damage({ Rip: 1000 }) },
     })),
     comparability: {
       level: 'close',

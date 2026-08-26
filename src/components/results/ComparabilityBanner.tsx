@@ -1,7 +1,6 @@
 // src/components/results/ComparabilityBanner.tsx
 import type { Comparability, ComparabilityLevel } from '@/types';
 import { Card } from '@/components/ui/Card';
-import { ilvlGapOf, killTimeGapPctOf } from '@/lib/comparison/comparability-gaps';
 
 interface ComparabilityBannerProps {
   comparability: Comparability;
@@ -27,36 +26,24 @@ const LEVEL_LABEL: Record<ComparabilityLevel, string> = {
   none: 'No comparable logs',
 };
 
-/** U+2212 minus, not a hyphen — it aligns with digits in a monospace face. */
-function signed(value: number): string {
-  return value < 0 ? `−${Math.abs(value)}` : `+${value}`;
-}
-
+/**
+ * Le bandeau de légitimité, et rien de plus.
+ *
+ * L'ilvl et le kill time ne sont **pas** répétés ici : `VerdictBanner`, juste au-dessus des
+ * onglets, les énonce déjà, et les deux bandeaux sont lus d'un seul regard. Ce qui reste est
+ * ce que lui ne dit pas — le niveau, les deux avertissements de légitimité, et d'où sort le
+ * panel.
+ */
 export function ComparabilityBanner({
   comparability,
   earlyDeathPct = null,
 }: ComparabilityBannerProps) {
-  const { level, referenceIlvl, referenceIlvlCount, myIlvl } = comparability;
+  const { level } = comparability;
   const tone = LEVEL_TONE[level];
-
-  // Les deux écarts viennent du même module que `VerdictBanner` : les deux bandeaux sont
-  // lus ensemble, un arrondi qui diverge se verrait.
-  const ilvlGap = ilvlGapOf(comparability);
-  const killTimeGapPct = killTimeGapPctOf(comparability);
 
   return (
     <Card header="Comparison basis">
       <p className={`font-sans text-sm ${tone}`}>{LEVEL_LABEL[level]}</p>
-
-      {ilvlGap !== null && killTimeGapPct !== null && (
-        <p className="text-muted mt-2 font-sans text-xs">
-          References sit at <span className="font-mono">{referenceIlvl}</span> item level, a median
-          of <span className="font-mono">{referenceIlvlCount}</span>,{' '}
-          <span className="font-mono">{signed(ilvlGap)}</span> against your{' '}
-          <span className="font-mono">{myIlvl}</span>, and their kills run{' '}
-          <span className="font-mono">{signed(killTimeGapPct)}%</span> against yours.
-        </p>
-      )}
 
       {earlyDeathPct !== null && (
         <p className="text-danger mt-2 font-sans text-xs">

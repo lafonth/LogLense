@@ -5,6 +5,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { usableSample } from '@/lib/comparison/stat-distribution';
 import { buildVerdict } from '@/lib/comparison/verdict';
 import { ComparabilityBanner } from './ComparabilityBanner';
+import { FindingsList } from './FindingsList';
 import { OpeningChain } from './OpeningChain';
 import { ReferenceLabels } from './ReferenceLabels';
 import { RotationCards } from './RotationCards';
@@ -66,6 +67,19 @@ export function ComparisonTab({
       <div className="mt-6">
         <ReferenceLabels result={result} />
       </div>
+      {/* La conclusion. Tout ce qui suit en est la pièce justificative, et le `mt-8` marque
+          seul cette frontière — les preuves entre elles gardent `mt-6`. */}
+      <div className="mt-6">
+        <FindingsList result={result} talentNodes={talentNodes} />
+      </div>
+      <div className="mt-8">
+        <RotationCards
+          character={result.character.rotation}
+          topPlayers={result.topPlayers}
+          characterDamage={result.character.damageTable.entries}
+          foldMatching
+        />
+      </div>
       <div className="mt-6">
         <h3 className="text-muted mb-2 font-mono text-xs tracking-wider uppercase">
           Where you sit in the field
@@ -74,13 +88,6 @@ export function ComparisonTab({
       </div>
       <div className="mt-6">
         <OpeningChain mine={result.character.rotation.opening} references={result.topPlayers} />
-      </div>
-      <div className="mt-6">
-        <RotationCards
-          character={result.character.rotation}
-          topPlayers={result.topPlayers}
-          characterDamage={result.character.damageTable.entries}
-        />
       </div>
       <div className="mt-6">
         <TalentDiff

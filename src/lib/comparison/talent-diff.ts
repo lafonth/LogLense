@@ -25,6 +25,30 @@ export interface TalentDiffResult {
 }
 
 /**
+ * Au-delà de cette part de références, un nœud cesse d'être une information.
+ *
+ * Le seuil est le même des deux côtés, mais il ne coupe pas dans le même sens : à droite, un
+ * talent pris par deux références sur onze est du bruit ; à gauche, c'est au contraire un
+ * talent que *presque tout le monde partage avec moi* qui n'apprend rien — la divergence y
+ * est marginale. Dans les deux colonnes, le bloc replié est donc la queue du tri.
+ */
+export const CONSENSUS = 2 / 3;
+
+/**
+ * Ce nœud est-il de la queue de distribution — celle qu'on replie plutôt que d'en parler ?
+ *
+ * Le prédicat vit ici, dans le module pur, parce qu'il a deux appelants : `TalentDiff.tsx`,
+ * qui s'en sert pour décider ce qu'il replie, et `findings.ts`, qui s'en sert pour décider
+ * quels nœuds ont le droit de monter en constat. Deux copies finiraient par diverger, et
+ * l'écran replierait un talent dont la liste de constats parle juste au-dessus.
+ */
+export function isMarginal(entry: TalentDiffEntry, accent: 'mine' | 'theirs'): boolean {
+  if (entry.referenceTotal === 0) return false;
+  const share = entry.referenceCount / entry.referenceTotal;
+  return accent === 'mine' ? share >= CONSENSUS : share < CONSENSUS;
+}
+
+/**
  * Blizzard returns spec-variant copies at the same grid position — merge them into one node
  * so no talentIds are lost. Identity (id/name/names) is taken from a named node when one exists.
  */

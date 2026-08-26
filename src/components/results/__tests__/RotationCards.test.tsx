@@ -128,7 +128,9 @@ describe('rotationCards', () => {
     );
 
     expect(screen.getByText('Rotation · by cost')).toBeInTheDocument();
-    expect(screen.getByText('100.0 %')).toBeInTheDocument();
+    // La part se lit désormais à côté du nom du sort, pas dans le pied de carte : c'est elle
+    // qui pilote le tri, et un ordre dont la grandeur est enterrée ne se voit pas.
+    expect(screen.getByText(/100\.0 % of damage/)).toBeInTheDocument();
   });
 
   it('announces the deviation ordering when no damage table is available', () => {
@@ -207,6 +209,46 @@ describe('rotationCards', () => {
 
     expect(screen.getByText('From your casts')).toBeInTheDocument();
     expect(screen.getByText('Procs and passives')).toBeInTheDocument();
+  });
+
+  // Le repli est la règle « dans la fourchette, ce n'est pas un écart » enfin appliquée :
+  // ce qui colle aux références quitte la liste sans quitter l'écran.
+  describe('repli des sorts dans la fourchette', () => {
+    const MIXED: RotationSummary = {
+      ...MINE,
+      // 4.10 contre 6.60–7.20 : dehors. 1.00 contre 0.90–1.10 : dedans.
+      casts: { ...MINE.casts, Rip: { guid: 1079, casts: 4, perMin: 1.0 } },
+    };
+    const MIXED_REFERENCES = [
+      reference('Aidan', { 'Ferocious Bite': 6.6, Rip: 0.9 }),
+      reference('Brea', { 'Ferocious Bite': 7.2, Rip: 1.1 }),
+    ];
+
+    it('counts the abilities that match and keeps them behind the fold', () => {
+      const { container } = render(
+        <RotationCards
+          character={MIXED}
+          topPlayers={MIXED_REFERENCES}
+          characterDamage={[]}
+          foldMatching
+        />
+      );
+
+      const details = container.querySelector('details');
+      expect(details).toHaveTextContent('1 ability matches the references');
+      // Déplié, le sort est bien là — le repli cache, il ne supprime pas.
+      expect(screen.getByText('Rip').closest('details')).toBe(details);
+      expect(screen.getByText('Ferocious Bite').closest('details')).toBeNull();
+    });
+
+    it('folds nothing when the caller did not ask for it', () => {
+      const { container } = render(
+        <RotationCards character={MIXED} topPlayers={MIXED_REFERENCES} characterDamage={[]} />
+      );
+
+      expect(container.querySelector('details')).toBeNull();
+      expect(screen.getByText('Rip')).toBeInTheDocument();
+    });
   });
 
   it('shows no uptime card when the player has no buffs with non-zero uptime', () => {

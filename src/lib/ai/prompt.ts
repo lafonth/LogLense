@@ -13,6 +13,7 @@ import type {
   TalentNode,
   TopPlayer,
 } from '@/types';
+import { damageGaps } from '@/lib/comparison/damage-gap';
 import { leadingGap } from '@/lib/comparison/leading-gap';
 import { diffOpening } from '@/lib/comparison/opening-diff';
 import { compareCasts, compareUptimes } from '@/lib/comparison/rotation-stats';
@@ -110,13 +111,6 @@ function fmt(n: number): string {
 
 function signedPct(n: number): string {
   return `${n > 0 ? '+' : ''}${n.toFixed(1)}%`;
-}
-
-function medianOf(values: number[]): number | null {
-  if (values.length === 0) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
 const COMPARABILITY_LABEL: Record<BossResult['comparability']['level'], string> = {
@@ -554,9 +548,6 @@ function uptimeTable(charRotation: RotationSummary, topPlayers: TopPlayer[]): st
   ].join('\n');
 }
 
-/** Combien de sources de dégâts chaque côté fait entrer dans l'union. */
-const TOP_DAMAGE_SOURCES = 10;
-
 /**
  * La répartition des dégâts, dans les deux sens.
  *
@@ -565,45 +556,22 @@ const TOP_DAMAGE_SOURCES = 10;
  * dégâts et que je n'utilise presque pas n'apparaissait nulle part, faute de figurer dans ma
  * propre tête de liste. L'union des deux têtes de liste le fait entrer, et la colonne d'écart
  * le nomme — c'est le cœur de la question « où passent les dégâts qui me manquent ».
+ *
+ * L'union elle-même vit dans `comparison/damage-gap.ts`, parce que l'écran la montre
+ * désormais aussi : deux implémentations de la même arithmétique finiraient par diverger, et
+ * le lecteur verrait le rapport et l'onglet se contredire sur le même log.
+ *
+ * Le tri, lui, reste ici : `damageGaps` classe par écart de dps, ce qui est la question de
+ * l'écran. Le tableau du prompt classe par part de dégâts — la plus grosse source d'abord,
+ * qu'elle soit un écart ou non — pour que le modèle lise d'abord de quoi le combat est fait.
+ * `unionRank` départage les ex æquo, à l'identique de l'ordre d'union.
  */
-function damageTable(charEntries: DamageEntry[], topPlayers: TopPlayer[]): string {
-  const charTotal = charEntries.reduce((s, e) => s + e.total, 0);
-  const topTotals = topPlayers.map((p) => p.damageTable.entries.reduce((s, e) => s + e.total, 0));
-  if (charTotal === 0 && topTotals.every((t) => t === 0)) return '';
-
-  const shareIn = (entries: DamageEntry[], total: number, name: string) =>
-    total > 0 ? ((entries.find((e) => e.name === name)?.total ?? 0) / total) * 100 : null;
-
-  const mineShare = (name: string) => shareIn(charEntries, charTotal, name) ?? 0;
-  const fieldShares = (name: string) =>
-    topPlayers
-      .map((p, i) => shareIn(p.damageTable.entries, topTotals[i], name))
-      .filter((v): v is number => v !== null);
-  const fieldMedian = (name: string) => medianOf(fieldShares(name));
-
-  const mineTop = [...charEntries]
-    .sort((a, b) => b.total - a.total)
-    .slice(0, TOP_DAMAGE_SOURCES)
-    .map((e) => e.name);
-
-  const everyName = [
-    ...new Set([
-      ...charEntries.map((e) => e.name),
-      ...topPlayers.flatMap((p) => p.damageTable.entries.map((e) => e.name)),
-    ]),
-  ];
-  const fieldTop = everyName
-    .map((name) => ({ name, median: fieldMedian(name) }))
-    .filter((x): x is { name: string; median: number } => x.median !== null)
-    .sort((a, b) => b.median - a.median)
-    .slice(0, TOP_DAMAGE_SOURCES)
-    .map((x) => x.name);
-
-  const names = [...new Set([...mineTop, ...fieldTop])].sort(
-    (a, b) =>
-      Math.max(mineShare(b), fieldMedian(b) ?? 0) - Math.max(mineShare(a), fieldMedian(a) ?? 0)
-  );
-  if (names.length === 0) return '';
+function damageTable(character: BossResult['character'], topPlayers: TopPlayer[]): string {
+  const rows = [...damageGaps(character, topPlayers)].sort((a, b) => {
+    const delta = Math.max(b.minePct, b.fieldPct ?? 0) - Math.max(a.minePct, a.fieldPct ?? 0);
+    return delta !== 0 ? delta : a.unionRank - b.unionRank;
+  });
+  if (rows.length === 0) return '';
 
   const headers = [
     'Damage source',
@@ -612,23 +580,17 @@ function damageTable(charEntries: DamageEntry[], topPlayers: TopPlayer[]): strin
     'Gap (pts)',
     ...topPlayers.map((_, i) => `P${i + 1} %`),
   ];
-  const rows = names.map((name) => {
-    const mine = mineShare(name);
-    const median = fieldMedian(name);
-    return [
-      name,
-      mine.toFixed(1),
-      median === null ? '—' : median.toFixed(1),
-      median === null ? '—' : signedPct(median - mine).replace('%', ''),
-      ...topPlayers.map((p, i) => {
-        const share = shareIn(p.damageTable.entries, topTotals[i], name);
-        return share === null ? '—' : share.toFixed(1);
-      }),
-    ];
-  });
+
+  const body = rows.map((row) => [
+    row.name,
+    row.minePct.toFixed(1),
+    row.fieldPct === null ? '—' : row.fieldPct.toFixed(1),
+    row.gapPct === null ? '—' : signedPct(row.gapPct).replace('%', ''),
+    ...row.referencePcts.map((pct) => (pct === null ? '—' : pct.toFixed(1))),
+  ]);
 
   return [
-    mdTable(headers, rows),
+    mdTable(headers, body),
     '',
     'The union of your biggest damage sources and the field’s, so an ability you barely use still appears ' +
       'when the references draw real damage from it. Gap = field median − you, in points of total damage: ' +
@@ -636,17 +598,6 @@ function damageTable(charEntries: DamageEntry[], topPlayers: TopPlayer[]): strin
   ].join('\n');
 }
 
-/**
- * L'écart de build en taux d'adoption, pas en trois avis.
- *
- * « Deux références sur trois prennent X » et « onze sur douze prennent X » n'appellent pas
- * la même conclusion, et seule la seconde formulation permet au modèle de distinguer un
- * choix de niche d'un standard. Le dénominateur est donc toujours écrit.
- *
- * Le calcul est celui de `diffTalents`, celui de l'écran — et non plus une copie locale qui
- * ignorait la fusion des variantes de spec à une même position de grille : elle pouvait
- * nommer un talent fantôme, jamais montré au joueur, que le modèle lui reprochait ensuite.
- */
 function talentSection(
   nodes: TalentNode[],
   myTalents: Record<number, number>,
@@ -744,7 +695,7 @@ function axisBodies(boss: BossResult, talentNodes: TalentNode[]): Record<PromptA
     ),
     opening: openingSection(boss.character.rotation, topPlayers),
     uptimes: uptimeTable(boss.character.rotation, topPlayers),
-    damage: damageTable(boss.character.damageTable.entries, topPlayers),
+    damage: damageTable(boss.character, topPlayers),
     talents: talentSection(talentNodes, boss.character.stats.talents, boss.sample),
   };
 }

@@ -21,6 +21,7 @@ const damage = (totals: Record<string, number>): DamageEntry[] =>
 
 interface Over {
   dps?: number;
+  refDps?: number;
   mine?: Record<string, number>;
   myDamage?: Record<string, number>;
   references?: Record<string, number>[];
@@ -30,9 +31,13 @@ interface Over {
 }
 
 /**
- * `leadingGap` ne lit du résultat que ce que `buildVerdict` et `compareCasts` lisent : le
- * dps du sujet, la comparabilité, l'échantillon, et les deux tables de rotation — plus la
- * durée de la pull, qui convertit une cadence en nombre de lancers.
+ * `leadingGap` lit du résultat ce que `buildVerdict`, `damageGaps` et `compareCasts` lisent :
+ * le dps du sujet **et celui de chaque référence**, les deux tables de dégâts — qui portent
+ * désormais le classement —, la comparabilité, l'échantillon, les deux tables de rotation, et
+ * la durée de la pull, qui convertit une cadence en nombre de lancers.
+ *
+ * Par défaut un seul sort porte tous les dégâts des deux côtés : Shred est alors la tête du
+ * classement quoi qu'il arrive, et chaque cas n'exerce que la porte qu'il vise.
  */
 function result(over: Over = {}): BossResult {
   return {
@@ -42,13 +47,14 @@ function result(over: Over = {}): BossResult {
         casts: casts(over.mine ?? { Shred: 10 }),
         fightDurationMs: (over.fightMinutes ?? FIGHT_MINUTES) * 60_000,
       },
-      damageTable: { entries: damage(over.myDamage ?? {}) },
+      damageTable: { entries: damage(over.myDamage ?? { Shred: 1000 }) },
       context: null,
     },
     sample: [{ dps: 120000, qualified: true }],
     topPlayers: (over.references ?? [{ Shred: 10 }, { Shred: 10 }]).map((perMin) => ({
+      stats: { dps: over.refDps ?? 120000 },
       rotation: { casts: casts(perMin) },
-      damageTable: { entries: damage(over.referenceDamage ?? {}) },
+      damageTable: { entries: damage(over.referenceDamage ?? { Shred: 1000 }) },
     })),
     comparability: {
       level: 'close',
@@ -61,15 +67,21 @@ function result(over: Over = {}): BossResult {
 }
 
 describe('leadingGap', () => {
-  it('names the ability whose cadence is furthest from the references', () => {
+  // Le sort nommé est celui que la liste de constats met en premier, et le classement de
+  // cette liste est en dps : Rip coûte +24 000 dps là où Shred en rend 4 000, alors même que
+  // ma cadence de Shred est presque celle des références. La cadence n'ordonne rien ici —
+  // elle décide seulement si la phrase a le droit d'être dite.
+  it('names the ability at the head of the findings list', () => {
     const lead = leadingGap(
       result({
         mine: { Shred: 10, Rip: 2 },
+        myDamage: { Shred: 700, Rip: 300 },
         references: [
           { Shred: 10.2, Rip: 4 },
           { Shred: 10, Rip: 4 },
           { Shred: 9.8, Rip: 4 },
         ],
+        referenceDamage: { Shred: 550, Rip: 450 },
       })
     );
 
@@ -79,9 +91,9 @@ describe('leadingGap', () => {
     expect(lead?.deviationPct).toBe(-50);
   });
 
-  // Le tri de `compareCasts` pondère par la part de dégâts : un sort rare et sans
-  // conséquence produit de gros pourcentages et ne coûte rien. La ligne du verdict hérite
-  // de cette pondération — sinon elle nommerait Barkskin.
+  // Barkskin ne figure dans aucune des deux tables de dégâts : il n'entre donc pas dans
+  // l'union classée, et la bannière ne peut pas le nommer — quel que soit l'écart de cadence.
+  // C'est le classement en dps qui l'écarte, pas une pondération du tri des cadences.
   it('does not name a spell that costs nothing, however far off it is', () => {
     const lead = leadingGap(
       result({
