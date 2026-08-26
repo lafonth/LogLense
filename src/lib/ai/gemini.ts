@@ -20,6 +20,12 @@ interface GeminiChunk {
     promptTokenCount?: number;
     candidatesTokenCount?: number;
     totalTokenCount?: number;
+    /**
+     * Part de `promptTokenCount` servie depuis le cache. Absente quand le cache n'a pas pris,
+     * et absente aussi sur les modèles qui ne cachent pas — d'où le `null` en aval plutôt
+     * qu'un zéro, qui se lirait comme une mesure.
+     */
+    cachedContentTokenCount?: number;
   };
   modelVersion?: string;
 }
@@ -248,6 +254,10 @@ export class GeminiProvider implements AIProvider, ToolCapableProvider {
               promptTokens,
               completionTokens,
               totalTokens: lastUsage.totalTokenCount ?? promptTokens + completionTokens,
+              cachedTokens: lastUsage.cachedContentTokenCount ?? null,
+              // Gemini ne facture pas d'écriture de cache : il n'y a pas de terme à relever,
+              // et `null` dit cela mieux qu'un zéro qui prétendrait l'avoir mesuré.
+              cacheWriteTokens: null,
               model: resolvedModel,
               // Indexé sur le modèle que Gemini dit avoir servi, pas sur celui demandé :
               // annoncer un modèle avec la fenêtre d'un autre fausse la jauge de contexte.
@@ -357,6 +367,8 @@ export class GeminiProvider implements AIProvider, ToolCapableProvider {
               promptTokens,
               completionTokens,
               totalTokens: lastUsage.totalTokenCount ?? promptTokens + completionTokens,
+              cachedTokens: lastUsage.cachedContentTokenCount ?? null,
+              cacheWriteTokens: null,
               model: resolvedModel,
               contextWindow: GEMINI_CONTEXT_WINDOWS[resolvedModel] ?? DEFAULT_CONTEXT_WINDOW,
             },

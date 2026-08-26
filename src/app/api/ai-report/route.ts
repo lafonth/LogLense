@@ -1,6 +1,6 @@
 import type { Provider } from '@/lib/ai/catalog';
 import type { GroqModelId } from '@/lib/ai/groq';
-import type { AIProvider, AIStreamChunk } from '@/lib/ai/provider';
+import type { AIProvider, AIStreamChunk, UsageData } from '@/lib/ai/provider';
 import type { AnalysisResult } from '@/types';
 import { getServerSession } from 'next-auth/next';
 
@@ -14,6 +14,7 @@ import { authOptions } from '@/lib/auth';
 import { hashUserId } from '@/lib/labels/identity';
 import { consumeAiQuota } from '@/lib/labels/rate-limit';
 import { recordAdvice } from '@/lib/labels/record-advice';
+import { recordUsage } from '@/lib/labels/record-usage';
 import { getTalentNodes } from '@/lib/talent-loader';
 
 export const runtime = 'nodejs';
@@ -189,18 +190,38 @@ export async function POST(req: Request) {
     const chunks = provider.stream(prompt, SYSTEM_PROMPT);
 
     const encoder = new TextEncoder();
+    // Retenu au passage plutôt que relu du navigateur : le relevé traverse déjà ce flux pour
+    // alimenter la jauge de contexte, et c'est le seul endroit du serveur qui le voie.
+    let usage: UsageData | null = null;
+
     const sseStream = new TransformStream<AIStreamChunk, Uint8Array>({
       transform(chunk, controller) {
         if (chunk.type === 'text') {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk.content)}\n\n`));
         } else {
+          usage = chunk.data;
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ _meta: 'usage', ...chunk.data })}\n\n`)
           );
         }
       },
-      flush(controller) {
+      async flush(controller) {
         controller.enqueue(encoder.encode('data: "[DONE]"\n\n'));
+
+        // Après le flux, contrairement à l'empreinte du conseil : les jetons n'existent qu'une
+        // fois le fournisseur allé au bout. Deux enregistrements joints par `renderId` plutôt
+        // qu'un seul déplacé — l'empreinte doit partir avant, le compte ne le peut pas.
+        // Attendue à l'intérieur du `flush` : c'est le dernier instant où une écriture est
+        // encore sûre de partir.
+        if (boss) {
+          await recordUsage(boss.renderId, {
+            surface: 'report',
+            turn: null,
+            serverKey: !headerKey,
+            provider: providerName,
+            usage,
+          });
+        }
       },
     });
 

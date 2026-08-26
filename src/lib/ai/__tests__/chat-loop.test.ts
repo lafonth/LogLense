@@ -23,6 +23,8 @@ function usage(over: Partial<UsageData> = {}): UsageData {
     promptTokens: 100,
     completionTokens: 20,
     totalTokens: 120,
+    cachedTokens: null,
+    cacheWriteTokens: null,
     model: 'claude-sonnet-5',
     contextWindow: 200000,
     ...over,
@@ -189,16 +191,46 @@ describe('runChatLoop', () => {
 
   it('sums usage over the whole loop and emits it once', async () => {
     const { usages } = await run([
-      [decline('call-1'), { type: 'usage', data: usage() }],
+      [
+        decline('call-1'),
+        { type: 'usage', data: usage({ cachedTokens: 0, cacheWriteTokens: 90 }) },
+      ],
       [
         { type: 'text', content: 'ok' },
-        { type: 'usage', data: usage({ promptTokens: 400 }) },
+        {
+          type: 'usage',
+          data: usage({ promptTokens: 400, cachedTokens: 90, cacheWriteTokens: 0 }),
+        },
       ],
     ]);
 
     expect(usages).toEqual([
-      { type: 'usage', data: usage({ promptTokens: 500, completionTokens: 40, totalTokens: 240 }) },
+      {
+        type: 'usage',
+        data: usage({
+          promptTokens: 500,
+          completionTokens: 40,
+          totalTokens: 240,
+          cachedTokens: 90,
+          cacheWriteTokens: 90,
+        }),
+      },
     ]);
+  });
+
+  it('leaves a cache term unmeasured when no round measured it', async () => {
+    // Groq ne rend aucun terme de cache. Deux non-mesures cumulees doivent rester non mesurees :
+    // un zero se lirait comme un cache mesure qui n'a jamais pris, et fausserait le cout en euros.
+    const { usages } = await run([
+      [decline('call-1'), { type: 'usage', data: usage() }],
+      [
+        { type: 'text', content: 'ok' },
+        { type: 'usage', data: usage() },
+      ],
+    ]);
+
+    expect(usages[0]?.data.cachedTokens).toBeNull();
+    expect(usages[0]?.data.cacheWriteTokens).toBeNull();
   });
 
   it('writes a provider failure into the stream instead of cutting the response', async () => {

@@ -40,7 +40,12 @@ describe('gemini provider', () => {
           part('hi'),
           `data: ${JSON.stringify({
             modelVersion: 'gemini-2.5-flash',
-            usageMetadata: { promptTokenCount: 40, candidatesTokenCount: 8, totalTokenCount: 48 },
+            usageMetadata: {
+              promptTokenCount: 40,
+              candidatesTokenCount: 8,
+              totalTokenCount: 48,
+              cachedContentTokenCount: 24,
+            },
           })}\n`,
         ])
       )
@@ -52,6 +57,8 @@ describe('gemini provider', () => {
       promptTokens: 40,
       completionTokens: 8,
       totalTokens: 48,
+      cachedTokens: 24,
+      cacheWriteTokens: null,
       model: 'gemini-2.5-flash',
       contextWindow: 1048576,
     });

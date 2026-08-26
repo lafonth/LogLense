@@ -50,6 +50,16 @@ export interface ChatLoopArgs {
   onLog: (log: ChatToolLog) => void;
 }
 
+/**
+ * Somme deux termes de cache. `null` vaut non mesuré, et deux non-mesurés font un non-mesuré :
+ * les additionner à zéro ferait passer un fournisseur muet sur le cache pour un fournisseur
+ * dont le cache n'a jamais pris — la seule distinction qui rende le relevé lisible en euros.
+ */
+function addTerm(a: number | null, b: number | null): number | null {
+  if (a === null && b === null) return null;
+  return (a ?? 0) + (b ?? 0);
+}
+
 /** Somme deux relevés d'usage. Le modèle et la fenêtre du dernier tour l'emportent. */
 function addUsage(total: UsageData | null, next: UsageData): UsageData {
   if (!total) return next;
@@ -58,6 +68,8 @@ function addUsage(total: UsageData | null, next: UsageData): UsageData {
     promptTokens: total.promptTokens + next.promptTokens,
     completionTokens: total.completionTokens + next.completionTokens,
     totalTokens: total.totalTokens + next.totalTokens,
+    cachedTokens: addTerm(total.cachedTokens, next.cachedTokens),
+    cacheWriteTokens: addTerm(total.cacheWriteTokens, next.cacheWriteTokens),
   };
 }
 

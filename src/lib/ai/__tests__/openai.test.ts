@@ -36,7 +36,12 @@ function usagePart(model: string) {
   const frame = {
     model,
     choices: [],
-    usage: { prompt_tokens: 120, completion_tokens: 30, total_tokens: 150 },
+    usage: {
+      prompt_tokens: 120,
+      completion_tokens: 30,
+      total_tokens: 150,
+      prompt_tokens_details: { cached_tokens: 96 },
+    },
   };
   return `data: ${JSON.stringify(frame)}\n\n`;
 }
@@ -87,6 +92,8 @@ describe('openai provider — rapport', () => {
       promptTokens: 120,
       completionTokens: 30,
       totalTokens: 150,
+      cachedTokens: 96,
+      cacheWriteTokens: null,
       model: 'gpt-4o-mini',
       contextWindow: 128000,
     });

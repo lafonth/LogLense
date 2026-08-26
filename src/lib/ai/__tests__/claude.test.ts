@@ -1,11 +1,22 @@
-import type { AIStreamChunk } from '../provider';
+import type { AIStreamChunk, UsageData } from '../provider';
 import { describe, expect, it, vi } from 'vitest';
 import { ClaudeProvider } from '../claude';
 
 vi.mock('@anthropic-ai/sdk', () => {
   const mockStream = {
     async *[Symbol.asyncIterator]() {
-      yield { type: 'message_start', message: { usage: { input_tokens: 100 } } };
+      // Les trois termes d'entree separement, comme l'API les rend : l'entree neuve exclut
+      // ce qui est lu ou ecrit dans le cache, et chacun se facture a un tarif different.
+      yield {
+        type: 'message_start',
+        message: {
+          usage: {
+            input_tokens: 100,
+            cache_creation_input_tokens: 40,
+            cache_read_input_tokens: 900,
+          },
+        },
+      };
       yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Hello ' } };
       yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'world' } };
       yield { type: 'message_delta', usage: { output_tokens: 5 } };
@@ -43,8 +54,14 @@ describe('claude provider', () => {
 
     expect(textChunks).toEqual(['Hello ', 'world']);
     expect(usageChunk).toBeDefined();
-    expect(
-      (usageChunk as { type: 'usage'; data: { promptTokens: number } }).data.promptTokens
-    ).toBe(100);
+    expect((usageChunk as { type: 'usage'; data: UsageData }).data).toEqual({
+      promptTokens: 1040,
+      completionTokens: 5,
+      totalTokens: 1045,
+      cachedTokens: 900,
+      cacheWriteTokens: 40,
+      model: expect.any(String),
+      contextWindow: expect.any(Number),
+    });
   });
 });

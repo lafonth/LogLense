@@ -46,6 +46,8 @@ describe('groq provider', () => {
       promptTokens: 12,
       completionTokens: 3,
       totalTokens: 15,
+      cachedTokens: null,
+      cacheWriteTokens: null,
       model: 'llama-3.1-8b-instant',
       contextWindow: 131072,
     });

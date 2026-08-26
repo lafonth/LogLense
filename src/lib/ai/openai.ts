@@ -24,7 +24,16 @@ interface OpenAIChunk {
     delta?: { content?: string; tool_calls?: ToolCallDelta[] };
     finish_reason?: string | null;
   }>;
-  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    /**
+     * Part de `prompt_tokens` servie depuis le cache — le cache d'OpenAI est automatique, il
+     * ne se demande pas. Le champ manque quand le modèle ne cache pas, d'où le `null` en aval.
+     */
+    prompt_tokens_details?: { cached_tokens?: number };
+  };
   model?: string;
 }
 
@@ -232,6 +241,9 @@ export class OpenAIProvider implements AIProvider, ToolCapableProvider {
               promptTokens: usage.prompt_tokens,
               completionTokens: usage.completion_tokens,
               totalTokens: usage.total_tokens,
+              cachedTokens: usage.prompt_tokens_details?.cached_tokens ?? null,
+              // OpenAI ne facture pas l'écriture de cache : il n'y a pas de terme à relever.
+              cacheWriteTokens: null,
               model: resolvedModel,
               contextWindow: contextWindowForModel(resolvedModel),
             },
@@ -359,6 +371,9 @@ export class OpenAIProvider implements AIProvider, ToolCapableProvider {
               promptTokens: usage.prompt_tokens,
               completionTokens: usage.completion_tokens,
               totalTokens: usage.total_tokens,
+              cachedTokens: usage.prompt_tokens_details?.cached_tokens ?? null,
+              // OpenAI ne facture pas l'écriture de cache : il n'y a pas de terme à relever.
+              cacheWriteTokens: null,
               model: resolvedModel,
               contextWindow: contextWindowForModel(resolvedModel),
             },

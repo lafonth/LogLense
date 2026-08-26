@@ -1,7 +1,28 @@
 export interface UsageData {
+  /** Entrée facturée, cache compris. C'est ce que la jauge de contexte affiche. */
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
+  /**
+   * Part de `promptTokens` relue depuis le cache du fournisseur, facturée un dixième du tarif
+   * d'entrée.
+   *
+   * Séparée parce que sans elle aucun euro ne se calcule : un tour de chat outillé relit le
+   * même contexte de boss à chaque tour d'outil, et le compter plein ferait passer une
+   * conversation ordinaire pour une conversation ruineuse.
+   *
+   * `null` dit **non mesuré**, pas nul. Claude, Gemini et OpenAI rendent ce terme ; Groq n'en
+   * rend aucun, et un zéro chez lui se lirait à tort comme un cache qui n'a jamais pris.
+   */
+  cachedTokens: number | null;
+  /**
+   * Part de `promptTokens` écrite dans le cache, facturée un quart de plus que l'entrée.
+   * Même convention de `null` que {@link UsageData.cachedTokens}.
+   *
+   * Seul Claude a ce terme : Gemini et OpenAI cachent d'office et ne facturent pas l'écriture,
+   * il n'y a donc rien à mesurer chez eux — ce qui est différent d'avoir mesuré zéro.
+   */
+  cacheWriteTokens: number | null;
   model: string;
   contextWindow: number;
 }

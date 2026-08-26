@@ -126,6 +126,9 @@ export class GroqProvider implements AIProvider {
               promptTokens: usageChunk.prompt_tokens,
               completionTokens: usageChunk.completion_tokens,
               totalTokens: usageChunk.total_tokens,
+              // Groq ne rend aucun terme de cache. `null` dit non mesuré, pas nul.
+              cachedTokens: null,
+              cacheWriteTokens: null,
               model: resolvedModel,
               contextWindow: contextWindowForModel(resolvedModel),
             },

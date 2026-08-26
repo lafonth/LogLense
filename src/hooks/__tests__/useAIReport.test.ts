@@ -71,6 +71,8 @@ describe('useAIReport', () => {
       promptTokens: 1000,
       completionTokens: 200,
       totalTokens: 1200,
+      cachedTokens: null,
+      cacheWriteTokens: null,
       model: 'test-model',
       contextWindow: 8192,
     };

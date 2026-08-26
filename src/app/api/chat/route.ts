@@ -1,6 +1,6 @@
 import type { Provider } from '@/lib/ai/catalog';
 import type { ChatPromotion, ChatToolLog } from '@/lib/ai/chat-tools';
-import type { AIStreamChunk, ChatTurn, ToolCapableProvider } from '@/lib/ai/provider';
+import type { AIStreamChunk, ChatTurn, ToolCapableProvider, UsageData } from '@/lib/ai/provider';
 import type { PromotionSubject } from '@/lib/wcl/promote';
 import type { BossResult, ReferenceSample, SnapshotRef, TopPlayer } from '@/types';
 import { getServerSession } from 'next-auth/next';
@@ -18,6 +18,7 @@ import { authOptions } from '@/lib/auth';
 import { hashUserId } from '@/lib/labels/identity';
 import { consumeAiQuota } from '@/lib/labels/rate-limit';
 import { recordChat } from '@/lib/labels/record-chat';
+import { recordUsage } from '@/lib/labels/record-usage';
 import { getTalentNodes } from '@/lib/talent-loader';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { promoteReference } from '@/lib/wcl/promote';
@@ -317,12 +318,20 @@ export async function POST(req: Request) {
       onLog: (log) => logs.push(log),
     });
 
+    const turn = body.messages.filter((m) => m.role === 'user').length;
+
     const encoder = new TextEncoder();
+    // Retenu au passage plutôt que relu du navigateur. `runChatLoop` a déjà cumulé les quatre
+    // ou cinq appels au modèle d'un tour outillé en un seul relevé : ce qui traverse ici est le
+    // coût du tour entier, pas celui de son dernier appel.
+    let usage: UsageData | null = null;
+
     const sseStream = new TransformStream<AIStreamChunk, Uint8Array>({
       transform(chunk, controller) {
         if (chunk.type === 'text') {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk.content)}\n\n`));
         } else {
+          usage = chunk.data;
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ _meta: 'usage', ...chunk.data })}\n\n`)
           );
@@ -338,8 +347,19 @@ export async function POST(req: Request) {
         await recordChat(boss, {
           provider: providerName,
           model: null,
-          turn: body.messages.filter((m) => m.role === 'user').length,
+          turn,
           logs,
+        });
+
+        // Second enregistrement, joint au premier par `renderId` : le compte de jetons n'existe
+        // qu'ici, et il ne dépense pas de quota — son frère vient d'en dépenser un pour le même
+        // rendu.
+        await recordUsage(boss.renderId, {
+          surface: 'chat',
+          turn,
+          serverKey: !headerKey,
+          provider: providerName,
+          usage,
         });
       },
     });

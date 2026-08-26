@@ -154,6 +154,9 @@ src/lib/labels/
   record-exposure.ts  Capture de ce qui a été rendu, avec la provenance du DPS
   record-advice.ts    Capture des rapports IA rendus
   record-chat.ts      Capture d'un tour de chat : axe, outils, filtre, refus. Jamais de verbatim
+  record-usage.ts     Capture du relevé de jetons d'un rendu, joint au conseil par `renderId`
+  usage.ts            `UsageRecord` et sa clé de mois : entrée neuve, cache lu, cache écrit,
+                      séparément. `null` dit non mesuré, jamais zéro
   rate-limit.ts       Quotas : `consumeQuota` échoue ouvert, `consumeStrictQuota` fermé
   schema.ts           Validation des soumissions entrant au corpus (plafonds de corpus)
 src/lib/specs.ts      Table des specs (id → nom de spec et de classe)
