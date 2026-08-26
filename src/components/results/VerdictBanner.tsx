@@ -53,6 +53,11 @@ function plural(count: number, word: string): string {
  *
  * Elle ne répète pas l'ilvl dans le cas `unreliable` : la phrase du dessus vient de le dire,
  * et c'est là qu'il porte son sens, celui d'un motif de disqualification.
+ *
+ * Les deux endroits où l'ilvl paraît sont résumés par {@link verdictNamesIlvl}, dont
+ * `BossContentPanel` se sert pour ne pas le répéter une troisième fois dans `DpsBanner`.
+ * Déplacer ou fermer l'une de ces deux portes demande de l'y suivre — un test tient la
+ * paire.
  */
 export function VerdictBanner({ result }: VerdictBannerProps) {
   const verdict = buildVerdict(result);

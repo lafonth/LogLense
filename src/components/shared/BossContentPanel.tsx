@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { tabId, tabPanelId } from '@/components/ui/tab-ids';
 import { Tabs } from '@/components/ui/Tabs';
+import { buildVerdict, verdictNamesIlvl } from '@/lib/comparison/verdict';
 import { getDpsSpecsForClass, getSpecInfo } from '@/lib/specs';
 import { fmtMs } from '@/lib/wcl/parsers';
 
@@ -123,12 +124,22 @@ export function BossContentPanel({
           <VerdictBanner result={activeBossResult} />
           {/* Monté ici plutôt que dans chaque onglet : le même DPS s'y lisait une fois par
               onglet, en plus du verdict qui l'énonce déjà. Ce qui reste — le percentile, la
-              durée du kill, l'ilvl, le DPS sur le boss seul — ne se lit nulle part ailleurs,
-              et vaut pour tous les onglets, `ai-report` compris. */}
+              durée du kill, l'ilvl, le DPS sur le boss seul — vaut pour tous les onglets,
+              `ai-report` compris.
+
+              L'ilvl fait exception : le verdict juste au-dessus le cite dès qu'il a de quoi
+              le faire, et le chiffre s'affichait alors deux fois dans le même bloc. On ne le
+              passe donc que lorsque le verdict se tait — sinon il ne se lirait plus nulle
+              part, et c'est un critère de comparabilité, pas un ornement. La condition n'est
+              pas recopiée ici : `verdictNamesIlvl` la porte, à côté du verdict. */}
           <DpsBanner
             dps={activeBossResult.character.dps}
             overallPct={activeBossResult.character.overallPct}
-            ilvl={activeBossResult.character.stats.avgIlvl}
+            ilvl={
+              verdictNamesIlvl(buildVerdict(activeBossResult))
+                ? null
+                : activeBossResult.character.stats.avgIlvl
+            }
             killTime={activeBossResult.character.killTime}
             bossDps={activeBossResult.character.bossDps}
             bossDpsPct={activeBossResult.character.bossDpsPct}

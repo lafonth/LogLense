@@ -1,6 +1,7 @@
 import type { BossResult, Comparability, DamageEntry, ReferenceSample } from '@/types';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { buildVerdict, verdictNamesIlvl } from '@/lib/comparison/verdict';
 import { VerdictBanner } from '../VerdictBanner';
 
 function sample(dps: number): ReferenceSample {
@@ -191,5 +192,39 @@ describe('verdictBanner', () => {
     );
 
     expect(screen.getByText(/No comparable log was found/)).toBeInTheDocument();
+  });
+});
+
+/*
+ * `BossContentPanel` tait l'ilvl sous le DPS quand la bannière le cite déjà, et il le
+ * demande à `verdictNamesIlvl` plutôt qu'à une copie de la condition. Ce qui suit tient la
+ * paire : la réponse du prédicat contre ce que la bannière rend vraiment. Sans lui, fermer
+ * une des deux portes de la bannière ferait disparaître l'ilvl de l'écran sans un échec.
+ */
+describe('verdictNamesIlvl', () => {
+  const cases: { name: string; over: Parameters<typeof result>[0] }[] = [
+    { name: 'panel comparable', over: {} },
+    { name: 'repli sur des références lointaines', over: { comparability: { level: 'poor' } } },
+    { name: 'panel complété', over: { comparability: { substituted: 1 } } },
+    { name: 'source d’ilvl muette', over: { comparability: { referenceIlvl: null } } },
+    {
+      name: 'aucune référence',
+      over: { sample: [], comparability: { level: 'none', referenceIlvl: null } },
+    },
+    {
+      name: 'aucune référence, mais un ilvl resté en mémoire',
+      over: { sample: [], comparability: { level: 'none' } },
+    },
+  ];
+
+  it.each(cases)('$name : le prédicat dit ce que la bannière rend', ({ over }) => {
+    const boss = result(over);
+    const { container } = render(<VerdictBanner result={boss} />);
+
+    // L'ilvl du sujet, tel que la bannière l'écrirait — jamais un fragment d'un autre nombre.
+    const shown = new RegExp(String.raw`\b${boss.comparability.myIlvl}\b`).test(
+      container.textContent ?? ''
+    );
+    expect(shown).toBe(verdictNamesIlvl(buildVerdict(boss)));
   });
 });

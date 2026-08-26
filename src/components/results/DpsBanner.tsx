@@ -3,7 +3,12 @@ import { Badge } from '@/components/ui/Badge';
 interface DpsBannerProps {
   dps: number;
   overallPct: number | null;
-  ilvl: number;
+  /**
+   * L'ilvl du sujet, ou `null` quand `VerdictBanner` l'énonce déjà — les deux bandeaux se
+   * lisent d'un seul regard, et le même chiffre y figurait deux fois. C'est l'appelant qui
+   * tranche : lui seul voit le verdict rendu juste au-dessus.
+   */
+  ilvl: number | null;
   killTime: string;
   bossDps: number | null;
   bossDpsPct: number | null;
@@ -39,14 +44,16 @@ export function DpsBanner({
         </div>
       )}
 
-      {/* Row 3: ilvl */}
-      <div className="mt-2">
-        {/* Pas d'`opacity` ici : l'ilvl est un critère de comparabilité, pas un ornement, et
-            un fondu à 0,6 sur `text-dim` retombait à 2,6:1 quelle que soit la teinte du token. */}
-        <span className="text-dim font-sans text-xs">
-          <span className="font-mono">{ilvl}</span> ilvl
-        </span>
-      </div>
+      {/* Row 3: ilvl, sauf quand le verdict le porte déjà */}
+      {ilvl !== null && (
+        <div className="mt-2">
+          {/* Pas d'`opacity` ici : l'ilvl est un critère de comparabilité, pas un ornement, et
+              un fondu à 0,6 sur `text-dim` retombait à 2,6:1 quelle que soit la teinte du token. */}
+          <span className="text-dim font-sans text-xs">
+            <span className="font-mono">{ilvl}</span> ilvl
+          </span>
+        </div>
+      )}
     </div>
   );
 }

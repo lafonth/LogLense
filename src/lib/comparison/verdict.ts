@@ -136,3 +136,21 @@ export function buildVerdict(result: BossResult): Verdict {
   const delta = referenceDps - myDps;
   return { ...base, kind: delta > 0 ? 'gap' : 'ahead', deltaDps: Math.abs(delta) };
 }
+
+/**
+ * La bannière du verdict cite-t-elle l'ilvl du sujet ?
+ *
+ * `VerdictBanner` le fait à deux endroits — le motif de disqualification en cas
+ * `unreliable`, la ligne de provenance sinon — et jamais quand la source d'ilvl se tait
+ * ou qu'il n'y a rien à comparer. Le fait tient ici, à côté des champs qu'il lit, parce
+ * qu'un second lecteur en dépend : `BossContentPanel` n'affiche l'ilvl dans `DpsBanner`
+ * que lorsque la réponse est non, faute de quoi le même chiffre se lit deux fois dans le
+ * même bloc. Recopier la condition dans le panneau la laisserait diverger en silence, et
+ * la divergence est muette dans les deux sens : ilvl en double, ou ilvl nulle part.
+ */
+export function verdictNamesIlvl(verdict: Verdict): boolean {
+  if (verdict.ilvlGap === null) return false;
+  if (verdict.kind === 'none') return false;
+  if (verdict.kind === 'unreliable') return true;
+  return verdict.referenceCount > 0;
+}

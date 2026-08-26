@@ -189,11 +189,19 @@ export function compareUptimes(
  * Une fourchette absente n'est pas une fourchette qui me contient : sans référence sur ce
  * sort il n'y a rien à quoi appartenir, et la ligne reste dépliée avec son effectif nul.
  *
+ * `referenceMedian === null` compte comme absente, et c'est le même test que `hasRange` dans
+ * `RotationCards` : une médiane nulle veut dire qu'au moins la moitié des références ne
+ * posent pas ce sort, et l'écran cache alors la bande. Sans ce garde-fou le repli mesurait
+ * une bande que la ligne ne montre jamais — un `100 %` d'aura de raid replié contre un
+ * `[0, 100]` muet, annoncé comme « matches the references ». Le repli ne peut affirmer
+ * l'appartenance qu'à une bande que le lecteur peut voir.
+ *
  * Exporté parce que trois appelants en dépendent — `isNameableGap` dans `naming-rights.ts`,
  * le repli de `RotationCards`, et le compte `matching` de `findings.ts`. La règle est la
  * même partout ou l'écran se contredit sur le même log.
  */
 export function inReferenceBand(row: AbilityComparison): boolean {
   if (row.referenceMin === null || row.referenceMax === null) return false;
+  if (row.referenceMedian === null) return false;
   return row.mine >= row.referenceMin && row.mine <= row.referenceMax;
 }

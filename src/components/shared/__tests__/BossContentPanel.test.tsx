@@ -1,5 +1,5 @@
 import type { BossState } from '@/hooks/useAnalysis';
-import type { AnalysisInput, BossResult } from '@/types';
+import type { AnalysisInput, BossResult, Comparability } from '@/types';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -43,8 +43,13 @@ function SidebarDouble({ activeIdx }: { activeIdx: number }) {
 function VerdictDouble({ result }: { result: BossResult }) {
   return <div data-testid="verdict">{result.encounter}</div>;
 }
-function DpsDouble({ dps }: { dps: number }) {
-  return <div data-testid="dps">{dps}</div>;
+function DpsDouble({ dps, ilvl }: { dps: number; ilvl: number | null }) {
+  return (
+    <div data-testid="dps">
+      {dps}
+      {ilvl !== null && <span data-testid="dps-ilvl">{ilvl}</span>}
+    </div>
+  );
 }
 
 vi.mock('@/components/results/OverviewTab', () => ({ OverviewTab: OverviewDouble }));
@@ -57,18 +62,47 @@ vi.mock('@/components/results/DpsBanner', () => ({ DpsBanner: DpsDouble }));
 const DRUID_BALANCE = 102;
 const SHADOW_PRIEST = 258;
 
-function bossResult(specId: number, encounter: string): BossResult {
-  // `character` est là pour le seul `DpsBanner`, que le panneau monte désormais lui-même.
+/**
+ * `character` est là pour le seul `DpsBanner`, que le panneau monte désormais lui-même ; le
+ * reste — `comparability`, `sample`, `topPlayers` — parce que le panneau consulte le verdict
+ * pour savoir si l'ilvl y est déjà énoncé. `referenceIlvl` par défaut à `null` : le verdict
+ * se tait alors, et l'ilvl revient au bandeau. Les cas qui l'y font parler le surchargent.
+ */
+function bossResult(
+  specId: number,
+  encounter: string,
+  comparability: Partial<Comparability> = {}
+): BossResult {
   return {
     specId,
     encounter,
     encounterId: 1,
-    character: { dps: 100000, stats: { avgIlvl: 285 } },
-  } as BossResult;
+    character: { dps: 100000, stats: { avgIlvl: 285 }, context: null },
+    sample: [{ dps: 120000, qualified: true }],
+    topPlayers: [],
+    comparability: {
+      level: 'close',
+      referenceIlvl: null,
+      referenceIlvlCount: 0,
+      myIlvl: 285,
+      referenceKillTimeMs: null,
+      myKillTimeMs: 300_000,
+      candidatesConsidered: 40,
+      pagesFetched: 1,
+      disqualified: 0,
+      unverifiable: 0,
+      substituted: 0,
+      ...comparability,
+    },
+  } as unknown as BossResult;
 }
 
-function ok(specId: number, encounter: string): BossState {
-  return { status: 'success', result: bossResult(specId, encounter) };
+function ok(
+  specId: number,
+  encounter: string,
+  comparability: Partial<Comparability> = {}
+): BossState {
+  return { status: 'success', result: bossResult(specId, encounter, comparability) };
 }
 
 const input = { characterName: 'Jumbaa', specId: DRUID_BALANCE } as AnalysisInput;
@@ -142,6 +176,22 @@ describe('bossContentPanel', () => {
 
     await user.click(screen.getByRole('tab', { name: 'AI Report' }));
     expect(screen.getAllByTestId('dps')).toHaveLength(1);
+  });
+
+  // Point 2 de la vérification manuelle : `285 ilvl` se lisait deux fois dans le même bloc,
+  // une fois dans le verdict et une fois sous le DPS. Le bandeau ne le porte donc plus que
+  // lorsque le verdict se tait — et il le porte alors vraiment, car c'est un critère de
+  // comparabilité, pas un ornement.
+  it('tait l’ilvl sous le DPS quand le verdict l’énonce déjà', () => {
+    renderPanel({ bossStates: [ok(DRUID_BALANCE, 'Chimaerus', { referenceIlvl: 290 })] });
+
+    expect(screen.queryByTestId('dps-ilvl')).not.toBeInTheDocument();
+  });
+
+  it('rend l’ilvl sous le DPS quand le verdict n’a pas de quoi le citer', () => {
+    renderPanel();
+
+    expect(screen.getByTestId('dps-ilvl')).toHaveTextContent('285');
   });
 
   it('says nothing while the boss is still loading', () => {

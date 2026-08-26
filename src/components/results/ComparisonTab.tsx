@@ -58,7 +58,17 @@ export function ComparisonTab({
 
   return (
     <div>
+      {/* La conclusion, en tête. Mesuré : derrière les deux bandeaux elle démarrait à 870 px,
+          soit sous la ligne de flottaison d'un écran de 900 — pas une ligne de constat visible
+          sans dérouler. Elle passe devant, et les bandeaux la justifient au lieu de l'annoncer.
+          Rien ne se perd : le verdict au-dessus des onglets dit déjà si la comparaison tient,
+          et `buildFindings` refuse de chiffrer quand elle ne tient pas. */}
       <div className="mt-6">
+        <FindingsList result={result} talentNodes={talentNodes} />
+      </div>
+      {/* Tout ce qui suit est la pièce justificative, et le `mt-8` marque seul cette
+          frontière — les preuves entre elles gardent `mt-6`. */}
+      <div className="mt-8">
         <ComparabilityBanner
           comparability={result.comparability}
           earlyDeathPct={buildVerdict(result).earlyDeathPct}
@@ -67,12 +77,7 @@ export function ComparisonTab({
       <div className="mt-6">
         <ReferenceLabels result={result} />
       </div>
-      {/* La conclusion. Tout ce qui suit en est la pièce justificative, et le `mt-8` marque
-          seul cette frontière — les preuves entre elles gardent `mt-6`. */}
       <div className="mt-6">
-        <FindingsList result={result} talentNodes={talentNodes} />
-      </div>
-      <div className="mt-8">
         <RotationCards
           character={result.character.rotation}
           topPlayers={result.topPlayers}
