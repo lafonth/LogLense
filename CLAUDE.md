@@ -34,54 +34,76 @@ données ne l'est pas.** Le calcul se rattrape ; les données non capturées son
 
 ## Coût et contexte
 
-Ces règles s'appliquent en permanence, y compris après un `/clear`. Elles viennent d'un
-relevé de consommation réel : la dépense vient des sous-agents lancés, du volume brut
-laissé en contexte, et de la durée d'une session avant compaction.
+Le but n'est pas de dépenser moins, c'est de **produire plus dans une fenêtre de 5 h**. Ce
+qui suit est mesuré, pas supposé : relevé `ccusage` du 24 au 27 août 2026, 123,63 $ sur huit
+fenêtres, recoupé aux journaux de session bruts pour isoler les sous-agents.
+
+**97,5 % de la dépense est la session principale.** Tous les sous-agents réunis font 2,5 %.
+Le routage des agents est donc une question de justesse, pas d'économie : régler leur modèle
+ne peut rien rendre au-delà de ces 2,5 %.
+
+Dans la session principale : écriture de cache **50 %**, relecture 32 %, sortie rendue 18 %,
+entrée neuve ~0 %. D'où les deux seuls chiffres qui commandent tout le reste.
+
+**Un jeton qui entre en contexte coûte ~16 $/M, pas 5.** Il est écrit au cache une fois
+(10 $/M, tarif TTL 1 h) puis relu à chaque tour suivant (0,50 $/M) — ratio lecture / écriture
+mesuré : **12,8**. Ce qu'on laisse en contexte est relu treize fois. Un `pnpm test` non
+filtré, ~4 000 jetons, coûte 6 centimes ; un fichier de 800 lignes lu en entier, 33 centimes.
+Autant de plafond de la fenêtre consommé sans rien produire.
+
+**À plafond égal, le rendement d'une fenêtre varie du simple au double** : de 4 200 à 9 500
+jetons de sortie par dollar sur les huit relevées, pour un volume d'écriture presque
+identique. L'écart ne vient pas de la difficulté des tâches mais de deux dérives symétriques
+— **écrire sans amortir** (charger un gros contexte puis s'arrêter) et **amortir sans finir**
+(une session si longue que chaque ajout est relu dix-sept fois). Les meilleures fenêtres
+tiennent un ratio entre 10 et 13.
 
 - **Filtrer la sortie de chaque commande.** `pnpm test` passe par
-  `| grep -E "Tests |FAIL"`, un build par `| tail`. Un dump complet de vitest fait des
-  centaines de lignes qui restent en contexte et sont relues à chaque tour suivant.
+  `| grep -E "Tests |FAIL"`, un build par `| tail`. Lire les fichiers par plages
+  (`sed -n`, `offset` / `limit`), jamais en entier « pour voir ».
+- **Proposer les points de coupure : c'est le levier n° 1.** Je ne peux ni vider ni compacter
+  le contexte moi-même — mais je dois dire quand le faire. `/clear` au changement de sujet :
+  le hook `SessionStart` réinjecte l'état du dépôt, donc repartir de zéro ne coûte rien, et
+  tout ce qui traînait cesse d'être refacturé à chaque tour. `/compact` seulement si la suite
+  a besoin des conclusions intermédiaires — il préserve la qualité mais réécrit tout le
+  contexte, donc il coûte là où `/clear` ne coûte rien. Ne jamais couper au milieu d'une
+  implémentation : proposer quand une tâche se termine, avec le prompt de reprise.
 - **Répartition des rôles, par défaut et sans qu'on la redemande.** La session principale
   planifie, arbitre et rédige : Opus, effort `high` — réglé une fois dans
-  `~/.claude/settings.json` (`model`, `effortLevel`). L'exécution part en sous-agent, dont
-  le modèle et l'effort sont épinglés dans `.claude/agents/`. Le critère de délégation
-  n'est pas la difficulté de la tâche mais **le volume qu'elle déverse dans le
-  transcript** : lectures multiples, sorties de tests, édition sur plusieurs fichiers. Ce
-  qui tient en dix lignes de sortie se fait en ligne — un démarrage à froid coûte plus
-  cher que la tâche.
-- **La recherche ne se fait pas dans le transcript principal.** Un `grep` qui ramène vingt
-  fichiers coûte, à chaque tour suivant, le prix de sa relecture en Opus. Trois lectures
-  ciblées passent en ligne ; un balayage passe par `Explore`, qui tourne en Haiku et ne
-  rend que sa conclusion. C'est l'économie la plus rentable du dispositif : elle ne retire
-  rien à la qualité de ce qui est décidé ensuite.
-- **Choisir l'agent, pas le modèle.** Les définitions de `.claude/agents/` épinglent le
-  modèle **et l'effort**. Le routage se fait par type de tâche, jamais par difficulté :
+  `~/.claude/settings.json` (`model`, `effortLevel`). L'exécution part en sous-agent, dont le
+  modèle et l'effort sont épinglés dans `.claude/agents/`. Le critère de délégation n'est pas
+  la difficulté mais **le volume déversé dans le transcript** : un balayage rend vingt
+  fichiers qu'on refacture ensuite treize fois, un sous-agent n'en rend que la conclusion. Ce
+  qui tient en dix lignes de sortie se fait en ligne — un démarrage à froid coûte plus cher
+  que la tâche.
+- **Choisir l'agent, pas le modèle.** Routage par type de tâche, jamais par difficulté :
 
   | Tâche | Agent — modèle |
   |---|---|
-  | Trouver où quelque chose est traité | `Explore` — Haiku |
+  | Trouver où quelque chose est traité | `scout` — Haiku |
   | Transcrire un plan qui porte déjà le code | `implementer` — Sonnet/`high` |
-  | Relire un diff empaqueté contre son brief | `task-reviewer` — Sonnet/`xhigh` |
+  | Relire un diff empaqueté contre son brief | `task-reviewer` — Sonnet/`high` |
   | Relire une branche entière, tous commits | `branch-reviewer` — Opus/`high` hérité |
   | Concevoir, arbitrer, trancher produit | session principale — Opus/`high` |
   | Déboguer une cause inconnue | en ligne — une mauvaise hypothèse coûte plus qu'un modèle |
 
-  Un palier plus bas ne fait économiser que s'il réussit du premier coup : une passe de
-  correction rejoue tout le contexte et annule l'écart. `xhigh` sur Opus reste le poste le
-  plus cher du dispositif. Ne jamais passer par `general-purpose` ni `claude` : leur défaut
-  est `inherit` — donc Opus — et `claude` a `tools: *`, donc un volume non borné.
-- **Une seule dispatch de revue, pas une chaîne.** Revue puis correctif puis re-revue,
-  c'est trois démarrages à froid. Corriger soi-même les points mineurs et les vérifier ;
-  ne déléguer que ce qui a réellement besoin d'un regard neuf.
-- **Regrouper les tâches minuscules.** Deux modules de fonctions pures de dix lignes sont
-  une tâche, pas deux : chaque lancement reconstruit son contexte depuis zéro.
-- **Exécuter en ligne quand le plan contient le code littéral.** La délégation se justifie
-  sur du jugement, pas sur de la transcription.
-- **Proposer explicitement les points de coupure.** Je ne peux ni compacter ni vider le
-  contexte moi-même — mais je dois dire quand le faire. `/clear` au changement de sujet,
-  c'est le cas courant et le moins cher : le hook `SessionStart` réinjecte l'état du
-  dépôt, donc repartir de zéro ne coûte rien. `/compact` seulement si la suite a besoin
-  des conclusions intermédiaires. Toujours proposer un prochain prompt post clear/compact. Make sure that compact is not better than clear in order to have the best ratio between token saving and quality of the output thanks to context. The idea is not to disrupt the flow of implementation neither, propose when it's really necessary. 
+  Ne jamais passer par `general-purpose`, `claude` ni `Explore` : aucun n'épingle son modèle,
+  leur défaut est `inherit` — donc Opus — et `claude` a `tools: *`, donc un volume non borné.
+  `Explore` tournait bien en Opus jusqu'au 2026-08-27, mesure à l'appui ; `scout` le remplace.
+
+  L'effort ne se surcharge pas à l'appel : il est figé dans la définition. `task-reviewer` est
+  donc en `high`, et un diff qui touche `comparability.ts`, `references.ts` ou l'un des quatre
+  pipelines s'escalade vers `branch-reviewer` — pas vers un effort plus haut.
+- **Une seule dispatch de revue, pas une chaîne.** Revue puis correctif puis re-revue, c'est
+  trois démarrages à froid. Corriger soi-même les points mineurs et les vérifier ; ne déléguer
+  que ce qui a réellement besoin d'un regard neuf.
+- **Regrouper les tâches minuscules, et exécuter en ligne quand le plan porte déjà le code
+  littéral.** Deux modules de dix lignes sont une tâche, pas deux : chaque lancement
+  reconstruit son contexte depuis zéro. La délégation se justifie sur du jugement, jamais sur
+  de la transcription.
+
+Ce fichier est réinjecté à chaque session : l'allonger se paie sur toutes les fenêtres
+suivantes. Une règle ajoutée ici doit valoir son écriture.
 
 ## Vocabulaire du domaine
 
