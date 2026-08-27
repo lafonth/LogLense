@@ -1,16 +1,36 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { BOSS_ANALYSIS_UNITS, guardWclSpend, quotaSubject } from '../wcl-guard';
+import { countWclCall } from '@/lib/wcl/meter';
+import {
+  BOSS_ANALYSIS_UNITS,
+  guardMeteredWclSpend,
+  guardWclSpend,
+  quotaSubject,
+} from '../wcl-guard';
 
-const { getServerSession, consumeWclQuota, settleWclQuota, recordDemand } = vi.hoisted(() => ({
+const {
+  getServerSession,
+  consumeWclQuota,
+  consumeWclGlobalQuota,
+  settleWclQuota,
+  settleWclGlobalQuota,
+  recordDemand,
+} = vi.hoisted(() => ({
   getServerSession: vi.fn(),
   consumeWclQuota: vi.fn(),
+  consumeWclGlobalQuota: vi.fn(),
   settleWclQuota: vi.fn(),
+  settleWclGlobalQuota: vi.fn(),
   recordDemand: vi.fn(),
 }));
 
 vi.mock('next-auth/next', () => ({ getServerSession }));
 vi.mock('@/lib/auth', () => ({ authOptions: {} }));
-vi.mock('@/lib/labels/rate-limit', () => ({ consumeWclQuota, settleWclQuota }));
+vi.mock('@/lib/labels/rate-limit', () => ({
+  consumeWclQuota,
+  consumeWclGlobalQuota,
+  settleWclQuota,
+  settleWclGlobalQuota,
+}));
 vi.mock('@/lib/labels/record-demand', () => ({ recordDemand }));
 
 const ALLOWED = { allowed: true, retryAfterSeconds: 0, unavailable: false, consumed: 90 };
@@ -28,6 +48,7 @@ describe('guardWclSpend', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     consumeWclQuota.mockResolvedValue(ALLOWED);
+    consumeWclGlobalQuota.mockResolvedValue(ALLOWED);
     recordDemand.mockResolvedValue(undefined);
     getServerSession.mockResolvedValue({ user: { name: 'Player#1234' } });
   });
@@ -39,6 +60,7 @@ describe('guardWclSpend', () => {
 
     expect(refusal?.status).toBe(401);
     expect(consumeWclQuota).not.toHaveBeenCalled();
+    expect(consumeWclGlobalQuota).not.toHaveBeenCalled();
   });
 
   // Rien à consigner : aucun verdict de quota n'existe encore, et la friction de l'allowlist
@@ -125,5 +147,120 @@ describe('guardWclSpend', () => {
     expect(quotaSubject('a@b.c')).toBe(quotaSubject('a@b.c'));
 
     vi.unstubAllEnvs();
+  });
+});
+
+// Le plafond par compte ne compose pas : dix bêta-testeurs valent dix fois `WCL_UNIT_LIMIT` par
+// heure sans qu'aucun n'ait rien fait d'anormal, là où la sanction d'en face porte sur la clé et
+// arrête le produit entier.
+describe('guardWclSpend, against the shared ceiling', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    consumeWclQuota.mockResolvedValue(ALLOWED);
+    consumeWclGlobalQuota.mockResolvedValue(ALLOWED);
+    recordDemand.mockResolvedValue(undefined);
+    getServerSession.mockResolvedValue({ user: { name: 'Player#1234' } });
+  });
+
+  it('charges the shared counter what it charges the account, on the same window', async () => {
+    await guardWclSpend('analyze', BOSS_ANALYSIS_UNITS);
+
+    const [, personalAt, personalUnits] = consumeWclQuota.mock.calls[0] as [string, number, number];
+    expect(consumeWclGlobalQuota).toHaveBeenCalledWith(personalAt, personalUnits);
+  });
+
+  // L'ordre est l'invariant : consulté en premier, le compteur commun serait gonflé à chaque
+  // tentative d'un appelant déjà refusé — et comme un refus n'est jamais réglé, un seul raider
+  // qui martèle fermerait la porte aux neuf autres.
+  it.each([
+    ['denied', DENIED],
+    ['unavailable', UNAVAILABLE],
+  ])('never touches the shared counter for a %s account', async (_name, quota) => {
+    consumeWclQuota.mockResolvedValue(quota);
+
+    await guardWclSpend('analyze', BOSS_ANALYSIS_UNITS);
+
+    expect(consumeWclGlobalQuota).not.toHaveBeenCalled();
+  });
+
+  it('refuses an account under its own quota once the shared ceiling is reached', async () => {
+    consumeWclGlobalQuota.mockResolvedValue(DENIED);
+
+    const refusal = await guardWclSpend('analyze', BOSS_ANALYSIS_UNITS);
+
+    expect(refusal?.status).toBe(429);
+    expect(refusal?.headers.get('Retry-After')).toBe('900');
+  });
+
+  // Fermé, comme le compteur par compte : ce plafond garde la clé du produit entier, et une
+  // dépense collective non comptée est une dépense collective sans plafond.
+  it('answers 503 when the shared counter cannot be read', async () => {
+    consumeWclGlobalQuota.mockResolvedValue(UNAVAILABLE);
+
+    expect((await guardWclSpend('analyze', BOSS_ANALYSIS_UNITS))?.status).toBe(503);
+  });
+
+  // Sans ça le corpus dirait « allowed » d'une requête refusée, et la seule mesure qui montre
+  // le plafond commun mordre serait perdue.
+  it('records the verdict of the counter that actually decided', async () => {
+    consumeWclGlobalQuota.mockResolvedValue(DENIED);
+
+    await guardWclSpend('analyze', BOSS_ANALYSIS_UNITS);
+
+    const [, , verdict, , globalVerdict] = recordDemand.mock.calls[0] as [
+      string,
+      number,
+      unknown,
+      string,
+      unknown,
+    ];
+    expect(verdict).toBe(ALLOWED);
+    expect(globalVerdict).toBe(DENIED);
+  });
+
+  it('records no shared verdict when the account quota refused first', async () => {
+    consumeWclQuota.mockResolvedValue(DENIED);
+
+    await guardWclSpend('analyze', BOSS_ANALYSIS_UNITS);
+
+    expect(recordDemand.mock.calls[0][4]).toBeNull();
+  });
+});
+
+// Les deux compteurs ont réservé le même forfait, ils règlent le même écart : n'en régler qu'un
+// laisserait le plafond commun mordre sur des appels qui ne sont jamais partis.
+describe('guardMeteredWclSpend', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    consumeWclQuota.mockResolvedValue(ALLOWED);
+    consumeWclGlobalQuota.mockResolvedValue(ALLOWED);
+    recordDemand.mockResolvedValue(undefined);
+    settleWclQuota.mockResolvedValue(undefined);
+    settleWclGlobalQuota.mockResolvedValue(undefined);
+    getServerSession.mockResolvedValue({ user: { name: 'Player#1234' } });
+  });
+
+  it('settles both counters with the same signed delta', async () => {
+    await guardMeteredWclSpend('analyze', BOSS_ANALYSIS_UNITS, async () => {
+      countWclCall();
+      return new Response('ok');
+    });
+
+    const [, personalAt, ,] = consumeWclQuota.mock.calls[0] as [string, number, number];
+    const delta = 1 - BOSS_ANALYSIS_UNITS;
+    expect(settleWclQuota).toHaveBeenCalledWith(expect.any(String), personalAt, delta);
+    expect(settleWclGlobalQuota).toHaveBeenCalledWith(personalAt, delta);
+  });
+
+  // Un refus n'est jamais réglé : rembourser une requête refusée rendrait le plafond
+  // franchissable indéfiniment — et le commun aussi bien que le personnel.
+  it('settles neither counter when the shared ceiling refused', async () => {
+    consumeWclGlobalQuota.mockResolvedValue(DENIED);
+    const run = vi.fn();
+
+    expect((await guardMeteredWclSpend('analyze', BOSS_ANALYSIS_UNITS, run)).status).toBe(429);
+    expect(run).not.toHaveBeenCalled();
+    expect(settleWclQuota).not.toHaveBeenCalled();
+    expect(settleWclGlobalQuota).not.toHaveBeenCalled();
   });
 });

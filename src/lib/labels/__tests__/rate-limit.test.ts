@@ -4,10 +4,14 @@ import {
   AI_PREFIX,
   consumeAiQuota,
   consumeLabelQuota,
+  consumeWclGlobalQuota,
   consumeWclQuota,
   LABEL_LIMIT,
   quotaKey,
   rateLimitKey,
+  settleWclGlobalQuota,
+  WCL_GLOBAL_SUBJECT,
+  WCL_GLOBAL_UNIT_LIMIT,
   WCL_PREFIX,
   WCL_UNIT_LIMIT,
   WINDOW_MS,
@@ -231,5 +235,90 @@ describe('consumeWclQuota', () => {
       unavailable: true,
       consumed: 310,
     });
+  });
+});
+
+describe('consumeWclGlobalQuota', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    redisExpire.mockResolvedValue(undefined);
+    redisIncrBy.mockResolvedValue(1);
+  });
+
+  // Même préfixe et même fenêtre que les compteurs par compte : c'est ce qui rend le règlement
+  // identique pour l'un et pour l'autre.
+  it('charges a single shared subject, in the counter space of the accounts', async () => {
+    await consumeWclGlobalQuota(WINDOW_MS, 50);
+
+    expect(redisIncrBy).toHaveBeenCalledWith(
+      quotaKey(WCL_PREFIX, WCL_GLOBAL_SUBJECT, WINDOW_MS),
+      50
+    );
+  });
+
+  // `quotaSubject` rend trente-deux caractères hexadécimaux : aucun compte ne peut se voir
+  // attribuer le sujet partagé, donc personne ne dépense le budget commun à sa place.
+  it('uses a subject no account hash can collide with', () => {
+    expect(WCL_GLOBAL_SUBJECT).not.toMatch(/^[0-9a-f]{32}$/);
+  });
+
+  // Tout l'objet du compteur : il laisse passer là où un compte serait déjà refusé, et il
+  // refuse là où aucun compte pris isolément ne le serait.
+  it('measures against the shared ceiling, not the per-account one', async () => {
+    redisIncrBy.mockResolvedValue(WCL_UNIT_LIMIT + 50);
+    await expect(consumeWclGlobalQuota(0, 50)).resolves.toMatchObject({ allowed: true });
+
+    redisIncrBy.mockResolvedValue(WCL_GLOBAL_UNIT_LIMIT + 50);
+    await expect(consumeWclGlobalQuota(0, 50)).resolves.toMatchObject({
+      allowed: false,
+      unavailable: false,
+      consumed: WCL_GLOBAL_UNIT_LIMIT + 50,
+    });
+  });
+
+  // Ce plafond garde la clé du produit entier : un compteur illisible ferme, il ne laisse pas
+  // filer. Sans quoi une panne Redis rendrait la dépense collective illimitée.
+  it('refuses when the shared counter cannot be read', async () => {
+    redisIncrBy.mockRejectedValue(new Error('upstash down'));
+
+    await expect(consumeWclGlobalQuota(0, 50)).resolves.toMatchObject({
+      allowed: false,
+      unavailable: true,
+      consumed: null,
+    });
+  });
+
+  it('is higher than the per-account ceiling, or it would make it unreachable', () => {
+    expect(WCL_GLOBAL_UNIT_LIMIT).toBeGreaterThan(WCL_UNIT_LIMIT);
+  });
+});
+
+describe('settleWclGlobalQuota', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    redisIncrBy.mockResolvedValue(1);
+  });
+
+  // Sans lui, le forfait réservé gonflerait le plafond commun au tarif plein et celui-ci
+  // mordrait sur une dépense qui n'a pas eu lieu — pour tout le monde à la fois.
+  it('credits back the shared counter, on the window of the reservation', async () => {
+    await settleWclGlobalQuota(WINDOW_MS, -78);
+
+    expect(redisIncrBy).toHaveBeenCalledWith(
+      quotaKey(WCL_PREFIX, WCL_GLOBAL_SUBJECT, WINDOW_MS),
+      -78
+    );
+  });
+
+  it('spends no round trip when the reservation was exact', async () => {
+    await settleWclGlobalQuota(0, 0);
+
+    expect(redisIncrBy).not.toHaveBeenCalled();
+  });
+
+  it('never throws when the settlement is lost', async () => {
+    redisIncrBy.mockRejectedValue(new Error('upstash down'));
+
+    await expect(settleWclGlobalQuota(0, -78)).resolves.toBeUndefined();
   });
 });

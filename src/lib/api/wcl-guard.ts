@@ -3,7 +3,12 @@ import { createHash } from 'node:crypto';
 import { getServerSession } from 'next-auth/next';
 
 import { authOptions } from '@/lib/auth';
-import { consumeWclQuota, settleWclQuota } from '@/lib/labels/rate-limit';
+import {
+  consumeWclGlobalQuota,
+  consumeWclQuota,
+  settleWclGlobalQuota,
+  settleWclQuota,
+} from '@/lib/labels/rate-limit';
 import { recordDemand } from '@/lib/labels/record-demand';
 import { meterWclCalls } from '@/lib/wcl/meter';
 import { PROMOTION_WCL_CALLS } from '@/lib/wcl/promote';
@@ -92,8 +97,13 @@ export function quotaSubject(userId: string): string {
 }
 
 /**
- * Garde des routes qui dépensent le budget Warcraft Logs : session obligatoire, puis quota
- * horaire pondéré par le coût réel de la requête.
+ * Garde des routes qui dépensent le budget Warcraft Logs : session obligatoire, puis deux quotas
+ * horaires pondérés par le coût réel de la requête — celui du compte, puis celui que tous les
+ * comptes partagent.
+ *
+ * Le second existe parce que le premier ne compose pas : dix bêta-testeurs, c'est dix fois
+ * `WCL_UNIT_LIMIT` par heure sans qu'aucun n'ait rien fait d'anormal, là où la sanction d'en
+ * face porte sur la clé et arrête le produit entier.
  *
  * Rend la réponse de refus, ou `null` quand la dépense est autorisée. À appeler après la
  * validation du corps — un quota se dépense sur une requête qui aboutira, pas sur une qu'on
@@ -122,7 +132,8 @@ export async function guardWclSpend(route: WclRoute, units: number): Promise<Res
  * tourne avant la résolution du personnage, la route ne connaît alors ni sa spec ni sa
  * classe, donc aucune des clés de cache qui répondraient à la question.
  *
- * Le règlement se fait sur la fenêtre de la réservation, retenue ici. Un refus, lui, n'est
+ * Le règlement se fait sur la fenêtre de la réservation, retenue ici, et **sur les deux
+ * compteurs** — celui du compte et celui que tous les comptes partagent. Un refus, lui, n'est
  * jamais réglé : rembourser une requête refusée rendrait le plafond franchissable
  * indéfiniment — refus, remboursement, refus.
  *
@@ -137,7 +148,13 @@ export async function guardMeteredWclSpend(
   const { refusal, subject, atMs } = await reserve(route, units);
   if (refusal) return refusal;
 
-  return meterWclCalls(run, (calls) => settleWclQuota(subject, atMs, calls - units));
+  return meterWclCalls(run, async (calls) => {
+    const delta = calls - units;
+    // Les deux compteurs ont réservé le même forfait, ils règlent le même écart. N'en régler
+    // qu'un laisserait le plafond commun mordre sur des appels qui ne sont jamais partis.
+    await settleWclQuota(subject, atMs, delta);
+    await settleWclGlobalQuota(atMs, delta);
+  });
 }
 
 interface Reservation {
@@ -166,21 +183,31 @@ async function reserve(route: WclRoute, units: number): Promise<Reservation> {
 
   const verdict = await consumeWclQuota(subject, atMs, units);
 
+  // Le plafond commun ne se consulte qu'après celui du compte, et seulement s'il a laissé
+  // passer. L'ordre inverse laisserait un appelant déjà refusé gonfler le compteur partagé à
+  // chaque tentative — et comme un refus n'est jamais réglé, un seul raider qui martèle
+  // fermerait la porte aux neuf autres.
+  const globalVerdict = verdict.allowed ? await consumeWclGlobalQuota(atMs, units) : null;
+
   // Attendu avant la réponse, refus compris : c'est l'invariant des écritures de corpus, et le
   // 429 est justement l'enregistrement qu'on ne peut pas reconstituer après coup.
-  await recordDemand(route, units, verdict, userId);
+  await recordDemand(route, units, verdict, userId, globalVerdict);
 
-  if (verdict.unavailable) {
+  // Celui des deux qui a décidé. Le commun n'existe que si le personnel a laissé passer, donc
+  // il prend la main dès qu'il a parlé.
+  const deciding = globalVerdict ?? verdict;
+
+  if (deciding.unavailable) {
     return {
       refusal: jsonResponse({ error: 'Analysis temporarily unavailable' }, 503),
       subject,
       atMs,
     };
   }
-  if (!verdict.allowed) {
+  if (!deciding.allowed) {
     return {
       refusal: jsonResponse({ error: 'Hourly Warcraft Logs quota reached' }, 429, {
-        'Retry-After': String(verdict.retryAfterSeconds),
+        'Retry-After': String(deciding.retryAfterSeconds),
       }),
       subject,
       atMs,

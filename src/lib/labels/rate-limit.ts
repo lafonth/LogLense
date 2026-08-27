@@ -27,6 +27,30 @@ export const AI_LIMIT = 20;
  */
 export const WCL_UNIT_LIMIT = 2000;
 
+/**
+ * Appels Warcraft Logs par heure, **tous comptes confondus**.
+ *
+ * `WCL_UNIT_LIMIT` borne un compte ; il ne compose pas. Dix bêta-testeurs, c'est vingt mille
+ * unités par heure sans qu'aucun d'eux n'ait rien fait d'anormal. Et la sanction d'en face est
+ * discrétionnaire et porte sur la clé : elle arrête le produit entier, pas le compte fautif.
+ * Ce second plafond est le seul qui borne ce que Warcraft Logs voit réellement.
+ *
+ * Trois fois le plafond individuel : trois raiders peuvent brûler leur quota personnel entier
+ * avant que le partagé ne morde, ce qui laisse l'usage normal tranquille et coupe l'emballement
+ * collectif. **Le chiffre est à recalibrer sur le budget réel du client WCL** — il est posé sur
+ * l'ordre de grandeur d'une bêta à dix, pas sur un relevé d'en face.
+ */
+export const WCL_GLOBAL_UNIT_LIMIT = 6000;
+
+/**
+ * Le sujet du compteur partagé, dans le même préfixe que les compteurs par compte.
+ *
+ * Aucune collision possible : `quotaSubject` rend toujours trente-deux caractères hexadécimaux,
+ * jamais ce littéral. Partager le préfixe garde les deux compteurs sur la même fenêtre et la
+ * même durée de vie — c'est ce qui rend le règlement identique pour l'un et pour l'autre.
+ */
+export const WCL_GLOBAL_SUBJECT = 'all';
+
 /** Préfixes de compteur. Quatre quotas distincts : saturer l'un ne doit pas fermer les autres. */
 export const LABEL_PREFIX = 'ratelimit:labels';
 export const EXPOSURE_PREFIX = 'ratelimit:exposure';
@@ -188,6 +212,20 @@ export function consumeWclQuota(by: string, atMs: number, units: number): Promis
 }
 
 /**
+ * Consomme `units` du budget Warcraft Logs horaire **partagé par tous les comptes**.
+ *
+ * À consommer *après* le quota du compte, jamais avant : un appelant déjà au-delà de son
+ * plafond personnel continuerait sinon de gonfler le compteur commun à chaque tentative — et
+ * comme un refus n'est jamais réglé, un seul utilisateur qui martèle fermerait la porte à tous
+ * les autres. L'ordre inverse coûte à celui qui déborde un débit personnel pour une requête que
+ * le plafond commun refusera ; la fenêtre se remet à zéro toute seule, et ce module accepte
+ * déjà cette classe d'imprécision.
+ */
+export function consumeWclGlobalQuota(atMs: number, units: number): Promise<StrictVerdict> {
+  return consumeStrictQuota(WCL_PREFIX, WCL_GLOBAL_UNIT_LIMIT, WCL_GLOBAL_SUBJECT, atMs, units);
+}
+
+/**
  * Corrige après coup ce qu'une requête a réellement dépensé chez Warcraft Logs.
  *
  * `consumeWclQuota` réserve un forfait avant la première requête — il le doit, c'est le seul
@@ -217,4 +255,13 @@ export async function settleWclQuota(by: string, atMs: number, delta: number): P
   } catch {
     // Avalé volontairement : voir l'en-tête.
   }
+}
+
+/**
+ * Le même règlement, sur le compteur partagé. Même delta, signé de la même façon : sans lui, le
+ * forfait de quatre-vingt-dix unités gonflerait le plafond commun au tarif plein, et celui-ci
+ * mordrait sur une dépense qui n'a pas eu lieu — pour tout le monde à la fois.
+ */
+export function settleWclGlobalQuota(atMs: number, delta: number): Promise<void> {
+  return settleWclQuota(WCL_GLOBAL_SUBJECT, atMs, delta);
 }

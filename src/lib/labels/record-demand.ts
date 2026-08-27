@@ -2,7 +2,7 @@ import type { StrictVerdict } from './rate-limit';
 import { redisAppend } from '@/lib/redis';
 import { DEMAND_MONTH_CAP, hasCorpusRoom } from './corpus';
 import { hashUserId } from './identity';
-import { WCL_UNIT_LIMIT } from './rate-limit';
+import { WCL_GLOBAL_UNIT_LIMIT, WCL_UNIT_LIMIT } from './rate-limit';
 
 /**
  * Les routes qui dépensent le budget Warcraft Logs.
@@ -40,15 +40,30 @@ export interface DemandRecord {
    * `labels:demand:*` doit lire leur absence comme `v: 0, kind: 'demand'` : la clé ne portait
    * alors que cette forme, ce qui rend l'inférence sûre ici et le resterait mal ailleurs.
    */
-  v: 1;
+  v: 2;
   kind: 'demand';
   route: WclRoute;
   /** Ce que la requête a demandé au budget. */
   units: number;
-  /** Ce que le compteur totalise après elle, `null` s'il n'a pas répondu. */
+  /** Ce que le compteur du compte totalise après elle, `null` s'il n'a pas répondu. */
   consumed: number | null;
   /** Le plafond en vigueur au moment de la mesure — il changera, les lignes passées non. */
   limit: number;
+  /**
+   * Le compteur partagé par tous les comptes, `null` quand le quota du compte a refusé avant
+   * qu'on l'atteigne.
+   *
+   * Ce `null` n'est pas une absence de mesure : il dit que le compteur commun n'a pas été
+   * consulté, ce qui est précisément l'ordre voulu. Il rend aussi lisible **lequel des deux
+   * plafonds a décidé** sans champ supplémentaire — un `outcome` non `allowed` avec un `global`
+   * renseigné ne peut venir que du plafond commun, puisque celui du compte l'avait laissé
+   * passer.
+   *
+   * **Les lignes en `v: 1` n'ont pas ce champ**, et il ne faut pas lire leur absence comme un
+   * compteur commun qui n'aurait rien vu : il n'existait pas.
+   */
+  global: { consumed: number | null; limit: number } | null;
+  /** L'issue rendue à l'appelant : celle du compteur qui a décidé. */
   outcome: DemandOutcome;
   by: string;
   at: string;
@@ -87,7 +102,8 @@ export async function recordDemand(
   route: WclRoute,
   units: number,
   verdict: StrictVerdict,
-  userId: string
+  userId: string,
+  globalVerdict: StrictVerdict | null = null
 ): Promise<void> {
   try {
     const by = hashUserId(userId);
@@ -97,13 +113,18 @@ export async function recordDemand(
     if (!(await hasCorpusRoom(key, DEMAND_MONTH_CAP))) return;
 
     const record: DemandRecord = {
-      v: 1,
+      v: 2,
       kind: 'demand',
       route,
       units,
       consumed: verdict.consumed,
       limit: WCL_UNIT_LIMIT,
-      outcome: outcomeOf(verdict),
+      global: globalVerdict
+        ? { consumed: globalVerdict.consumed, limit: WCL_GLOBAL_UNIT_LIMIT }
+        : null,
+      // Le compteur commun ne parle que quand celui du compte a laissé passer : c'est donc lui
+      // qui porte l'issue dès qu'il a été consulté.
+      outcome: outcomeOf(globalVerdict ?? verdict),
       by,
       at,
     };

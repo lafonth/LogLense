@@ -1,7 +1,7 @@
 import type { StrictVerdict } from '../rate-limit';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CORPUS_MONTH_CAP, DEMAND_MONTH_CAP } from '../corpus';
-import { WCL_UNIT_LIMIT } from '../rate-limit';
+import { WCL_GLOBAL_UNIT_LIMIT, WCL_UNIT_LIMIT } from '../rate-limit';
 import { demandMonthKey, recordDemand } from '../record-demand';
 
 const { redisAppend, redisLlen } = vi.hoisted(() => ({
@@ -95,7 +95,63 @@ describe('recordDemand', () => {
   it('carries the version and the kind that make it readable later', async () => {
     await recordDemand('analyze', 90, verdict(), USER);
 
-    expect(written()[0]).toMatchObject({ v: 1, kind: 'demand' });
+    expect(written()[0]).toMatchObject({ v: 2, kind: 'demand' });
+  });
+
+  // Le plafond du compte ne compose pas : c'est le compteur commun qui borne ce que Warcraft
+  // Logs voit réellement, et une ligne qui n'en dit rien ne permet pas de savoir lequel des deux
+  // a décidé.
+  it('records what the shared counter totalled, next to the account one', async () => {
+    await recordDemand('analyze', 90, verdict({ consumed: 180 }), USER, verdict({ consumed: 900 }));
+
+    expect(written()[0]).toMatchObject({
+      consumed: 180,
+      limit: WCL_UNIT_LIMIT,
+      global: { consumed: 900, limit: WCL_GLOBAL_UNIT_LIMIT },
+      outcome: 'allowed',
+    });
+  });
+
+  // Ce `null` n'est pas une mesure manquante : il dit que le compteur commun n'a pas été
+  // consulté, ce qui est l'ordre voulu — un appelant déjà refusé ne gonfle pas le compteur des
+  // autres.
+  it('leaves the shared counter null when the account quota refused first', async () => {
+    await recordDemand('analyze', 90, verdict({ allowed: false, consumed: 2090 }), USER);
+
+    expect(written()[0]).toMatchObject({ global: null, outcome: 'denied' });
+  });
+
+  // Sans ça le corpus dirait « allowed » d'une requête refusée : le verdict du compte l'a bien
+  // laissée passer, et c'est le plafond commun qui a fermé.
+  it('takes its outcome from the counter that actually decided', async () => {
+    await recordDemand(
+      'analyze',
+      90,
+      verdict({ consumed: 180 }),
+      USER,
+      verdict({ allowed: false, retryAfterSeconds: 900, consumed: WCL_GLOBAL_UNIT_LIMIT + 90 })
+    );
+
+    expect(written()[0]).toMatchObject({
+      consumed: 180,
+      outcome: 'denied',
+      global: { consumed: WCL_GLOBAL_UNIT_LIMIT + 90 },
+    });
+  });
+
+  it('separates a shared counter it could not read from a shared ceiling it reached', async () => {
+    await recordDemand(
+      'analyze',
+      90,
+      verdict({ consumed: 180 }),
+      USER,
+      verdict({ allowed: false, unavailable: true, consumed: null })
+    );
+
+    expect(written()[0]).toMatchObject({
+      outcome: 'unavailable',
+      global: { consumed: null, limit: WCL_GLOBAL_UNIT_LIMIT },
+    });
   });
 
   it('identifies the account by its salted hash, never by its address', async () => {
