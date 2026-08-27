@@ -211,6 +211,18 @@ export interface Comparability {
   myKillTimeMs: number;
   candidatesConsidered: number;
   pagesFetched: number;
+  /**
+   * Le vivier tel qu'il est avant sélection : le DPS médian et l'ilvl médian de tous les
+   * candidats retenus de la fenêtre de classement. C'est la comparaison naïve — celle que
+   * rend n'importe quel classement — et le seul chiffre qui permette de dire ce que la
+   * comparabilité a retiré de l'écart annoncé au joueur.
+   *
+   * `null` quand le vivier est vide, ou quand aucun candidat ne portait d'ilvl.
+   * `poolDps` s'appuie sur `candidatesConsidered`, `poolIlvl` sur `poolIlvlCount`.
+   */
+  poolDps: number | null;
+  poolIlvl: number | null;
+  poolIlvlCount: number;
   /** Candidats de la fenêtre écartés par un critère éliminatoire. */
   disqualified: number;
   /**

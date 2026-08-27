@@ -3,8 +3,6 @@ import type { Encounter, TalentNode } from '@/types';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { usableSample } from '@/lib/comparison/stat-distribution';
-import { buildVerdict } from '@/lib/comparison/verdict';
-import { ComparabilityBanner } from './ComparabilityBanner';
 import { FindingsList } from './FindingsList';
 import { OpeningChain } from './OpeningChain';
 import { ReferenceLabels } from './ReferenceLabels';
@@ -60,21 +58,20 @@ export function ComparisonTab({
     <div>
       {/* La conclusion, en tête. Mesuré : derrière les deux bandeaux elle démarrait à 870 px,
           soit sous la ligne de flottaison d'un écran de 900 — pas une ligne de constat visible
-          sans dérouler. Elle passe devant, et les bandeaux la justifient au lieu de l'annoncer.
+          sans dérouler. Elle passe devant, et les pièces la justifient au lieu de l'annoncer.
           Rien ne se perd : le verdict au-dessus des onglets dit déjà si la comparaison tient,
-          et `buildFindings` refuse de chiffrer quand elle ne tient pas. */}
+          et `buildFindings` refuse de chiffrer quand elle ne tient pas.
+
+          `ComparabilityBanner` a quitté cet onglet pour le bloc au-dessus des onglets : l'aveu
+          que la comparaison ne tient pas ne peut pas dépendre du clic qui l'aurait ouvert. Il
+          repasse donc au-dessus de la conclusion, mais hors de la page où celle-ci était
+          poussée en bas — c'est le seul bandeau qui gagne à précéder tout le reste. */}
       <div className="mt-6">
         <FindingsList result={result} talentNodes={talentNodes} />
       </div>
       {/* Tout ce qui suit est la pièce justificative, et le `mt-8` marque seul cette
           frontière — les preuves entre elles gardent `mt-6`. */}
       <div className="mt-8">
-        <ComparabilityBanner
-          comparability={result.comparability}
-          earlyDeathPct={buildVerdict(result).earlyDeathPct}
-        />
-      </div>
-      <div className="mt-6">
         <ReferenceLabels result={result} />
       </div>
       <div className="mt-6">

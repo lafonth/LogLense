@@ -492,6 +492,15 @@ export async function resolveReferences(
   const referenceIlvls = scored
     .map((s) => s.candidate.bracketData)
     .filter((v): v is number => v !== undefined);
+
+  // Le vivier avant sélection. Il ne coûte aucune requête — `amount` et `bracketData`
+  // arrivent avec le classement — et c'est ici, et nulle part ailleurs, qu'il existe
+  // encore : les pipelines ne reçoivent que le panel et l'échantillon.
+  //
+  // Il n'atteint donc que les deux pipelines qui passent par `resolveReferences`
+  // (`pipeline.ts`, `report-pipeline.ts`). `pull-pipeline.ts` et `raid-ranking.ts` ne
+  // résolvent pas de vivier : il n'y a rien à y mesurer, pas un chiffre qui manque.
+  const poolIlvls = filtered.map((c) => c.bracketData).filter((v): v is number => v !== undefined);
   const comparability: Comparability = {
     // A substituted panel is not comparable, whatever the distances say: the criterion
     // that eliminated the substitute is eliminatory, and the distance never saw it.
@@ -503,6 +512,9 @@ export async function resolveReferences(
     myKillTimeMs,
     candidatesConsidered: filtered.length,
     pagesFetched: pool.pagesFetched,
+    poolDps: medianOf(filtered.map((c) => Math.round(c.amount))),
+    poolIlvl: medianOf(poolIlvls),
+    poolIlvlCount: poolIlvls.length,
     disqualified: eliminated.length,
     unverifiable: attempted - verified.length,
     substituted: keptSubstitutes.length,

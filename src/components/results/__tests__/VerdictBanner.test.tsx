@@ -59,6 +59,9 @@ function result(over: {
       disqualified: 0,
       unverifiable: 0,
       substituted: 0,
+      poolDps: null,
+      poolIlvl: null,
+      poolIlvlCount: 0,
       ...over.comparability,
     },
     // Le composant ne lit que ces branches : le reste du `BossResult` n'a pas à être

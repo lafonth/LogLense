@@ -68,6 +68,9 @@ const fixtures = vi.hoisted(() => ({
       pagesFetched: 0,
       disqualified: 0,
       substituted: 0,
+      poolDps: null,
+      poolIlvl: null,
+      poolIlvlCount: 0,
     },
   },
 }));

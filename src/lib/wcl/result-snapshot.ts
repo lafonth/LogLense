@@ -42,8 +42,12 @@ export const SNAPSHOT_TTL_SECONDS = 24 * 60 * 60;
  * `v3` pour `snapshot`, la désignation que le chat renvoie pour relire l'instantané. Un rendu
  * servi sans elle n'ouvre pas le chat : la dégradation est visible, mais elle durerait une
  * journée entière sur des instantanés parfaitement valides par ailleurs.
+ *
+ * `v4` pour le vivier avant sélection de `Comparability` (`poolDps`, `poolIlvl`,
+ * `poolIlvlCount`). La carte de partage s'y adosse : sans bump elle serait vide pendant
+ * vingt-quatre heures sur des rendus qui, eux, sont complets.
  */
-const SNAPSHOT_CACHE_VERSION = 'v3';
+const SNAPSHOT_CACHE_VERSION = 'v4';
 
 /**
  * Plafond de taille d'une entrée. Bien plus haut que celui des caches de référence : un

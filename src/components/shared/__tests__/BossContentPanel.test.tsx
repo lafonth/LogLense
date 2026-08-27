@@ -78,7 +78,7 @@ function bossResult(
     specId,
     encounter,
     encounterId: 1,
-    character: { dps: 100000, stats: { avgIlvl: 285 }, context: null },
+    character: { dps: 100000, stats: { avgIlvl: 285, name: 'Jumbaa' }, context: null },
     sample: [{ dps: 120000, qualified: true }],
     topPlayers: [],
     comparability: {
@@ -93,6 +93,9 @@ function bossResult(
       disqualified: 0,
       unverifiable: 0,
       substituted: 0,
+      poolDps: null,
+      poolIlvl: null,
+      poolIlvlCount: 0,
       ...comparability,
     },
   } as unknown as BossResult;
@@ -243,6 +246,21 @@ describe('bossContentPanel', () => {
     expect(screen.getByTestId('dps-ilvl')).toHaveTextContent('285');
   });
 
+  // L'aveu que la comparaison ne tient pas est la seule position que le §2 de
+  // `PRODUCT_CONTEXT.md` tient pour défendable. Rangé dans l'onglet Comparison, il ne se
+  // lisait qu'après un clic : il ouvre désormais le bloc, avant même le verdict.
+  it('avoue la légitimité de la comparaison avant tout le reste, hors des onglets', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    expect(
+      screen.getByText('Comparison basis').compareDocumentPosition(screen.getByTestId('verdict'))
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+    await user.click(screen.getByRole('tab', { name: 'Comparison' }));
+    expect(screen.getByText('Comparison basis')).toBeInTheDocument();
+  });
+
   it('says nothing while the boss is still loading', () => {
     renderPanel({ bossStates: [{ status: 'loading' }, { status: 'loading' }] });
 
@@ -376,6 +394,30 @@ describe('bossContentPanel', () => {
     renderPanel();
 
     expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+  });
+
+  describe('carte de partage', () => {
+    // Le vivier entier à 292 d'ilvl contre un sujet à 285 : c'est l'écart de matériel que la
+    // carte montre, et sans lui elle affirmerait sans démontrer.
+    const shareable = { referenceIlvl: 285, poolDps: 155000, poolIlvl: 292, poolIlvlCount: 900 };
+
+    it("n'offre rien à partager quand le panel ne porte pas d'écart chiffrable", () => {
+      renderPanel();
+
+      expect(screen.queryByRole('button', { name: 'Share card' })).not.toBeInTheDocument();
+    });
+
+    it('tient la carte repliée jusqu’au clic, puis la sort du résultat', async () => {
+      const user = userEvent.setup();
+      renderPanel({ bossStates: [ok(DRUID_BALANCE, 'Chimaerus', shareable)] });
+
+      expect(screen.queryByText('Against comparable logs')).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Share card' }));
+
+      expect(screen.getByText('Against the field')).toBeInTheDocument();
+      expect(screen.getByText('Against comparable logs')).toBeInTheDocument();
+    });
   });
 
   describe('pull picker', () => {

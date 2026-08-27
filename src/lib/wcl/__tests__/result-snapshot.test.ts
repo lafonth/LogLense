@@ -108,6 +108,9 @@ const COMPLETE: BossResult = {
     disqualified: 0,
     unverifiable: 0,
     substituted: 0,
+    poolDps: null,
+    poolIlvl: null,
+    poolIlvlCount: 0,
   },
 };
 
@@ -131,8 +134,8 @@ describe('snapshot keys', () => {
   // Sans version dans la clé, un changement de forme de `BossResult` servirait pendant
   // vingt-quatre heures des instantanés que l'écran courant ne sait plus lire.
   it('carries the cache version, and separates the two pipelines', () => {
-    expect(characterSnapshotKey(CHAR_ARGS)).toContain('wcl:snap:v3:char:');
-    expect(reportSnapshotKey(REPORT_ARGS)).toContain('wcl:snap:v3:report:');
+    expect(characterSnapshotKey(CHAR_ARGS)).toContain('wcl:snap:v4:char:');
+    expect(reportSnapshotKey(REPORT_ARGS)).toContain('wcl:snap:v4:report:');
   });
 
   // La variante n'est jamais lue, mais elle est écrite : sans elle dans la clé, un
@@ -194,8 +197,8 @@ describe('snapshotKey', () => {
     const asReport = snapshotKey({ kind: 'report', ...REPORT_ARGS });
 
     expect(asChar).not.toBe(asReport);
-    expect(asChar.startsWith('wcl:snap:v3:')).toBe(true);
-    expect(asReport.startsWith('wcl:snap:v3:')).toBe(true);
+    expect(asChar.startsWith('wcl:snap:v4:')).toBe(true);
+    expect(asReport.startsWith('wcl:snap:v4:')).toBe(true);
   });
 });
 

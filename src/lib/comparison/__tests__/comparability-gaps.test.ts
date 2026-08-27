@@ -20,6 +20,9 @@ function comparability(over: Partial<Comparability> = {}): Comparability {
     disqualified: 4,
     unverifiable: 1,
     substituted: 0,
+    poolDps: null,
+    poolIlvl: null,
+    poolIlvlCount: 0,
     ...over,
   };
 }

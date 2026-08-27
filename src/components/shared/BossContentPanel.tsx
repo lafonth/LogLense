@@ -8,14 +8,17 @@ import { useEffect, useState } from 'react';
 import { AIReportTab } from '@/components/ai/AIReportTab';
 import { ChatTab } from '@/components/ai/ChatTab';
 import { BossSidebar } from '@/components/results/BossSidebar';
+import { ComparabilityBanner } from '@/components/results/ComparabilityBanner';
 import { ComparisonTab } from '@/components/results/ComparisonTab';
 import { DpsBanner } from '@/components/results/DpsBanner';
 import { OverviewTab } from '@/components/results/OverviewTab';
+import { ShareCard } from '@/components/results/ShareCard';
 import { VerdictBanner } from '@/components/results/VerdictBanner';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { tabId, tabPanelId } from '@/components/ui/tab-ids';
 import { Tabs } from '@/components/ui/Tabs';
+import { buildShareCard } from '@/lib/comparison/share-card';
 import { buildVerdict, verdictNamesIlvl } from '@/lib/comparison/verdict';
 import { getDpsSpecsForClass, getSpecInfo } from '@/lib/specs';
 import { fmtMs } from '@/lib/wcl/parsers';
@@ -75,6 +78,11 @@ export function BossContentPanel({
 }: BossContentPanelProps) {
   const [talentNodes, setTalentNodes] = useState<TalentNode[]>([]);
 
+  // La carte de partage est repliée par défaut : elle ne dit rien de plus que le verdict à
+  // qui lit son propre résultat, et tout à qui reçoit l'image. C'est un objet à sortir, pas
+  // une bande de plus au-dessus des onglets.
+  const [shareOpen, setShareOpen] = useState(false);
+
   // Track selected specId per boss so switcher stays visible during re-analysis loading
   const [bossSpecIds, setBossSpecIds] = useState<Record<number, number>>({});
 
@@ -93,6 +101,10 @@ export function BossContentPanel({
   const activeEnc = encounters[safeIdx];
   const activeBossState: BossState = bossStates[safeIdx] ?? { status: 'loading' };
   const activeBossResult = activeBossState.status === 'success' ? activeBossState.result : null;
+  // Un seul `buildVerdict` pour le bloc entier : trois consommateurs le lisaient, chacun le
+  // recalculait, et rien ne garantissait qu'ils parlent du même.
+  const verdict = activeBossResult ? buildVerdict(activeBossResult) : null;
+  const shareCard = activeBossResult ? buildShareCard(activeBossResult) : null;
 
   // Les kills du boss affiché, la plus récente en tête — c'est celle qui est analysée par
   // défaut, donc celle que le lecteur s'attend à lire en haut de la liste.
@@ -125,8 +137,19 @@ export function BossContentPanel({
     <>
       {/* Au-dessus des onglets, donc sur les deux chemins d'analyse : le lecteur n'a pas à
           choisir un onglet pour savoir s'il a quelque chose à apprendre. */}
-      {activeBossResult && (
+      {activeBossResult && verdict && (
         <div className="mb-6">
+          {/* En tête de tout, et hors des onglets. C'est la seule position que nous tenons
+              pour défendable : nous refusons de comparer quand la comparaison n'est pas
+              légitime, et nous le disons avant de dire quoi que ce soit d'autre. Rangé dans
+              l'onglet Comparison, l'aveu ne se lisait qu'après un clic — et un visiteur qui
+              ne le voit pas nous lit comme un Warcraft Logs de plus. */}
+          <div className="mb-3">
+            <ComparabilityBanner
+              comparability={activeBossResult.comparability}
+              earlyDeathPct={verdict.earlyDeathPct}
+            />
+          </div>
           <VerdictBanner result={activeBossResult} />
           {/* Monté ici plutôt que dans chaque onglet : le même DPS s'y lisait une fois par
               onglet, en plus du verdict qui l'énonce déjà. Ce qui reste — le percentile, la
@@ -141,15 +164,31 @@ export function BossContentPanel({
           <DpsBanner
             dps={activeBossResult.character.dps}
             overallPct={activeBossResult.character.overallPct}
-            ilvl={
-              verdictNamesIlvl(buildVerdict(activeBossResult))
-                ? null
-                : activeBossResult.character.stats.avgIlvl
-            }
+            ilvl={verdictNamesIlvl(verdict) ? null : activeBossResult.character.stats.avgIlvl}
             killTime={activeBossResult.character.killTime}
             bossDps={activeBossResult.character.bossDps}
             bossDpsPct={activeBossResult.character.bossDpsPct}
           />
+          {/* `null` quand le panel ne porte pas d'écart chiffrable : le déclencheur disparaît
+              avec la carte, plutôt que d'ouvrir sur un vide. */}
+          {shareCard && (
+            <div className="mt-4">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="font-mono text-xs"
+                aria-expanded={shareOpen}
+                onClick={() => setShareOpen((open) => !open)}
+              >
+                {shareOpen ? 'Hide share card' : 'Share card'}
+              </Button>
+              {shareOpen && (
+                <div className="mt-3 max-w-xl">
+                  <ShareCard card={shareCard} />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

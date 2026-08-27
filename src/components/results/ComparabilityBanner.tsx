@@ -27,12 +27,13 @@ const LEVEL_LABEL: Record<ComparabilityLevel, string> = {
 };
 
 /**
- * Le bandeau de légitimité, et rien de plus.
+ * Le bandeau de légitimité, et rien de plus. Il ouvre le bloc au-dessus des onglets, donc
+ * il précède tout ce que l'écran affirme : dire qu'une comparaison ne tient pas après avoir
+ * montré le chiffre qu'elle produit, c'est la montrer d'abord et la retirer ensuite.
  *
- * L'ilvl et le kill time ne sont **pas** répétés ici : `VerdictBanner`, juste au-dessus des
- * onglets, les énonce déjà, et les deux bandeaux sont lus d'un seul regard. Ce qui reste est
- * ce que lui ne dit pas — le niveau, les deux avertissements de légitimité, et d'où sort le
- * panel.
+ * L'ilvl et le kill time ne sont **pas** répétés ici : `VerdictBanner`, juste en dessous,
+ * les énonce déjà, et les deux bandeaux sont lus d'un seul regard. Ce qui reste est ce que
+ * lui ne dit pas — le niveau, les deux avertissements de légitimité, et d'où sort le panel.
  */
 export function ComparabilityBanner({
   comparability,

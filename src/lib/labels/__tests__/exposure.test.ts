@@ -126,6 +126,9 @@ function result(over: Partial<BossResult> = {}): BossResult {
       disqualified: 2,
       unverifiable: 0,
       substituted: 1,
+      poolDps: null,
+      poolIlvl: null,
+      poolIlvlCount: 0,
     },
     ...over,
   };

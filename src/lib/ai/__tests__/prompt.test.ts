@@ -160,6 +160,9 @@ function makeBoss(overrides: Partial<BossResult['character']> = {}): BossResult 
       disqualified: 0,
       unverifiable: 0,
       substituted: 0,
+      poolDps: null,
+      poolIlvl: null,
+      poolIlvlCount: 0,
     },
   };
 }

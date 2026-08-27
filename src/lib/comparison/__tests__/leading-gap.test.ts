@@ -59,6 +59,9 @@ function result(over: Over = {}): BossResult {
     comparability: {
       level: 'close',
       substituted: 0,
+      poolDps: null,
+      poolIlvl: null,
+      poolIlvlCount: 0,
       referenceIlvl: 285,
       myIlvl: 284,
       ...over.comparability,
