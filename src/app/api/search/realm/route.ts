@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { logRouteError } from '@/lib/api/log-error';
 import { guardWclSpend, METADATA_UNITS } from '@/lib/api/wcl-guard';
 import { blizzardCredentials } from '@/lib/blizzard-credentials';
 
@@ -89,7 +90,10 @@ export async function GET(req: NextRequest) {
 
     realmCache[region] = { items, at: Date.now() };
     return NextResponse.json(items);
-  } catch {
+  } catch (error) {
+    // Un repli qui répond 200 sur une liste vide : à l'écran, un royaume qui « n'existe pas ».
+    // C'est le pire des échecs muets — le joueur le lit comme sa propre faute de frappe.
+    logRouteError('realm-search', error);
     return NextResponse.json([]);
   }
 }

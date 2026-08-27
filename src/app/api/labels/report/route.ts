@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import type { ReportFeedbackRecord } from '@/lib/labels/report';
 import { getServerSession } from 'next-auth/next';
 import { NextResponse } from 'next/server';
+import { logRouteError } from '@/lib/api/log-error';
 import { authOptions } from '@/lib/auth';
 import { appendToCorpus } from '@/lib/labels/corpus';
 import { hashUserId } from '@/lib/labels/identity';
@@ -74,7 +75,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Feedback capture unavailable' }, { status: 503 });
     }
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (error) {
+    // Idem la route de comparabilité : ce qui n'est pas écrit ici est perdu pour de bon.
+    logRouteError('labels-report', error);
     return NextResponse.json({ error: 'Feedback capture unavailable' }, { status: 503 });
   }
 }

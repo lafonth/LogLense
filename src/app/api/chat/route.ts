@@ -4,14 +4,15 @@ import type { AIStreamChunk, ChatTurn, ToolCapableProvider, UsageData } from '@/
 import type { PromotionSubject } from '@/lib/wcl/promote';
 import type { BossResult, ReferenceSample, SnapshotRef, TopPlayer } from '@/types';
 import { getServerSession } from 'next-auth/next';
-
 import { CHAT_PROVIDERS, envKeyFor, isChatProvider } from '@/lib/ai/catalog';
+
 import { runChatLoop } from '@/lib/ai/chat-loop';
 import { buildChatSystemPrompt } from '@/lib/ai/chat-prompt';
 import { subjectKillTimeMs } from '@/lib/ai/chat-tools';
 import { ClaudeProvider } from '@/lib/ai/claude';
 import { GeminiProvider } from '@/lib/ai/gemini';
 import { OpenAIProvider } from '@/lib/ai/openai';
+import { logRouteError } from '@/lib/api/log-error';
 import { isNum, isRecord, isStr } from '@/lib/api/parse';
 import { guardWclSpend, PROMOTION_UNITS } from '@/lib/api/wcl-guard';
 import { authOptions } from '@/lib/auth';
@@ -175,7 +176,10 @@ function makePromoter(boss: BossResult): (sample: ReferenceSample) => Promise<Ch
     try {
       const token = await getWCLToken(clientId, clientSecret);
       return await promoteReference(token, sample, subject);
-    } catch {
+    } catch (error) {
+      // Le seul échec du chat qui réponde 200 : le modèle reçoit `failed` et l'explique au
+      // joueur, mais la panne d'en face — jeton, Warcraft Logs, cache — ne laissait rien.
+      logRouteError('chat/promote', error);
       // Le quota reste débité : la réservation est prise avant de savoir si l'appel aboutit, et
       // un plafond qu'un échec rembourse se laisse sonder gratuitement.
       return { ok: false, reason: 'failed' };
@@ -374,6 +378,7 @@ export async function POST(req: Request) {
       },
     });
   } catch (e) {
+    logRouteError('chat', e);
     return jsonResponse({ error: e instanceof Error ? e.message : 'Chat failed' }, 500);
   }
 }

@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import type { ReportMeta } from '@/types';
 import { NextResponse } from 'next/server';
+import { logRouteError } from '@/lib/api/log-error';
 import { guardWclSpend, METADATA_UNITS } from '@/lib/api/wcl-guard';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { gql } from '@/lib/wcl/client';
@@ -71,6 +72,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ cod
 
     return NextResponse.json(meta);
   } catch (error) {
+    logRouteError('report', error);
     const message = error instanceof Error ? error.message : 'Failed to fetch report';
     return NextResponse.json({ error: message }, { status: 500 });
   }

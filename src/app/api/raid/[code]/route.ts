@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import type { RaidRanking } from '@/lib/wcl/raid-ranking';
 import { NextResponse } from 'next/server';
+import { logRouteError } from '@/lib/api/log-error';
 import { guardWclSpend, RAID_RANKING_UNITS } from '@/lib/api/wcl-guard';
 import { recordIntraRaid } from '@/lib/labels/record-intra-raid';
 import { getWCLToken } from '@/lib/wcl/auth';
@@ -45,7 +46,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
   try {
     const token = await getWCLToken(clientId, clientSecret);
     ranking = await fetchRaidRanking(token, code, fightID);
-  } catch {
+  } catch (error) {
+    logRouteError('raid', error);
     return NextResponse.json({ error: 'Warcraft Logs request failed' }, { status: 502 });
   }
   if (!ranking) {

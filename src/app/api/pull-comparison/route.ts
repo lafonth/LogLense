@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import type { PullPointer } from '@/lib/wcl/pull-pipeline';
 import { NextResponse } from 'next/server';
+import { logRouteError } from '@/lib/api/log-error';
 import { isNum, isRecord, isStr, readJson } from '@/lib/api/parse';
 import { guardWclSpend, PULL_COMPARISON_UNITS } from '@/lib/api/wcl-guard';
 import { recordPullComparison } from '@/lib/labels/record-pull-comparison';
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
+    logRouteError('pull-comparison', error);
     const message = error instanceof Error ? error.message : 'Failed to compare pulls';
     return NextResponse.json({ error: message }, { status: 500 });
   }

@@ -3,13 +3,14 @@ import type { GroqModelId } from '@/lib/ai/groq';
 import type { AIProvider, AIStreamChunk, UsageData } from '@/lib/ai/provider';
 import type { AnalysisResult } from '@/types';
 import { getServerSession } from 'next-auth/next';
-
 import { envKeyFor, isProvider, PROVIDERS } from '@/lib/ai/catalog';
+
 import { ClaudeProvider } from '@/lib/ai/claude';
 import { GeminiProvider } from '@/lib/ai/gemini';
 import { DEFAULT_GROQ_MODEL, GROQ_MODELS, GroqProvider } from '@/lib/ai/groq';
 import { OpenAIProvider } from '@/lib/ai/openai';
 import { buildAnalysisPrompt, SYSTEM_PROMPT } from '@/lib/ai/prompt';
+import { logRouteError } from '@/lib/api/log-error';
 import { authOptions } from '@/lib/auth';
 import { hashUserId } from '@/lib/labels/identity';
 import { consumeAiQuota } from '@/lib/labels/rate-limit';
@@ -235,6 +236,7 @@ export async function POST(req: Request) {
       },
     });
   } catch (error) {
+    logRouteError('ai-report', error);
     const message = error instanceof Error ? error.message : 'Internal server error';
     return jsonResponse({ error: message }, 500);
   }

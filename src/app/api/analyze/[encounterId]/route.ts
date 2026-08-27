@@ -1,5 +1,6 @@
 import type { AnalysisInput, CharacterSnapshotRef } from '@/types';
 import { NextResponse } from 'next/server';
+import { logRouteError } from '@/lib/api/log-error';
 import { isNum, isOneOf, isRecord, isStr, readJson } from '@/lib/api/parse';
 import { BOSS_ANALYSIS_UNITS, guardMeteredWclSpend } from '@/lib/api/wcl-guard';
 import { recordExposure } from '@/lib/labels/record-exposure';
@@ -177,6 +178,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
 
       return NextResponse.json(result);
     } catch (error) {
+      logRouteError('analyze', error);
       const message = error instanceof Error ? error.message : 'Analysis failed';
       return NextResponse.json({ error: message }, { status: 500 });
     }

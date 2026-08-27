@@ -1,5 +1,6 @@
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
+import { logRouteError } from '@/lib/api/log-error';
 import { authOptions } from '@/lib/auth';
 import { DEV_STUB_ACCESS_TOKEN } from '@/lib/dev-session';
 import { getSpecInfo } from '@/lib/specs';
@@ -59,7 +60,10 @@ export async function GET(req: Request) {
 
     const specInfo = getSpecInfo(blizzardSpecId);
     return NextResponse.json({ specId: specInfo ? blizzardSpecId : null });
-  } catch {
+  } catch (error) {
+    // Même repli muet que la recherche de royaume : le joueur voit une spec non détectée, pas
+    // une panne Blizzard, et rien ne distinguait les deux côté serveur.
+    logRouteError('active-spec', error);
     return NextResponse.json({ specId: null });
   }
 }

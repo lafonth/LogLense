@@ -1,5 +1,6 @@
 import type { Zone } from '@/types';
 import { NextResponse } from 'next/server';
+import { logRouteError } from '@/lib/api/log-error';
 import { guardWclSpend, METADATA_UNITS } from '@/lib/api/wcl-guard';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { gql } from '@/lib/wcl/client';
@@ -43,6 +44,7 @@ export async function GET() {
 
     return NextResponse.json(zones);
   } catch (error) {
+    logRouteError('zones', error);
     const message = error instanceof Error ? error.message : 'Failed to fetch zones';
     return NextResponse.json({ error: message }, { status: 500 });
   }

@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import type { BossResult, ReportSnapshotRef } from '@/types';
 import { NextResponse } from 'next/server';
+import { logRouteError } from '@/lib/api/log-error';
 import { isNum, isRecord, isStr, readJson } from '@/lib/api/parse';
 import {
   BOSS_ANALYSIS_UNITS,
@@ -222,6 +223,7 @@ export async function POST(req: NextRequest) {
     } catch (error) {
       // Sans lui, l'échec du jeton partait en exception non rattrapée : le client lisait un 500
       // sans corps, là où l'autre route nomme la panne.
+      logRouteError('report-analyze', error);
       const message = error instanceof Error ? error.message : 'Analysis failed';
       return NextResponse.json({ error: message }, { status: 500 });
     }

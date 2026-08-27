@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import type { ComparabilityLabel } from '@/lib/labels/schema';
 import { getServerSession } from 'next-auth/next';
 import { NextResponse } from 'next/server';
+import { logRouteError } from '@/lib/api/log-error';
 import { authOptions } from '@/lib/auth';
 import { appendToCorpus } from '@/lib/labels/corpus';
 import { hashUserId } from '@/lib/labels/identity';
@@ -82,7 +83,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Label capture unavailable' }, { status: 503 });
     }
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (error) {
+    // Le corpus est l'actif, et la capture perdue ne se rattrape pas : le joueur ne reviendra
+    // pas donner deux fois le même verdict. Un 503 muet, ici, coûte de la donnée.
+    logRouteError('labels-comparability', error);
     return NextResponse.json({ error: 'Label capture unavailable' }, { status: 503 });
   }
 }
