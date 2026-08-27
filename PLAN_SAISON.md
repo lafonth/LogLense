@@ -1,0 +1,237 @@
+# Plan de saison — exécution, une étape par session
+
+Écrit le **2026-08-27**, semaine 2 de la saison 2 de Midnight. Il exécute le §6 de
+[`PRODUCT_CONTEXT.md`](PRODUCT_CONTEXT.md), dans un ordre qui n'est pas exactement le sien —
+la divergence est motivée en fin de fichier.
+
+**Ce fichier est la mémoire du plan.** Chaque session part d'un contexte vide : elle lit son
+étape ici, l'exécute, écrit sa ligne de journal, commit. Rien d'autre ne se transmet d'une
+session à la suivante.
+
+## Comment on s'en sert
+
+1. `/clear` avant chaque étape. Jamais deux étapes dans une session.
+2. Coller le **prompt de l'étape** tel quel. Il contient tout ce qu'il faut lire.
+3. Terminer par la ligne de journal et un commit sur `main`. **On ne pousse pas.**
+4. Les quatre vérifications passent avant tout commit de code — le hook pre-commit les
+   exécute : `pnpm typecheck`, `pnpm test`, `pnpm lint`, `pnpm format:check`.
+
+## Le critère qui ordonne tout
+
+La fenêtre de saison se referme vers la **semaine 4**, quand les guides de spec se
+stabilisent. Ce qui ne fait venir personne maintenant, ou ne rend pas le prix décidable
+ensuite, est sous la ligne de coupe et **ne se fait pas cette saison**.
+
+## Règle permanente, active dès l'étape 1
+
+**Aucun prix public.** Ni tarif, ni panier, ni bouton d'abonnement sur une page accessible,
+tant que l'étape 7 n'a pas tranché. C'est le §5 de `PRODUCT_CONTEXT.md`, et le précédent
+Raider.io le rend concret. Le badge `Pro` reste : il ne verrouille rien.
+
+---
+
+## Étape 1 — Une URL profonde et partageable par résultat
+
+**Pourquoi en premier** : il n'y a aujourd'hui qu'un seul `src/app/page.tsx`. Un résultat vit
+dans l'état client, donc rien n'est linkable, citable ou indexable. Tout le volet acquisition
+est bloqué par cette lacune technique, pas par une décision marketing.
+
+**À lire d'abord** : `src/app/page.tsx`, `src/lib/wcl/result-snapshot.ts`,
+`docs/02-ui-flows.md`.
+
+**Fait quand** :
+
+- une analyse rendue a une URL stable qu'on peut coller ailleurs et rouvrir ;
+- la page se reconstruit depuis l'instantané `result-snapshot` sans rejouer une requête WCL
+  tant que le TTL de 24 h tient ;
+- au-delà du TTL, l'URL reste valide et relance l'analyse au lieu de rendre une erreur ;
+- les quatre vérifications passent.
+
+**Prompt** :
+
+> Étape 1 de `PLAN_SAISON.md`. Lis l'étape, puis `src/app/page.tsx`,
+> `src/lib/wcl/result-snapshot.ts` et `docs/02-ui-flows.md`. Propose un plan de routage —
+> pas de code encore — pour donner une URL profonde et partageable à chaque résultat
+> d'analyse. Dis explicitement ce que devient l'état client actuel.
+
+---
+
+## Étape 2 — L'écran de partage, et l'aveu d'échec remonté
+
+Deux tâches d'interface, une seule session : chacune seule ne vaut pas un démarrage à froid.
+
+**a. L'écran de partage.** Une carte, lisible sans contexte, qui montre l'ilvl du vivier
+contre celui du joueur et l'écart de DPS avant / après filtrage. C'est l'objet que les gens
+repartagent — pas l'application. Le chiffre de référence mesuré est `55k → 25k` sur un vivier
+à ilvl `292` contre `284`.
+
+**b. L'aveu d'échec du filtre, en tête.** Aujourd'hui c'est un bandeau parmi d'autres. C'est
+la seule position que le §2 de `PRODUCT_CONTEXT.md` tient pour défendable : nous sommes le
+seul outil qui refuse de comparer quand la comparaison n'est pas légitime, **et qui le dit**.
+Un visiteur qui ne le voit pas nous lit comme un Warcraft Logs de plus.
+
+**À lire d'abord** : les composants de l'onglet Comparison, `src/lib/comparison/findings.ts`,
+`src/app/globals.css` (bloc `@theme`).
+
+**Fait quand** : la carte est atteignable depuis un résultat, tient dans une capture d'écran,
+n'utilise aucune valeur littérale de couleur ou d'espacement, et n'affiche aucun prix.
+L'avertissement de comparabilité passe au-dessus du résultat. Les quatre vérifications
+passent.
+
+**Prompt** :
+
+> Étape 2 de `PLAN_SAISON.md`, les deux volets a et b dans la même session. Lis l'étape puis
+> les composants de l'onglet Comparison et `src/lib/comparison/findings.ts`. Rappel : rouge
+> réservé aux erreurs, chiffres en `font-mono`, aucun `style={{}}`, aucune surcharge de
+> taille sur une primitive.
+
+---
+
+## Étape 3 — Le coût réel d'une analyse, branché et lu
+
+**Pourquoi avant d'ouvrir la vanne** : on n'ouvre pas l'accès à des inconnus sans savoir ce
+que coûte un rapport. Le relevé de jetons est déjà capturé et persisté au corpus depuis le
+commit `36c72b8` — entrée neuve, cache lu, cache écrit, séparément, `null` disant non mesuré
+et jamais zéro. Personne ne l'a encore lu.
+
+**À lire d'abord** : `src/lib/labels/usage.ts`, `src/lib/labels/record-usage.ts`,
+`docs/05-capture-de-donnees.md`.
+
+**Fait quand** : une commande rend le coût marginal moyen d'un rapport **en euros**, par
+fournisseur, et le nombre d'analyses déjà servies. Le chiffre est reporté dans le journal en
+bas de ce fichier — c'est l'intrant des étapes 6 et 7.
+
+**Prompt** :
+
+> Étape 3 de `PLAN_SAISON.md`. Lis l'étape puis `src/lib/labels/usage.ts` et
+> `src/lib/labels/record-usage.ts`. Écris un script de lecture qui rend le coût marginal
+> moyen d'un rapport en euros par fournisseur. Ne modifie pas la capture, lis-la.
+
+---
+
+## Étape 4 — La page publique et l'entrée en une question
+
+**Le problème traité** : à l'étape 5, des inconnus arrivent. Aujourd'hui ils tombent sur un
+mur d'allowlist, et derrière ce mur sur quatre modes (`character`, `report`, `raid`, `pull`)
+entre lesquels un nouveau venu ne peut pas choisir.
+
+**Fait quand** : une page publique montre un exemple d'analyse jouable sans compte ; l'entrée
+par défaut est une seule question (« ton personnage »), les trois autres modes restant
+atteignables sans être proposés à froid ; aucun prix nulle part. Les quatre vérifications
+passent.
+
+**Prompt** :
+
+> Étape 4 de `PLAN_SAISON.md`. Lis l'étape puis `src/app/page.tsx` et `docs/02-ui-flows.md`.
+> Propose d'abord le découpage de la page publique et de l'entrée par défaut, puis
+> implémente. Rappel de la règle permanente : aucun prix, aucun panier, aucun bouton
+> d'abonnement.
+
+---
+
+## Étape 5 — Le canal, l'ouverture, la publication
+
+Une session, trois actes indissociables, dans cet ordre. C'est l'étape qui produit le premier
+trafic réel — et la seule qu'on ne peut pas rejouer : un canal se brûle une fois.
+
+1. **Choisir un canal, un seul.** r/CompetitiveWoW ou un Discord de classe. Écrire le choix
+   et son motif dans le journal.
+2. **Ouvrir `BETA_ALLOWLIST`** pour ce canal, sur deux semaines. Le plafond WCL commun livré
+   au commit `65c2ec3` est le garde-fou : vérifier qu'il est bien en place avant d'ouvrir.
+3. **Publier le `55k → 25k`** — comme un post de méthode, pas comme une annonce produit.
+   « Voici pourquoi ton retard est surestimé » se lit ; « voici mon outil » se scrolle. Plus
+   de la moitié de ce qu'on annonçait au joueur comme son retard venait de l'équipement des
+   références : c'est le seul contenu d'acquisition dont nous disposons qui ne soit pas
+   interchangeable.
+
+**Fait quand** : le canal est nommé au journal, l'allowlist est ouverte avec sa date de
+fermeture, le post est en ligne, son lien est au journal.
+
+**Prompt** :
+
+> Étape 5 de `PLAN_SAISON.md`. Lis l'étape, puis `PRODUCT_CONTEXT.md` §3 et §0. Aide-moi à
+> arbitrer le canal, vérifie que le plafond WCL commun est bien en place avant qu'on ouvre
+> l'allowlist, et rédige le post. Ton de méthode, pas d'annonce produit, et aucun prix.
+
+---
+
+## Étape 6 — Chiffrer la disposition à payer
+
+**Le trou du dossier** : le sondage de guilde (~25 raiders) a validé la douleur, jamais le
+prix. Aucun raisonnement ne comblera ça, et 25 amis ne chiffrent pas un marché.
+
+**Fait quand** : dix raiders **hors guilde**, issus du canal de l'étape 5, ont donné un
+montant en euros pour un pass de saison. La distribution des réponses est au journal, pas sa
+moyenne seule.
+
+**Repères de marché à poser dans la question** : Warcraft Logs facture `$2` basique / `$5`
+premium par mois — c'est l'ancre de tout le marché. WowCoach.gg va de `$5.99` à `$24.99` par
+mois, et son gratuit est généreux : tout ce qui n'est pas IA y est gratuit et illimité.
+
+**Prompt** :
+
+> Étape 6 de `PLAN_SAISON.md`. Lis l'étape puis `PRODUCT_CONTEXT.md` §4. Rédige la question
+> de prix à poser aux dix raiders — une question qui donne un montant, pas un « oui je
+> paierais ».
+
+---
+
+## Étape 7 — Trancher le modèle, et l'écrire
+
+**La décision** : abonnement mensuel ou pass de saison. C'est le seul écart de modèle avec le
+concurrent, et il est du bon côté — sur un palier de trois mois, un pass est plus cher à
+l'unité, moins cher au total, et ne demande pas au joueur de penser à annuler. Il se décide
+avec le coût de l'étape 3 et les montants de l'étape 6 en main, **pas avant**.
+
+**Fait quand** : le §4 de `PRODUCT_CONTEXT.md` porte la décision, le prix, et la marge par
+utilisateur qui en découle. La règle permanente ci-dessus est levée à partir de ce commit.
+
+**Prompt** :
+
+> Étape 7 de `PLAN_SAISON.md`. Lis l'étape, le journal de ce fichier (étapes 3 et 6), et
+> `PRODUCT_CONTEXT.md` §4. Tranche mois contre pass de saison, avec le prix, et réécris le
+> §4.4.
+
+---
+
+## Sous la ligne de coupe — pas cette saison
+
+Ce n'est pas un retard à rattraper. Ces points sont hiérarchisés, datés, et volontairement non
+programmés.
+
+| Point                                | Pourquoi pas maintenant                                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------------------ |
+| **Lire le corpus accumulé**          | §6.5. L'actif dort, mais il ne fait venir personne cette saison. Dette, pas urgence         |
+| **Le mode `pull` remonté**           | Levier de rétention semaine 4, pas d'acquisition semaine 2                                  |
+| **Historique de progression**        | Rouvre l'arbitrage TTL du §5. Ne se lance qu'après l'étape 7                                 |
+| **BYOK comme levier de marge**       | Ne compte qu'à un volume que nous n'avons pas                                               |
+| **Préventes de pass guilde**         | Engagement de livraison sur une vue qui n'existe pas                                        |
+| **La vue roster**                    | Voir ci-dessous                                                                             |
+
+### Où ce plan s'écarte du §6 de `PRODUCT_CONTEXT.md`
+
+Le §6 place la **vue roster** en quatrième position sur cinq ; ce plan la met en dernier, sous
+la ligne de coupe. Le motif du document est juste — « le premier qui livre définit ce que
+l'abonnement de guilde veut dire », et le concurrent a annoncé sa grille avant nous. Mais
+c'est une course que nous ne pouvons pas gagner : il a l'infrastructure et les utilisateurs,
+nous n'avons ni l'un ni l'autre, et elle attend une infra v2 qui n'existe pas. La construire
+maintenant dépense le seul trimestre où l'argument individuel porte, pour arriver deuxième sur
+le terrain d'un autre.
+
+Une deuxième divergence, mineure : le §6 ouvre sur « choisir un canal ». Ce plan le met en
+étape 5 parce que le choix ne coûte rien mais ne produit rien tant qu'il n'y a pas de lien à
+poster — l'étape 1 le précède techniquement.
+
+**Deux points ne remontent jamais dans ce plan** : plus de comparabilité, et une convergence
+des quatre pipelines. Le §5 les a tranchés.
+
+---
+
+## Journal
+
+Une ligne par session terminée : date, étape, ce qui a été livré, ce qui a bougé dans la
+décision. Les chiffres des étapes 3 et 6 se posent ici — l'étape 7 les relit.
+
+| Date | Étape | Livré | Chiffre ou décision |
+| ---- | ----- | ----- | ------------------- |
+| 2026-08-27 | 1 | URL profonde par résultat : `/character/[region]/[realm]/[name]` et `/report/[code]/[actor]`, `generateMetadata` sans requête, `shared=1` → instantané, onglet dans l'URL. `HomeClient` et `useRouteSync` supprimés. | Le chemin dit qui est analysé, la query dit comment on le regarde. `difficulty` et `boss` restent en query : un segment remonterait le composant et viderait le cache par palier. Les routes de résultat restent derrière la session — le partage public attend la signature RPGLogs. |

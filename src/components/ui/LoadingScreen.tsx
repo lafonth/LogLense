@@ -5,8 +5,8 @@ interface LoadingScreenProps {
 }
 
 /**
- * L'attente qui occupe toute la surface : le repli de `<Suspense>`, et les deux moments où
- * `HomeClient` n'a encore ni session ni analyse à montrer.
+ * L'attente qui occupe toute la surface : le repli de `<Suspense>`, et les moments où un
+ * écran de résultat n'a encore ni session ni analyse à montrer.
  *
  * La région vive est ici et non dans `LoadingSpinner` : le rail de boss en affiche huit à la
  * fois, et huit régions vives concurrentes noieraient l'annonce au lieu de la porter. Un écran

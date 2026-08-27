@@ -1,6 +1,7 @@
 import type { ReportMeta } from '@/types';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { clearReportMetaCache } from '@/lib/report-meta-cache';
 import { useReportMeta } from '../useReportMeta';
 
 const meta: ReportMeta = {
@@ -40,6 +41,9 @@ function mockFail(status: number, body: unknown, headers = new Headers()) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // Le cache vit dans le module, donc entre les cas : sans ça, le deuxième test à demander
+  // `abc123` serait servi par le premier et n'appellerait plus `fetch`.
+  clearReportMetaCache();
 });
 
 describe('useReportMeta', () => {

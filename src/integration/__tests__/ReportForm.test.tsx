@@ -2,6 +2,7 @@ import type { ReportActor, ReportFight, ReportMeta } from '@/types';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReportForm } from '@/components/forms/ReportForm';
+import { clearReportMetaCache } from '@/lib/report-meta-cache';
 
 const actor: ReportActor = {
   id: 7,
@@ -32,6 +33,10 @@ function mockFetchForMeta(result: ReportMeta | null, ok = true) {
 }
 
 beforeEach(() => {
+  // Le cache de méta vit au niveau du module et survit donc à un `it` : sans ce vidage, un
+  // rapport déjà chargé par un test précédent est resservi de mémoire, et le `fetch` moqué
+  // ici n'est jamais appelé. Plusieurs cas de ce fichier réutilisent le même code de rapport.
+  clearReportMetaCache();
   mockFetchForMeta(meta);
 });
 

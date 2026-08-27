@@ -3,6 +3,7 @@
 import type { BossState } from '@/hooks/useAnalysis';
 import type { PullStatus } from '@/hooks/useReportAnalysis';
 import type { EncounterKill } from '@/lib/report-kills';
+import type { TabId } from '@/lib/routes';
 import type { AnalysisInput, AnalysisResult, ReportActor, ReportMeta } from '@/types';
 import { useMemo } from 'react';
 import { BossContentPanel } from '@/components/shared/BossContentPanel';
@@ -17,6 +18,8 @@ interface ReportDashboardProps {
   actorName: string;
   difficulty: number;
   activeBossIdx: number;
+  activeTab: TabId;
+  onTabChange: (tab: TabId) => void;
   result: AnalysisResult | null;
   loading: boolean;
   pullSelection: Record<number, number>;
@@ -35,6 +38,8 @@ export function ReportDashboard({
   actorName,
   difficulty,
   activeBossIdx,
+  activeTab,
+  onTabChange,
   result,
   loading,
   pullSelection,
@@ -124,6 +129,8 @@ export function ReportDashboard({
           bossStates={bossStates}
           activeBossIdx={activeBossIdx}
           onBossChange={onBossChange}
+          activeTab={activeTab}
+          onTabChange={onTabChange}
           analysisResult={analysisResult}
           pulls={pullsByEncounter}
           selectedPull={pullSelection}

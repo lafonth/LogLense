@@ -1,6 +1,7 @@
 'use client';
 
 import type { BossState } from '@/hooks/useAnalysis';
+import type { TabId } from '@/lib/routes';
 import type { AnalysisInput } from '@/types';
 import { BossContentPanel } from '@/components/shared/BossContentPanel';
 import { DashboardHeader, LoadingProgress } from '@/components/shared/DashboardHeader';
@@ -11,6 +12,8 @@ interface CharacterDashboardProps {
   bossStates: BossState[];
   currentDifficulty: number;
   activeBossIdx: number;
+  activeTab: TabId;
+  onTabChange: (tab: TabId) => void;
   onDifficultyChange: (difficulty: AnalysisInput['difficulty']) => void;
   onBossChange: (idx: number) => void;
   onReset: () => void;
@@ -33,6 +36,8 @@ export function CharacterDashboard({
   bossStates,
   currentDifficulty,
   activeBossIdx,
+  activeTab,
+  onTabChange,
   onDifficultyChange,
   onBossChange,
   onReset,
@@ -68,6 +73,8 @@ export function CharacterDashboard({
           bossStates={bossStates}
           activeBossIdx={activeBossIdx}
           onBossChange={onBossChange}
+          activeTab={activeTab}
+          onTabChange={onTabChange}
           analysisResult={analysisResult}
           onSwitchBossSpec={onSwitchBossSpec}
           onSwitchBossFight={onSwitchBossFight}

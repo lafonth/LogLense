@@ -2,6 +2,7 @@
 
 import type { BossState } from '@/hooks/useAnalysis';
 import type { EncounterKill } from '@/lib/report-kills';
+import type { TabId } from '@/lib/routes';
 import type { AnalysisInput, BossResult, TalentNode } from '@/types';
 import { useEffect, useState } from 'react';
 import { AIReportTab } from '@/components/ai/AIReportTab';
@@ -27,8 +28,6 @@ function shortDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-type TabId = 'overview' | 'comparison' | 'ai-report' | 'chat';
-
 const TABS: { id: TabId; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'comparison', label: 'Comparison' },
@@ -41,6 +40,12 @@ interface BossContentPanelProps {
   bossStates: BossState[];
   activeBossIdx: number;
   onBossChange: (idx: number) => void;
+  /**
+   * L'onglet ouvert vient de l'URL, pas d'un état local : un lien qui montre un écart doit
+   * ouvrir sur l'onglet qui le montre. Le panneau affiche, il ne retient plus.
+   */
+  activeTab: TabId;
+  onTabChange: (tab: TabId) => void;
   analysisResult: { input: AnalysisInput; bosses: (BossResult | null)[]; generatedAt: string };
   onSwitchBossSpec?: (bossIdx: number, specId: number) => void;
   onSwitchBossFight?: (bossIdx: number, fight: { code: string; fightID: number }) => void;
@@ -58,6 +63,8 @@ export function BossContentPanel({
   bossStates,
   activeBossIdx,
   onBossChange,
+  activeTab,
+  onTabChange,
   analysisResult,
   onSwitchBossSpec,
   onSwitchBossFight,
@@ -66,7 +73,6 @@ export function BossContentPanel({
   selectedPull,
   onSelectPull,
 }: BossContentPanelProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [talentNodes, setTalentNodes] = useState<TalentNode[]>([]);
 
   // Track selected specId per boss so switcher stays visible during re-analysis loading
@@ -148,7 +154,7 @@ export function BossContentPanel({
       )}
 
       <div className="mb-6">
-        <Tabs tabs={TABS} active={activeTab} onChange={(id) => setActiveTab(id as TabId)} />
+        <Tabs tabs={TABS} active={activeTab} onChange={(id) => onTabChange(id as TabId)} />
       </div>
 
       <div className="flex flex-col gap-6 md:flex-row">

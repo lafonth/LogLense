@@ -2,6 +2,7 @@ import type { BossState } from '@/hooks/useAnalysis';
 import type { AnalysisInput, BossResult, Comparability } from '@/types';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BossContentPanel } from '../BossContentPanel';
 
@@ -107,8 +108,30 @@ function ok(
 
 const input = { characterName: 'Jumbaa', specId: DRUID_BALANCE } as AnalysisInput;
 
-function renderPanel(over: Partial<Parameters<typeof BossContentPanel>[0]> = {}) {
-  const props = {
+type PanelProps = Parameters<typeof BossContentPanel>[0];
+
+/**
+ * L'onglet ouvert est une prop : c'est l'URL qui le porte, chez les deux clients de résultat.
+ * Cet hôte rejoue ce contrat — il tient l'état que le panneau ne tient plus — pour que les cas
+ * qui cliquent un onglet mesurent encore ce qu'ils mesuraient. Les cas qui vérifient que le
+ * panneau, lui, ne retient rien montent le panneau nu.
+ */
+function TabHost(props: PanelProps) {
+  const [tab, setTab] = useState(props.activeTab);
+  return (
+    <BossContentPanel
+      {...props}
+      activeTab={tab}
+      onTabChange={(next) => {
+        setTab(next);
+        props.onTabChange(next);
+      }}
+    />
+  );
+}
+
+function panelProps(over: Partial<PanelProps> = {}): PanelProps {
+  return {
     encounters: [
       { id: 1, name: 'Chimaerus' },
       { id: 2, name: 'Fractillus' },
@@ -116,10 +139,16 @@ function renderPanel(over: Partial<Parameters<typeof BossContentPanel>[0]> = {})
     bossStates: [ok(DRUID_BALANCE, 'Chimaerus'), ok(DRUID_BALANCE, 'Fractillus')],
     activeBossIdx: 0,
     onBossChange: vi.fn(),
+    activeTab: 'overview',
+    onTabChange: vi.fn(),
     analysisResult: { input, bosses: [], generatedAt: '2026-01-01T00:00:00.000Z' },
     ...over,
   };
-  return { props, ...render(<BossContentPanel {...props} />) };
+}
+
+function renderPanel(over: Partial<PanelProps> = {}) {
+  const props = panelProps(over);
+  return { props, ...render(<TabHost {...props} />) };
 }
 
 describe('bossContentPanel', () => {
@@ -132,6 +161,26 @@ describe('bossContentPanel', () => {
 
     expect(screen.getByTestId('overview')).toBeInTheDocument();
     expect(screen.queryByTestId('ai-report')).not.toBeInTheDocument();
+  });
+
+  it('opens on the tab it is given, so a link can point at the gap it shows', () => {
+    renderPanel({ activeTab: 'comparison' });
+
+    expect(screen.getByTestId('comparison')).toBeInTheDocument();
+    expect(screen.queryByTestId('overview')).not.toBeInTheDocument();
+  });
+
+  it('asks for the tab instead of remembering it', async () => {
+    // Le panneau nu, sans hôte : l'onglet cliqué ne s'ouvre que si quelqu'un réécrit l'URL.
+    // C'est ce qui empêche un lien collé et un clic de suivre deux chemins différents.
+    const user = userEvent.setup();
+    const onTabChange = vi.fn();
+    render(<BossContentPanel {...panelProps({ onTabChange })} />);
+
+    await user.click(screen.getByRole('tab', { name: 'Comparison' }));
+
+    expect(onTabChange).toHaveBeenCalledWith('comparison');
+    expect(screen.getByTestId('overview')).toBeInTheDocument();
   });
 
   it('mounts one tab at a time', async () => {
@@ -301,7 +350,9 @@ describe('bossContentPanel', () => {
     const { rerender, props } = renderPanel({ onSwitchBossSpec: vi.fn() });
 
     await user.click(screen.getByRole('button', { name: 'Feral' }));
-    rerender(<BossContentPanel {...props} bossStates={[{ status: 'loading' }, ok(102, 'F')]} />);
+    // Le même hôte qu'au montage : rerendre un autre type de racine remonterait l'arbre, et
+    // l'état local que ce cas mesure serait perdu pour une raison qui n'est pas la sienne.
+    rerender(<TabHost {...props} bossStates={[{ status: 'loading' }, ok(102, 'F')]} />);
 
     // La spec choisie est retenue localement : sans cela le switcher disparaîtrait le temps
     // du chargement, juste après le clic qui l'a provoqué.
