@@ -1,5 +1,5 @@
 /**
- * Compte les sept flux du corpus, mois par mois, contre leurs plafonds.
+ * Compte les huit flux du corpus, mois par mois, contre leurs plafonds.
  *
  * Ce script comptait les seuls verdicts, pour arbitrer la tâche 8 (ML sur les libellés). Cette
  * tâche est morte le 2026-08-13 : sa mesure n'a plus d'objet, mais le compte, lui, en a gagné
@@ -9,7 +9,7 @@
  * l'apprendre autrement qu'en constatant un trou dans le corpus, six mois plus tard, quand il
  * est irréparable.
  *
- * D'où les deux changements de forme : les sept flux au lieu d'un, et le pourcentage du plafond
+ * D'où les deux changements de forme : les huit flux au lieu d'un, et le pourcentage du plafond
  * plutôt que le total brut. Un total ne se lit pas sans son plafond, et les plafonds diffèrent
  * — `pool` et `demand` sont à 150 000 là où les autres sont à 50 000.
  *

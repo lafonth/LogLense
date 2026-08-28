@@ -162,7 +162,7 @@ qui sert la whitelist d'authentification.
 
 ## Stockage
 
-Une liste Redis par mois et par type, en append-only. Sept clés, huit `kind` — `labels:report`
+Une liste Redis par mois et par type, en append-only. Huit clés, neuf `kind` — `labels:report`
 en mêle deux, et c'est la seule qui le fasse :
 
 | Clé mensuelle | `kind` | `v` | Ce qu'une ligne dit | Écrite par |
@@ -175,6 +175,7 @@ en mêle deux, et c'est la seule qui le fasse :
 | `labels:intra-raid:AAAA-MM` | `intra-raid` | 1 | Deux joueurs de la même spec dans la même pull — la positive de haute confiance | `recordIntraRaid`, serveur |
 | `labels:pull-comparison:AAAA-MM` | `pull-comparison` | 1 | Deux pulls qu'un joueur a choisi de comparer | `recordPullComparison`, serveur |
 | `labels:demand:AAAA-MM` | `demand` | 1 | Une requête qui a dépensé du budget WCL, avec sa route et son verdict de quota | `recordDemand`, serveur |
+| `labels:usage:AAAA-MM` | `usage` | 1 | Ce qu'un rendu IA a coûté en jetons, et si c'est notre clé qui a payé | `recordUsage`, serveur |
 
 Bornées par construction — `CORPUS_MONTH_CAP` pour la plupart, `POOL_MONTH_CAP` et
 `DEMAND_MONTH_CAP` pour les deux flux à gros volume — et lisibles sans index.

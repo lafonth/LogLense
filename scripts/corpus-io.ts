@@ -16,7 +16,7 @@ import { resolve } from 'node:path';
 import process from 'node:process';
 
 /**
- * Les sept clés du corpus, et ce que chacune contient.
+ * Les huit clés du corpus, et ce que chacune contient.
  *
  * `cap` reprend les plafonds de `src/lib/labels/corpus.ts`. Ils sont recopiés plutôt
  * qu'importés : `scripts/` ne résout pas les alias `@/`, et un script de lecture qui ne
@@ -69,6 +69,12 @@ export const FLOWS = {
     cap: 150_000,
     // Les lignes d'avant le 2026-08-16 n'ont ni `v` ni `kind` : voir `record-demand.ts`.
     what: 'Ce que chaque requête a demandé au budget Warcraft Logs, refus compris',
+  },
+  usage: {
+    key: 'labels:usage',
+    kinds: ['usage'],
+    cap: 50_000,
+    what: 'Ce qu’un rendu IA a coûté en jetons, et si c’est notre clé qui a payé',
   },
 };
 
