@@ -4,7 +4,9 @@ import { AppShell } from '@/components/AppShell';
 import { PullFormClient } from '@/components/forms/PullFormClient';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 
-// Voir `/character` : les routes de formulaire ne s'indexent pas.
+// Un formulaire vide ne vaut pas un résultat de recherche : ce qui s'indexe, c'est `/` et
+// la démo. Ces trois routes supposent un code de rapport déjà en main, donc elles n'ont
+// rien à dire à qui arrive de nulle part.
 export const metadata: Metadata = {
   title: 'Compare two pulls — LogLense',
   robots: { index: false, follow: false },

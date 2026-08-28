@@ -9,7 +9,7 @@ import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { useAnalysis } from '@/hooks/useAnalysis';
 import { useCharacterRouteSync } from '@/hooks/useCharacterRouteSync';
 import { useZones } from '@/hooks/useZones';
-import { CHARACTER_FORM_PATH, characterResultPath, parseTab, withPatchedQuery } from '@/lib/routes';
+import { characterResultPath, HOME_PATH, parseTab, withPatchedQuery } from '@/lib/routes';
 
 /**
  * L'analyse d'un personnage, à son URL.
@@ -85,7 +85,7 @@ export function CharacterResultClient({ route }: { route: CharacterRoute }) {
 
   function handleReset() {
     // Le formulaire, pas le sélecteur de mode : qui recommence veut relancer une analyse.
-    router.push(CHARACTER_FORM_PATH);
+    router.push(HOME_PATH);
   }
 
   if (input) {

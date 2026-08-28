@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import type { AnalysisInput, StoredCharacter, WowCharacter, Zone } from '@/types';
 import { useEffect, useState } from 'react';
 import { EncounterSelector } from '@/components/forms/EncounterSelector';
@@ -18,7 +19,10 @@ interface LoggedInCharacterFormProps {
   zonesLoading: boolean;
   zonesError: string | null;
   onZonesRetry?: () => void;
-  onBack: () => void;
+  /** Absent quand ce formulaire **est** la racine : il n'y a alors nulle part où revenir. */
+  onBack?: () => void;
+  /** Rendu sous le formulaire. Les autres modes y tiennent, sans être proposés à froid. */
+  footer?: ReactNode;
 }
 
 function toStored(c: WowCharacter, region: string): StoredCharacter {
@@ -82,6 +86,7 @@ export function LoggedInCharacterForm({
   zonesError,
   onZonesRetry,
   onBack,
+  footer,
 }: LoggedInCharacterFormProps) {
   const [region, setRegion] = useState<AnalysisInput['region']>('EU');
   const [characters, setCharacters] = useState<WowCharacter[]>([]);
@@ -219,12 +224,14 @@ export function LoggedInCharacterForm({
       <h1 className="font-display text-brass mb-2 text-4xl tracking-wide">LogLense</h1>
       <p className="text-dim mb-10 font-mono text-xs">WarcraftLogs analyser</p>
 
-      {/* Les trois autres modes offraient un retour, celui-ci non : le choix du mode était
-          irréversible sans passer par la barre d'adresse, `mode` étant un état React et non
-          un paramètre d'URL. */}
-      <div className="w-full max-w-[560px]">
-        <BackLink onClick={onBack} />
-      </div>
+      {/* Plus de retour à la racine : cette question est le premier écran, pas une étape
+          dans un choix de mode. Le lien ne reste que là où ce formulaire est atteint depuis
+          ailleurs. */}
+      {onBack && (
+        <div className="w-full max-w-[560px]">
+          <BackLink onClick={onBack} />
+        </div>
+      )}
 
       <form
         onSubmit={handleSubmit}
@@ -338,6 +345,8 @@ export function LoggedInCharacterForm({
           </Button>
         </div>
       </form>
+
+      {footer && <div className="w-full max-w-[560px]">{footer}</div>}
     </div>
   );
 }

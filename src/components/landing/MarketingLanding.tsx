@@ -1,7 +1,9 @@
 'use client';
 
 import { signIn } from 'next-auth/react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { DEMO_PATH } from '@/lib/routes';
 
 const MODES = [
   {
@@ -67,6 +69,25 @@ function Divider({ label }: { label: string }) {
   );
 }
 
+/**
+ * Le lien vers la démo, sous chaque appel à se connecter.
+ *
+ * Un visiteur à froid ne peut pas juger notre affirmation centrale sur parole : elle porte
+ * sur des chiffres, et il n'en a aucun sous les yeux. `/demo` est la seule réponse honnête —
+ * une analyse réelle, entière, sans compte — donc le lien accompagne le bouton partout où le
+ * bouton apparaît, plutôt que d'attendre dans un coin de la page.
+ */
+function DemoLink() {
+  return (
+    <Link
+      href={DEMO_PATH}
+      className="text-dim hover:text-brass mt-4 block font-mono text-xs underline decoration-dotted underline-offset-4"
+    >
+      Or read one real analysis first — no account needed
+    </Link>
+  );
+}
+
 function CtaButton({ children }: { children: React.ReactNode }) {
   return (
     <Button
@@ -104,6 +125,7 @@ export function MarketingLanding() {
           LogLense benches the ones who are not comparable — and tells you when nobody is.
         </p>
         <CtaButton>Sign in with Battle.net</CtaButton>
+        <DemoLink />
       </section>
 
       <Divider label="Why it matters" />
@@ -236,6 +258,7 @@ export function MarketingLanding() {
           there is — connect your Battle.net account and read them properly.
         </p>
         <CtaButton>Sign in with Battle.net</CtaButton>
+        <DemoLink />
       </section>
 
       {/* Footer */}

@@ -10,8 +10,10 @@ mérite pas une entrée d'historique.
 
 | URL | Écran | Client |
 |---|---|---|
-| `/` | Le choix du mode | [`HomeScreen`](../src/components/HomeScreen.tsx) |
-| `/character` `/report` `/raid` `/pull` | Le formulaire du mode | `src/components/forms/*FormClient.tsx` |
+| `/` | La question du personnage | [`CharacterFormClient`](../src/components/forms/CharacterFormClient.tsx) |
+| `/character` | Redirection permanente vers `/` | — |
+| `/report` `/raid` `/pull` | Le formulaire du mode, atteignable sans être proposé | `src/components/forms/*FormClient.tsx` |
+| `/demo` | Une analyse réelle et figée, sans compte | [`DemoScreen`](../src/components/demo/DemoScreen.tsx) |
 | `/character/[region]/[realm]/[name]` | Résultat par personnage | [`CharacterResultClient`](../src/components/character/CharacterResultClient.tsx) |
 | `/report/[code]/[actor]` | Résultat par rapport | [`ReportResultClient`](../src/components/report/ReportResultClient.tsx) |
 
@@ -34,13 +36,36 @@ Les deux routes de résultat portent la même query : `difficulty`, `zone`, `spe
 Le pull n'a pas de route de résultat : sa comparaison vit dans le formulaire, faute d'une
 identité de pull qui tienne dans un chemin.
 
+### L'entrée est une question, pas un choix de mode
+
+`/` posait d'abord le choix entre quatre modes. Un nouveau venu ne peut pas le faire : il ne
+sait pas encore ce que l'outil rend, et trois des quatre modes supposent un code de rapport
+qu'il n'a pas sous la main. `/` **est** donc maintenant la question du personnage —
+`CharacterFormClient`, sans détour — et `/character` s'y redirige, pour que les liens déjà
+collés arrivent au bon endroit sans qu'un même écran ait deux URL à indexer.
+
+Les trois autres modes n'ont pas disparu : [`OtherModesLine`](../src/components/forms/OtherModesLine.tsx)
+les pose en une ligne sous le formulaire. Atteignables pour qui les connaît, jamais proposés à
+froid. Leurs routes déclarent `noindex` : un formulaire vide ne vaut pas un résultat de
+recherche.
+
 ### La porte, la carte, et les anciens liens
 
-[`AppShell`](../src/components/AppShell.tsx) enveloppe **toutes** les pages, routes de résultat
-comprises. L'instantané de `result-snapshot.ts` n'est lisible que par un utilisateur
+[`AppShell`](../src/components/AppShell.tsx) enveloppe toutes les pages sauf une, routes de
+résultat comprises. L'instantané de `result-snapshot.ts` n'est lisible que par un utilisateur
 authentifié : une page publique rendant une analyse dérivée de Warcraft Logs ferait de
 LogLense une publication concurrente d'Archon. Un lien partagé s'ouvre donc sur la page
 d'accueil tant que le destinataire n'est pas connecté — c'est le comportement voulu.
+
+L'exception est `/demo`, **la seule route rendue hors de la porte et la seule qui s'indexe avec
+son contenu.** Ce que la frontière protège, ce sont les analyses vivantes : rendre à la demande,
+pour n'importe qui, ce que Warcraft Logs nous répond. `/demo` ne le fait pas — il rend une
+fixture du dépôt ([`src/lib/demo/boss-result.ts`](../src/lib/demo/boss-result.ts), produite par
+`scripts/build-demo-fixture.ts`), anonymisée, sans une requête à WCL ni à Redis. Les chiffres
+sont ceux d'un vrai `analyzeBoss` : un exemple fabriqué contredirait ce que le produit affirme.
+Les deux onglets qui appellent un modèle en direct s'ouvrent et disent en une ligne ce qui leur
+manque, plutôt que d'être cachés — le chat exige une session même avec une clé personnelle, et
+c'est une position produit, pas une limite de cette page.
 
 Les routes de résultat déclarent un `generateMetadata`, ce qui donne à un lien collé une carte
 dans Discord ou sur Reddit. [`share-meta.ts`](../src/lib/share-meta.ts) en pose les deux

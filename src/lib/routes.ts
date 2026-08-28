@@ -14,11 +14,22 @@ import type { AnalysisInput } from '@/types';
  * Héroïque → Mythique instantané.
  */
 
+/**
+ * `/` **est** la question « ton personnage » : il n'y a pas de chemin de formulaire
+ * personnage distinct. `/character` existe encore, mais ne fait que rediriger ici — une
+ * même question ne mérite pas deux URL.
+ */
 export const HOME_PATH = '/';
-export const CHARACTER_FORM_PATH = '/character';
 export const REPORT_FORM_PATH = '/report';
 export const RAID_FORM_PATH = '/raid';
 export const PULL_FORM_PATH = '/pull';
+
+/**
+ * La seule route rendue hors de la porte de session : une analyse réelle, figée dans le
+ * dépôt et anonymisée. Elle ne lit ni Redis ni Warcraft Logs, donc elle ne publie l'analyse
+ * de personne — c'est ce qui la rend compatible avec la frontière tenue par `AppShell`.
+ */
+export const DEMO_PATH = '/demo';
 
 /**
  * Les onglets du panneau de résultat. Ils sont dans l'URL parce qu'un lien collé pour montrer

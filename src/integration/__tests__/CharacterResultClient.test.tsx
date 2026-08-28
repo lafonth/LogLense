@@ -203,6 +203,8 @@ describe('characterResultClient', () => {
     expect(calledParams(replace).get('tab')).toBe('comparison');
   });
 
+  // `/` porte la question du personnage depuis que l'entrée est unique : le reset y revient
+  // directement, plutôt que de passer par `/character`, qui ne fait plus que rediriger.
   it('sends the reader back to the form on reset', async () => {
     const user = userEvent.setup();
     mockHooks({ analysisInput: input });
@@ -210,7 +212,7 @@ describe('characterResultClient', () => {
 
     await user.click(screen.getByRole('button', { name: 'reset' }));
 
-    expect(push).toHaveBeenCalledWith('/character');
+    expect(push).toHaveBeenCalledWith('/');
   });
 
   it('pushes on a difficulty change, and keeps the boss', async () => {

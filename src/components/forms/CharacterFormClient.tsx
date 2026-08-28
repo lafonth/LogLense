@@ -4,8 +4,9 @@ import type { AnalysisInput } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { LoggedInCharacterForm } from '@/components/forms/LoggedInCharacterForm';
+import { OtherModesLine } from '@/components/forms/OtherModesLine';
 import { useZones } from '@/hooks/useZones';
-import { characterResultPath, HOME_PATH } from '@/lib/routes';
+import { characterResultPath } from '@/lib/routes';
 
 /**
  * Le formulaire d'analyse par personnage. Il ne lance plus rien : il compose l'URL du
@@ -38,7 +39,7 @@ export function CharacterFormClient() {
       zonesLoading={zonesLoading}
       zonesError={zonesError}
       onZonesRetry={retry}
-      onBack={() => router.push(HOME_PATH)}
+      footer={<OtherModesLine />}
     />
   );
 }
