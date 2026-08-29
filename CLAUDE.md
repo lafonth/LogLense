@@ -51,6 +51,10 @@ mesuré : **12,8**. Ce qu'on laisse en contexte est relu treize fois. Un `pnpm t
 filtré, ~4 000 jetons, coûte 6 centimes ; un fichier de 800 lignes lu en entier, 33 centimes.
 Autant de plafond de la fenêtre consommé sans rien produire.
 
+**Le sol de session est mesuré et clos : ~7 100 jetons** — `CLAUDE.md` 5 400, frontmatter
+des skills 820, `MEMORY.md` 370, agents 255, hook `SessionStart` 230. Soit 0,11 $ par fenêtre,
+0,7 % de la dépense : ne pas le recomprimer, la carte du code rend plus qu'elle ne coûte.
+
 **À plafond égal, le rendement d'une fenêtre varie du simple au double** : de 4 200 à 9 500
 jetons de sortie par dollar sur les huit relevées, pour un volume d'écriture presque
 identique. L'écart ne vient pas de la difficulté des tâches mais de deux dérives symétriques
