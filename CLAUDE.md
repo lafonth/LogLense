@@ -184,6 +184,13 @@ src/lib/labels/
 src/lib/access.ts     Qui entre : admin → amorçage (env) → fenêtre ouverte → liste nominative
                       (Redis), et la file des refusés. Échoue fermé, `requestAccess` ne jette
                       jamais. Administré par `/admin` et `api/admin/access`
+src/lib/auth.ts       La porte câblée à NextAuth. `signIn` décide, et consigne un refus par
+                      fermeture. Le rappel `jwt` repasse une session ouverte devant
+                      `decideAccess` toutes les `ACCESS_RECHECK_MS` (15 min), date le verdict
+                      dans le jeton, et **jette** pour couper — seul moyen : NextAuth efface
+                      alors le cookie, là où un jeton amputé laisserait un client qui se croit
+                      connecté. Sur Redis muet il échoue **ouvert**, contre la doctrine
+                      d'`access.ts` : une panne ne doit pas déconnecter tout le monde
 src/lib/specs.ts      Table des specs (id → nom de spec et de classe)
 src/lib/redis.ts      Upstash en REST — seule persistance existante. GET, SET, SETEX,
                       INCRBY, EXPIRE, LLEN, RPUSH, HGET, HSET, HDEL, HLEN, HGETALL. Un refus
