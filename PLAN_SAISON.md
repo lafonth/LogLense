@@ -168,6 +168,11 @@ moyenne seule.
 premium par mois — c'est l'ancre de tout le marché. WowCoach.gg va de `$5.99` à `$24.99` par
 mois, et son gratuit est généreux : tout ce qui n'est pas IA y est gratuit et illimité.
 
+**La question est écrite** : [`QUESTION_PRIX.md`](QUESTION_PRIX.md) — à qui l'envoyer, les
+trois points, et ce que les réponses ont le droit de trancher. Elle corrige au passage l'ordre
+posé par le journal de l'étape 3 : le fournisseur d'IA ne se demande pas ici, il se choisit à
+l'étape 7 une fois le prix connu.
+
 **Prompt** :
 
 > Étape 6 de `PLAN_SAISON.md`. Lis l'étape puis `PRODUCT_CONTEXT.md` §4. Rédige la question
