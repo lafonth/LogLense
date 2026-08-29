@@ -158,20 +158,134 @@ week-end.
 
 ### 4.4 Verdict
 
-**Le modèle tient, la fenêtre pour l'occuper ne tient pas.** Trois réserves, par ordre de
-gravité :
+Réécrit le **2026-08-29**, étape 7 de [`PLAN_SAISON.md`](PLAN_SAISON.md). Le modèle est
+tranché ; le prix ne l'est pas, et la section dit pourquoi il ne pouvait pas l'être ici.
 
-1. **Le concurrent a annoncé sa grille de guilde avant que nous ayons annoncé la nôtre.** Le
-   premier qui livre définit ce que « abonnement de guilde pour l'analyse de logs » veut dire.
-   Nous n'avons pas la vue roster ; elle attend une infrastructure v2 qui n'existe pas.
-2. **La disposition à payer n'est toujours pas chiffrée.** Elle ne le sera pas par un
-   raisonnement. L'ancre du marché est `$2`–`$5`/mois chez WCL lui-même, et le gratuit du
-   concurrent est généreux : tout ce qui n'est pas IA y est gratuit et illimité.
-3. **Le précédent de rejet est documenté** — la campagne « Blizzard needs to ban Raider IO »
-   contre le Patreon de Raider.io, avec plus de `50 000` mises à jour en file pour les
-   non-abonnés. La contrainte communautaire n'est pas théorique. Un paywall dur sur
-   l'utilitaire se paie ; un pass qui laisse la vue d'un log gratuite ne devrait pas.
+#### Le modèle : pass de saison, pas d'abonnement
 
+Un achat par palier, qui expire avec lui. Trois raisons, dans l'ordre où elles pèsent — et
+aucune n'est celle du §4.1.
+
+1. **C'est le seul modèle que l'architecture porte déjà.** Toute la persistance est à TTL
+   (§5) : un pass est un droit qui expire à une date, exactement la primitive que `redis.ts`
+   expose depuis le premier jour et qu'`access.ts` administre déjà. Un abonnement demande un
+   cycle de vie complet — renouvellement, échec de prélèvement, relance, proration,
+   résiliation, remboursement — soit une machine à construire et à tenir, pour un développeur
+   seul, sur un produit qui n'a pas un utilisateur payant.
+2. **Le paiement tombe au pic d'intention.** La valeur du produit est concentrée dans les
+   premières semaines du palier, quand aucun guide de spec n'existe encore (§0, quatrième
+   fait) — c'est le raisonnement qui ordonne tout `PLAN_SAISON.md`. Un pass encaisse là. Un
+   abonnement encaisse surtout après, au moment précis où le joueur cherche à résilier. Ce
+   n'est pas le confort du joueur qui décide, c'est la date de l'encaissement.
+3. **Le frais fixe du processeur.** Repère de marché, le processeur n'étant pas choisi :
+   `1,5 % + 0,25 €` par transaction sur une carte de l'EEE, `5 % + 0,50 €` chez un vendeur de
+   référence qui porte la TVA. Facturé au mois, le fixe est prélevé trois fois par palier : à
+   `4 €/mois` il mange `6,3 %` du chiffre, contre `3,6 %` en un paiement de `12 €`. Le pass
+   rend plus à prix total égal, sans rien demander de plus au joueur.
+
+Ce que le pass coûte, et qui est assumé : **la totalité du renouvellement est à regagner à
+chaque palier, visiblement.** C'est le prix du modèle, pas un défaut à corriger — le §4.1
+postule de toute façon un churn de semaine 4 sur un abonnement, donc l'alternative n'est pas
+une rétention qui dure, c'est la même perte, moins visible.
+
+**Un seul palier de prix individuel.** Pas de crédits, pas de niveaux : la grille du
+concurrent (§0.1) est à trois étages plus des crédits à l'unité, et c'est précisément ce qui
+fait lire son gratuit comme une rançon. Un pass qui laisse la vue d'un log gratuite et entière
+(§4.3) est la forme la plus éloignée du précédent Raider.io.
+
+#### Le prix : la fourchette est écrite, le point ne l'est pas
+
+**La disposition à payer n'est toujours pas chiffrée, et la fixer ici serait l'inventer.**
+`QUESTION_PRIX.md` est écrite mais n'a été posée à personne : le post de l'étape 5 n'est pas en
+ligne, donc aucun inconnu n'est entré, donc il n'existe pas une seule réponse. L'étape 7 dit
+« pas avant » — elle a raison contre elle-même.
+
+Ce qui est décidable sans le sondage — le coût et le positionnement — donne la fourchette :
+
+| Repère, ramené au palier de trois mois | Montant    |
+| -------------------------------------- | ---------- |
+| WCL basique `$2`/mois                  | `≈ 5,50 €` |
+| WCL premium `$5`/mois                  | `≈ 14 €`   |
+| WowCoach Solo `$5,99`/mois             | `≈ 17 €`   |
+| WowCoach Pro `$14,99`/mois             | `≈ 42 €`   |
+
+Nous sommes un **complément** de WCL premium, pas un substitut : le raider visé le paie déjà,
+et le pass s'ajoute à sa dépense au lieu de la remplacer. Un prix au-dessus de `14 €`
+demanderait donc de valoir plus que la source de données elle-même, ce que rien ne soutient
+aujourd'hui. En bas, sous `10 €`, le pass ne finance plus grand-chose au-delà de ses frais
+fixes. **Fourchette retenue : `10` à `15 €` par palier ; hypothèse de travail `12 €`.**
+
+L'hypothèse n'est pas un prix. Ce qui la fige, et rien d'autre : les bornes de la question 2 de
+`QUESTION_PRIX.md`, sur quatre à six réponses hors guilde. La règle de lecture est posée
+d'avance, pour qu'elle ne se négocie pas après coup :
+
+- **Le point ne dépasse jamais la plus basse borne « trop cher » recueillie.** À n = 5, on ne
+  se place pas au-dessus d'un refus déjà exprimé.
+- **Si les bornes « sans réfléchir » tiennent sous `5 €` par palier, le pass individuel ne
+  finance rien** et cette section est réécrite, pas ajustée.
+- **Une ligne rouge nommée par deux personnes sur cinq à la question 3 sort son contenu du
+  pass**, quel que soit le prix.
+
+#### La marge, elle, est mesurée
+
+Sur l'hypothèse à `12 €`, coûts marginaux issus du relevé de l'étape 3 (`0,0036 €` par rapport
+et `0,00135 €` par tour de chat sur `gemini-3.5-flash-lite`, `× 8,6` sur Claude Sonnet 5) :
+
+| Par acheteur et par palier               | Gemini       | Claude Sonnet 5 |
+| ---------------------------------------- | ------------ | --------------- |
+| Processeur de paiement                   | `0,43 €`     | `0,43 €`        |
+| IA, usage médian (25 rapports, 40 tours) | `0,14 €`     | `1,24 €`        |
+| IA, au plafond posé ci-dessous           | `0,34 €`     | `2,94 €`        |
+| **Marge nette, usage médian**            | **`11,4 €`** | **`10,3 €`**    |
+| **Marge nette, au plafond**              | **`11,2 €`** | **`8,6 €`**     |
+
+Non mesurée, et volontairement laissée telle : l'infrastructure fixe (Vercel, Upstash), de
+l'ordre de `25 €/mois`, soit `75 €` par palier. **Sept acheteurs la couvrent.**
+
+D'où la seule conclusion que ces chiffres autorisent, et elle déplace l'ordre des travaux : **la
+marge unitaire ne contraint rien — `72 %` dans le pire cas, aucun choix de prix raisonnable ne
+la met en danger. Le nombre d'acheteurs commande tout.** Le §4.4 précédent classait la fenêtre
+concurrentielle avant la disposition à payer ; les deux sont des questions d'acquisition, et
+c'est la réserve n° 1 ci-dessous qui reste la seule ouverte.
+
+#### Le plafond d'usage, et le fournisseur
+
+**Plafond : `50` rapports IA et `120` tours de chat par pass et par palier**, soit deux fois
+l'usage médian supposé. Au-delà, le BYOK, qui existe déjà (`catalog.ts`) — le plafond n'est donc
+pas un mur, c'est le point où le joueur atypique paie son propre modèle. Il borne le pire cas à
+`2,94 €` sur le fournisseur le plus cher du catalogue.
+
+**Le fournisseur ne se choisit pas ici, et `QUESTION_PRIX.md` a tort de le renvoyer à l'étape 7
+comme une question de prix.** Le plafond posé, l'écart Gemini → Claude vaut `2,60 €` par
+acheteur dans le pire cas, `1,10 €` au médian : payable, donc non contraignant. Ce qui reste est
+une question de qualité, et la trancher sur le prix serait exactement la faute que le critère
+anti-gadget nous fait reprocher aux autres — payer neuf fois plus pour un gain que trois rendus
+mesurés ne démontrent pas. **Le défaut reste Gemini jusqu'à ce qu'une comparaison à l'aveugle de
+rendus sur le même combat dise autre chose.** Le prix ne bloque pas cette comparaison ; personne
+ne l'a faite.
+
+#### La couche guilde : aucun prix cette saison
+
+Le §4.3 lui donne un contenu — qui progresse, qui stagne, comparaison entre joueurs du même rôle
+— dont **rien n'est construit** : c'est la vue roster, que `PLAN_SAISON.md` place sous la ligne
+de coupe. Annoncer une grille de guilde sans la vue serait un engagement de livraison sur un
+écran qui n'existe pas. Le pass individuel est le seul objet vendable de cette saison.
+
+#### Ce qui reste ouvert, et ce qui ne l'est plus
+
+Des trois réserves de la version précédente, une seule survit intacte : **le concurrent a
+annoncé sa grille de guilde avant nous**, et nous n'y répondons pas cette saison — c'est assumé
+en fin de `PLAN_SAISON.md`, pas oublié. Le **précédent de rejet** (campagne « Blizzard needs to
+ban Raider IO », plus de `50 000` mises à jour en file pour les non-abonnés) n'est plus une
+réserve mais une contrainte de forme, satisfaite par un pass à palier unique posé au-dessus
+d'une vue de log gratuite et entière. La **disposition à payer** n'est plus une réserve non
+plus : c'est une mesure programmée, dont l'instrument est écrit et le protocole de lecture fixé
+ci-dessus.
+
+**La règle « aucun prix public » de `PLAN_SAISON.md` n'est pas levée par ce commit.** Le plan
+prévoyait qu'elle le soit ; il supposait que l'étape 7 disposerait des montants. Ce qui la lève :
+les réponses de `QUESTION_PRIX.md` au journal, et le point de la fourchette écrit ici en toutes
+lettres. D'ici là, ni le badge `Pro`, ni cette section, ni aucune page ne porte de montant.
 ---
 
 ## 5. Ce qui est tranché, et ne se rediscute pas

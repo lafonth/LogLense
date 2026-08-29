@@ -28,6 +28,12 @@ ensuite, est sous la ligne de coupe et **ne se fait pas cette saison**.
 tant que l'étape 7 n'a pas tranché. C'est le §5 de `PRODUCT_CONTEXT.md`, et le précédent
 Raider.io le rend concret. Le badge `Pro` reste : il ne verrouille rien.
 
+**Amendement du 2026-08-29, à l'étape 7.** L'étape 7 a tranché le modèle mais pas le point de
+prix, faute des montants de l'étape 6. La règle reste donc active **au-delà de son commit**, ce
+que le plan ne prévoyait pas. Ce qui la lève, et rien d'autre : les réponses de
+`QUESTION_PRIX.md` au journal, puis le point de la fourchette `10`–`15 €` écrit en toutes
+lettres au §4.4 de `PRODUCT_CONTEXT.md`.
+
 ---
 
 ## Étape 1 — Une URL profonde et partageable par résultat
@@ -197,6 +203,25 @@ utilisateur qui en découle. La règle permanente ci-dessus est levée à partir
 > `PRODUCT_CONTEXT.md` §4. Tranche mois contre pass de saison, avec le prix, et réécris le
 > §4.4.
 
+### État au 2026-08-29 : tranchée à moitié, et c'est l'étape qui l'impose
+
+Le §4.4 est réécrit et porte le modèle, la fourchette, la marge mesurée, le plafond d'usage, le
+fournisseur et la couche guilde. **Le point de prix manque**, parce que l'étape 6 n'a produit
+que sa question : le post de l'étape 5 n'est pas en ligne, donc personne n'est entré, donc
+aucune réponse n'existe. « Il se décide avec les montants de l'étape 6 en main, **pas avant** »
+vaut aussi contre l'envie de clore l'étape.
+
+**Reste à faire — étape 7 bis, une demi-session** : exécuter les actes 2 et 3 de l'étape 5,
+poser la question de l'étape 6, reporter les réponses **brutes** au journal, puis écrire le
+point dans la fourchette en appliquant les trois règles de lecture déjà posées au §4.4. Rien
+d'autre n'est à rouvrir — ni le modèle, ni la marge, ni le plafond.
+
+**Prompt (7 bis)** :
+
+> Étape 7 bis de `PLAN_SAISON.md`. Les réponses de `QUESTION_PRIX.md` sont au journal. Lis le
+> §4.4 de `PRODUCT_CONTEXT.md`, applique ses trois règles de lecture pour fixer le point dans la
+> fourchette `10`–`15 €`, et lève la règle « aucun prix public » dans le même commit.
+
 ---
 
 ## Sous la ligne de coupe — pas cette saison
@@ -243,3 +268,6 @@ décision. Les chiffres des étapes 3 et 6 se posent ici — l'étape 7 les reli
 | 2026-08-27 | 2 | Carte de partage (`share-card.ts` + `ShareCard.tsx`), repliée sous le DPS et atteignable depuis tout résultat chiffrable. `ComparabilityBanner` quitte l'onglet Comparison pour la tête du bloc, au-dessus du verdict et hors des onglets. | La carte montre le même joueur mesuré deux fois : `+55 000` dps contre le vivier entier à `292` d'ilvl, `+25 000` contre les logs comparables — plus de la moitié du retard annoncé venait de l'équipement des références. Deux verrous : pas de carte si le verdict refuse de chiffrer, pas de carte sans ilvl de vivier — l'affirmation sans la démonstration est ce que nous reprochons aux classements. Aucun prix. |
 | 2026-08-28 | 3 | `scripts/usage-cost.ts` : lecture de `labels:usage`, coût marginal en euros par fournisseur, rapport et chat séparés. Capture inchangée. `usage` était le huitième flux absent de `scripts/corpus-io.ts` et de la table de `docs/05-capture-de-donnees.md` — ajouté aux deux. | **0,0036 € par rapport, sur 3 analyses servies** — plus 2 tours de chat à 0,0027 €. Tout en `gemini-3.5-flash-lite`, tout sous notre clé, aucun BYOK. Le chiffre est vrai et presque vide : trois rendus ne fondent pas un prix, et il ne vaut que pour le fournisseur le moins cher du catalogue. Ce qui est reportable, c'est le profil : ~9 400 jetons d'entrée neuve et ~550 de sortie par rapport, jamais de cache. À ce profil, Claude Sonnet 5 coûterait ~0,031 € et ChatGPT ~0,015 €, soit un facteur 9 entre Claude et Gemini — 21 si l'on descend jusqu'à Groq. L'étape 6 doit dire quel fournisseur le pass finance avant que l'étape 7 puisse fixer un prix. |
 | 2026-08-28 | 4 | `/demo` : une analyse réelle, anonymisée, figée dans le dépôt (`src/lib/demo/boss-result.ts`, produite par `scripts/build-demo-fixture.ts`) et rendue par les composants de production — seule route hors d'`AppShell`, seule route indexable. `/` **est** désormais la question du personnage : la grille de quatre modes (`HomeScreen`, `ModeSelector`) est supprimée, `/character` redirige vers `/`, et les trois autres modes tiennent dans `OtherModesLine` sous le formulaire. Lien vers la démo sous les deux appels à se connecter de la page publique. | La frontière WCL porte sur les analyses **vivantes**, pas sur un exemple : `/demo` est prérendu statiquement, sans une requête à WCL ni à Redis, donc il ne fait pas de nous une publication concurrente. Les chiffres sont ceux d'un vrai `analyzeBoss` — vivier à `289` d'ilvl, écart `23 574` dps ramené à `16 507` contre les logs comparables — parce qu'un exemple fabriqué contredirait ce que le produit exige des autres. Les onglets IA et chat s'ouvrent et disent en une ligne qu'ils appellent un modèle en direct, plutôt que d'être cachés. Aucun prix. |
+| 2026-08-29 | 5 | `POST_METHODE.md` : le canal est **Dreamgrove (Discord Druide), salon Feral**, et le post est écrit en deux messages, le second conditionné à l'accord d'un modérateur. | Le canal n'était pas libre : notre seul exemple public est un Feral sur Chimaerus mythique, et un chiffre invérifiable par la salle où il est posté est invendable. Coût assumé : rien d'indexé, et trois à cinq montants hors guilde plutôt que dix. **L'étape n'est pas close** — actes 2 et 3 non faits : l'allowlist n'est pas ouverte, le post n'est pas en ligne, aucun lien au journal. |
+| 2026-08-29 | 6 | `QUESTION_PRIX.md` : à qui, où, les trois points, et ce que les réponses ont le droit de trancher. Deux bornes par personne plutôt qu'un montant ; Van Westendorp écarté ; repères de marché en question 2 seulement, la question 1 mesurant une dépense déjà consentie que rien n'a ancrée. | Cible ramenée de dix à **quatre à six** réponses, conséquence du canal de l'étape 5. Le fournisseur d'IA sort de la question : il pèse `1,10 €` par joueur et par palier entre Gemini et Claude au médian, ce qui ne déplace aucun prix. **Aucune réponse recueillie** — la question n'a été posée à personne, l'étape 5 n'ayant pas posté. |
+| 2026-08-29 | 7 | §4.4 de `PRODUCT_CONTEXT.md` réécrit : modèle, fourchette de prix et sa règle de lecture, marge mesurée, plafond d'usage, fournisseur, couche guilde. Règle permanente amendée ci-dessus. | **Pass de saison, palier unique, pas d'abonnement** — pour trois raisons dont aucune n'était au §4.1 : c'est le seul modèle que la persistance à TTL porte déjà, il encaisse au pic d'intention plutôt qu'au moment de la résiliation, et il ne paie le fixe du processeur qu'une fois (`3,6 %` d'un pass à `12 €` contre `6,3 %` de trois mensualités à `4 €`). **Prix non fixé** : fourchette `10`–`15 €`, hypothèse de travail `12 €`, point suspendu aux réponses de l'étape 6 — la règle « aucun prix public » n'est donc **pas** levée. Marge nette par acheteur `11,4 €` au médian, `8,6 €` au pire cas plafonné ; **sept acheteurs couvrent l'infrastructure fixe**, donc la marge unitaire ne contraint rien et le nombre d'acheteurs commande tout. Plafond `50` rapports / `120` tours par pass, BYOK au-delà. Fournisseur : reste Gemini, l'écart de prix étant payable — le choix est une question de qualité, non de monétisation, et personne n'a comparé les rendus. Aucun prix de guilde cette saison : la vue roster n'existe pas. |
