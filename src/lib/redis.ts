@@ -119,3 +119,67 @@ export async function redisAppend(key: string, value: string): Promise<number> {
   }
   return length;
 }
+
+/**
+ * Écrit un champ dans un hash. Rend `true` si le champ n'existait pas.
+ *
+ * Un hash plutôt qu'une liste JSON relue puis réécrite : la liste d'accès est lue à **chaque
+ * connexion**, et un `HGET` répond en O(1) sans faire transiter la liste entière. Le
+ * read-modify-write des routes `user/*` perdrait en plus une admission concurrente — ici deux
+ * admissions simultanées touchent deux champs distincts et ne se voient pas.
+ */
+export async function redisHSet(key: string, field: string, value: string): Promise<boolean> {
+  const added = await exec<number | null>(['HSET', key, field, value]);
+  if (typeof added !== 'number' || !Number.isFinite(added)) {
+    throw new TypeError(`HSET ${key} did not return a field count`);
+  }
+  return added > 0;
+}
+
+/** Lit un champ. `null` veut dire absent — un refus Redis jette, il n'arrive pas ici. */
+export async function redisHGet(key: string, field: string): Promise<string | null> {
+  return exec<string | null>(['HGET', key, field]);
+}
+
+/** Retire un champ. Rend `true` s'il existait. */
+export async function redisHDel(key: string, field: string): Promise<boolean> {
+  const removed = await exec<number | null>(['HDEL', key, field]);
+  return typeof removed === 'number' && removed > 0;
+}
+
+/** Nombre de champs, sans lire le hash. Sert à plafonner une file sans la charger. */
+export async function redisHLen(key: string): Promise<number> {
+  const length = await exec<number | null>(['HLEN', key]);
+  return typeof length === 'number' && Number.isFinite(length) ? length : 0;
+}
+
+/**
+ * Lit un hash entier, replié en objet.
+ *
+ * Upstash rend `HGETALL` en REST comme un tableau plat — champ, valeur, champ, valeur — et
+ * non comme un objet : le repli se fait ici, une fois, plutôt que chez chaque appelant. Une
+ * longueur impaire est une panne de protocole, pas un résultat partiel : on jette.
+ */
+export async function redisHGetAll(key: string): Promise<Record<string, string>> {
+  const flat = await exec<unknown>(['HGETALL', key]);
+  if (flat === null || flat === undefined) return {};
+
+  // Certains déploiements rendent déjà un objet. Les deux formes sont acceptées, la longueur
+  // impaire ne l'est dans aucune.
+  if (!Array.isArray(flat)) {
+    if (typeof flat !== 'object') throw new TypeError(`HGETALL ${key} returned a scalar`);
+    return Object.fromEntries(
+      Object.entries(flat as Record<string, unknown>).map(([f, v]) => [f, String(v)])
+    );
+  }
+
+  if (flat.length % 2 !== 0) {
+    throw new TypeError(`HGETALL ${key} returned ${flat.length} entries, expected pairs`);
+  }
+
+  const out: Record<string, string> = {};
+  for (let i = 0; i < flat.length; i += 2) {
+    out[String(flat[i])] = String(flat[i + 1]);
+  }
+  return out;
+}

@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from 'next-auth';
 import BattleNetProvider from 'next-auth/providers/battlenet';
+import { decideAccess, requestAccess } from '@/lib/access';
 import { blizzardCredentials } from '@/lib/blizzard-credentials';
 import {
   DEV_SESSION_PROVIDER_ID,
@@ -19,23 +20,6 @@ async function fetchBattletag(accessToken: string): Promise<string | null> {
   } catch {
     return null;
   }
-}
-
-/**
- * Dit si ce battletag a le droit d'entrer.
- *
- * `BETA_ALLOWLIST` fermée par défaut : liste absente ou vide veut dire fermé à tous, jamais
- * ouvert à tous — la faute classique de ce motif. Comparaison insensible à la casse, comme
- * l'affichage du battletag.
- */
-function isAllowed(battletag: string): boolean {
-  const raw = process.env.BETA_ALLOWLIST ?? '';
-  const list = raw
-    .split(',')
-    .map((t) => t.trim())
-    .filter(Boolean);
-  if (list.length === 0) return false;
-  return list.some((t) => t.toLowerCase() === battletag.toLowerCase());
 }
 
 export const authOptions: NextAuthOptions = {
@@ -62,12 +46,25 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt' },
   pages: { error: '/' },
   callbacks: {
+    /**
+     * La porte. Le verdict vient d'`access.ts`, qui échoue fermé ; ici on n'ajoute qu'une
+     * chose : un refus par fermeture est **consigné comme demande**.
+     *
+     * C'est ce qui remplace le « envoie-moi ton battletag » : le visiteur qui essaie de se
+     * connecter se met de lui-même dans la file, et l'admission tient en un clic au lieu d'un
+     * déploiement. `requestAccess` ne jette jamais — une exception ici ne rendrait pas un
+     * refus propre mais une erreur d'authentification, et le visiteur lirait une panne là où
+     * il doit lire « bêta fermée ».
+     */
     async signIn({ account }) {
       if (account?.provider === DEV_SESSION_PROVIDER_ID) return true;
       if (!account?.access_token) return false;
       const battletag = await fetchBattletag(account.access_token);
       if (!battletag) return false;
-      return isAllowed(battletag);
+
+      const decision = await decideAccess(battletag);
+      if (!decision.allowed && decision.reason === 'closed') await requestAccess(battletag);
+      return decision.allowed;
     },
     async jwt({ token, account, user }) {
       if (account?.provider === DEV_SESSION_PROVIDER_ID) {

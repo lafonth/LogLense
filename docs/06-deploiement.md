@@ -95,6 +95,7 @@ reprises ici que celles qui ont un piège à la mise en production.
 | `NEXTAUTH_URL_PROD` | Lue à la **construction**. La changer impose de reconstruire — repromouvoir un déploiement existant garde l'ancienne valeur |
 | `BLIZZARD_CLIENT_ID_PROD` / `_SECRET_PROD` | Le garde vérifie la présence, jamais la validité. Une mauvaise paire démarre sans erreur et échoue à la première connexion |
 | `BETA_ALLOWLIST` | **Absente de la liste du garde**, et pourtant indispensable : le déploiement démarre, puis refuse toutes les connexions, y compris la vôtre |
+| `ADMIN_BATTLETAGS` | Absente du garde elle aussi. Sans elle, `/admin` répond `404` à tout le monde — donc plus personne ne peut rouvrir la porte depuis l'interface |
 | `LABEL_SALT` | Sale l'identifiant anonyme du corpus. La changer coupe la continuité : les enregistrements écrits avant ne se rattachent plus à ceux d'après |
 | `ENABLE_DEV_SESSION` | Doit être **absente**. La poser à `0` ne la neutralise pas : le garde teste la présence d'une valeur non vide, et `'0'` en est une |
 
@@ -117,19 +118,29 @@ démarre que s'il est vert.
 
 ## Admettre un testeur bêta
 
-Vercel fige les variables au moment du déploiement : **modifier `BETA_ALLOWLIST` ne change
-rien pour le déploiement en cours**. La procédure complète est donc :
+Ça se fait sur `/admin`, sans déploiement. La page est réservée aux battletags de
+`ADMIN_BATTLETAGS` et répond `404` à tous les autres — y compris connectés : dire « interdit »
+confirmerait qu'il y a une liste d'administrateurs à deviner.
 
-1. Ajouter le battletag à `BETA_ALLOWLIST` côté Vercel, portée *Production*, séparé par une
-   virgule — la comparaison est insensible à la casse (`src/lib/auth.ts`).
-2. Redéclencher le workflow. C'est plus lent que le bouton *Redeploy* de Vercel, mais ça
-   rejoue les quatre portes et laisse une trace datée de l'admission.
-3. Vérifier : le testeur se connecte. Un refus renvoie sur la page de connexion **sans
-   message** — il n'y a pas d'écran « vous n'êtes pas sur la liste ».
+Trois blocs, dans l'ordre où on s'en sert :
 
-C'est la limite connue qu'on accepte tant que la bêta se compte sur les doigts d'une main :
-chaque admission est un déploiement, et il n'existe pas d'interface d'administration. C'est
-la première chose qui casse si la liste s'allonge.
+1. **La porte.** Ouverte à tous pour un nombre de jours borné (30 au plus), ou fermée. Une
+   ouverture porte sa date de fin **dans la valeur**, pas dans un TTL Redis : l'écran doit
+   pouvoir dire jusqu'à quand, et une clé qui disparaît toute seule ne dit rien. Pendant une
+   ouverture, le garde-fou n'est plus la liste mais le plafond horaire Warcraft Logs.
+2. **La file.** Une connexion refusée parce que la porte est fermée s'y consigne d'elle-même,
+   avec le nombre de tentatives. Le testeur n'a donc rien à vous envoyer, et l'écran de refus
+   le lui dit. Admettre est un clic.
+3. **Les membres.** La liste nominative, celle qui vaut quand la porte est fermée. On peut
+   aussi y ajouter un battletag à la main, sans attendre qu'il essaie.
+
+Reste ce que le déploiement seul peut faire : `BETA_ALLOWLIST` est désormais la liste
+d'**amorçage**, lue avant Redis. Elle existe pour le cas où la base est muette ou l'accès
+verrouillé par erreur — pas pour l'usage courant. Y toucher demande toujours un redéclenchement
+du workflow, puisque Vercel fige les variables à la construction.
+
+Vérifier après coup : le testeur se connecte. Un refus renvoie sur la page de connexion avec
+l'écran de bêta fermée, qui annonce que la tentative vaut demande d'accès.
 
 ## Revenir en arrière
 

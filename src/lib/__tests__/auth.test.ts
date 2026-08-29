@@ -1,7 +1,29 @@
 import type { Account } from 'next-auth';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ACCESS_PENDING_KEY } from '@/lib/access';
 import { authOptions } from '@/lib/auth';
 import { DEV_SESSION_PROVIDER_ID } from '@/lib/dev-session';
+import { consumeStrictQuota } from '@/lib/labels/rate-limit';
+import { redisGet, redisHGet, redisHLen, redisHSet } from '@/lib/redis';
+
+/**
+ * Redis est simulé, `access.ts` ne l'est pas.
+ *
+ * La porte est ce que ces deux modules font ensemble ; couper `access.ts` ici ne testerait
+ * plus que l'existence de son appel. Le stub global de `fetch` couvrirait bien les appels REST
+ * d'Upstash, mais il rendrait `undefined` à toutes les lectures — soit exactement l'absence
+ * qu'on veut distinguer d'une panne.
+ */
+vi.mock('@/lib/redis', () => ({
+  redisGet: vi.fn(),
+  redisSet: vi.fn(),
+  redisHGet: vi.fn(),
+  redisHSet: vi.fn(),
+  redisHDel: vi.fn(),
+  redisHLen: vi.fn(),
+  redisHGetAll: vi.fn(),
+}));
+vi.mock('@/lib/labels/rate-limit', () => ({ consumeStrictQuota: vi.fn() }));
 
 const BATTLETAG = 'Jumbaa#1234';
 
@@ -26,8 +48,20 @@ function mockUserinfo(body: unknown, ok = true) {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
   vi.stubEnv('BETA_ALLOWLIST', '');
+  vi.stubEnv('ADMIN_BATTLETAGS', '');
   mockUserinfo({ battletag: BATTLETAG });
+  vi.mocked(redisGet).mockResolvedValue(null);
+  vi.mocked(redisHGet).mockResolvedValue(null);
+  vi.mocked(redisHSet).mockResolvedValue(true);
+  vi.mocked(redisHLen).mockResolvedValue(0);
+  vi.mocked(consumeStrictQuota).mockResolvedValue({
+    allowed: true,
+    retryAfterSeconds: 0,
+    unavailable: false,
+    consumed: 1,
+  });
 });
 
 afterEach(() => {
@@ -70,5 +104,28 @@ describe('signIn', () => {
   it('ignores stray whitespace and empty entries in the list', async () => {
     vi.stubEnv('BETA_ALLOWLIST', ' , Jumbaa#1234 , ');
     await expect(signIn(account())).resolves.toBe(true);
+  });
+
+  it('admits a battletag admitted from the admin screen', async () => {
+    vi.mocked(redisHGet).mockResolvedValue('{"tag":"Jumbaa#1234"}');
+    await expect(signIn(account())).resolves.toBe(true);
+  });
+
+  // Ce qui remplace le « envoie-moi ton battletag » : le refus met de lui-même dans la file.
+  it('records a request when it refuses a closed door', async () => {
+    await expect(signIn(account())).resolves.toBe(false);
+    expect(vi.mocked(redisHSet)).toHaveBeenCalledWith(
+      ACCESS_PENDING_KEY,
+      'jumbaa#1234',
+      expect.stringContaining(BATTLETAG)
+    );
+  });
+
+  // Une panne se refuse comme une porte fermée, mais ne se consigne pas : rien n'a été lu,
+  // donc rien ne dit que ce visiteur n'était pas déjà membre.
+  it('refuses without recording when Redis is down', async () => {
+    vi.mocked(redisGet).mockRejectedValue(new Error('down'));
+    await expect(signIn(account())).resolves.toBe(false);
+    expect(vi.mocked(redisHSet)).not.toHaveBeenCalled();
   });
 });

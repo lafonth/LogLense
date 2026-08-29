@@ -181,12 +181,18 @@ src/lib/labels/
                       séparément. `null` dit non mesuré, jamais zéro
   rate-limit.ts       Quotas : `consumeQuota` échoue ouvert, `consumeStrictQuota` fermé
   schema.ts           Validation des soumissions entrant au corpus (plafonds de corpus)
+src/lib/access.ts     Qui entre : admin → amorçage (env) → fenêtre ouverte → liste nominative
+                      (Redis), et la file des refusés. Échoue fermé, `requestAccess` ne jette
+                      jamais. Administré par `/admin` et `api/admin/access`
 src/lib/specs.ts      Table des specs (id → nom de spec et de classe)
 src/lib/redis.ts      Upstash en REST — seule persistance existante. GET, SET, SETEX,
-                      INCRBY, EXPIRE, LLEN, RPUSH. Un refus jette, il ne rend pas `undefined`
+                      INCRBY, EXPIRE, LLEN, RPUSH, HGET, HSET, HDEL, HLEN, HGETALL. Un refus
+                      jette, il ne rend pas `undefined`
 src/data/talents/     Arbres de talents par spec, générés par scripts/
 src/components/ui/    Les primitives : Button, Card, Input, Select, Tabs, ScrollArea,
                       Sheet, Badge, BackLink, ErrorBanner, LoadingSpinner, ProgressSteps
+src/components/admin/  AccessAdmin : la porte, la file, les membres. Sa page et sa route répondent
+                      404 à un non-admin — un 403 confirmerait la liste
 ```
 
 Tous les modules de `comparison/` sont des fonctions pures, testables sans rendu. Ils sont
