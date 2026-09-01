@@ -34,6 +34,11 @@ graph LR
     style REDIS fill:#3f3f1e,color:#fff
 ```
 
+La même carte, en interactif et à jour du code : [architecture-sante.html](architecture-sante.html)
+— un fichier autonome à ouvrir dans un navigateur, avec quatre vues guidées (chemin
+d'analyse, chat outillé, capture du corpus, la porte). Le schéma ci-dessus reste la
+version qui se lit sans rien ouvrir.
+
 Trois choses à retenir avant de lire le reste :
 
 1. **Il y a deux chemins d'analyse, et un seul noyau.** Chemin personnage (nom → classements

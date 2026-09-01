@@ -51,3 +51,7 @@ ENV/
 .DS_Store
 desktop.ini
 tsconfig.tsbuildinfo
+
+# rapports de contrôle visuel des diagrammes (archify) — captures et JSON de passage.
+# Le diagramme est versionné, sa vérification se rejoue : `docs/*.visual-check.*`
+docs/*.visual-check.*
