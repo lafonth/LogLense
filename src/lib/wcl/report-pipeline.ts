@@ -1,7 +1,8 @@
 import type { ReportCombatants } from './combatant';
 import type { ReportRankings } from './report-rankings';
-import type { BossResult } from '@/types';
+import type { BossOutcome } from '@/types';
 import { randomUUID } from 'node:crypto';
+import { unsupportedSpecRefusal } from '@/lib/boss-outcome';
 import { getSpecInfo } from '@/lib/specs';
 import { fetchReportCombatants } from './combatant';
 import { fetchFightData } from './fight-data';
@@ -31,13 +32,19 @@ export async function analyzeReportBoss(
    * reprend les siens — un lot d'un seul combat, que la requête accepte telle quelle.
    */
   combatants: ReportCombatants = fetchReportCombatants(token, code, [fightId])
-): Promise<BossResult | null> {
+): Promise<BossOutcome | null> {
   // Detect actual spec from combatant data before starting world rankings
   const charEvent = await combatants.byActor(fightId, actorId);
   if (!charEvent) return null;
 
+  // `supported`, pas la nullité : depuis que la table connaît les soigneurs et les tanks,
+  // `getSpecInfo(257)` rend une Prêtre Sacré au lieu de `null`, et la garde d'avant ne
+  // s'armait plus. Refusé ici, avant `fetchCandidatePool` — un refus qui a déjà coûté
+  // cinquante requêtes WCL est un refus mal placé.
   const specInfo = getSpecInfo(charEvent.specID);
-  if (!specInfo) return null;
+  if (!specInfo?.supported) {
+    return unsupportedSpecRefusal(encounterId, encounterName, charEvent.specID);
+  }
   const { specName, className } = specInfo;
 
   const poolPromise = fetchCandidatePool(token, {

@@ -3,6 +3,7 @@ import type { Encounter } from '@/types';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Sheet } from '@/components/ui/Sheet';
+import { isBossRefusal, isBossResult } from '@/lib/boss-outcome';
 
 interface BossSidebarProps {
   encounters: Encounter[];
@@ -21,7 +22,9 @@ export function BossSidebar({ encounters, bossStates, activeIdx, onSelect }: Bos
           const state = bossStates[i];
           const isActive = i === activeIdx;
           const pct =
-            state?.status === 'success' && state.result ? state.result.character.overallPct : null;
+            state?.status === 'success' && isBossResult(state.result)
+              ? state.result.character.overallPct
+              : null;
 
           return (
             <button
@@ -49,6 +52,11 @@ export function BossSidebar({ encounters, bossStates, activeIdx, onSelect }: Bos
                   clic sur la ligne. */}
               {state?.status === 'error' && (
                 <span className="text-danger text-2xs font-mono">failed</span>
+              )}
+              {/* Distinct de « failed » : rien n'a échoué, nous avons refusé. Relancer ce
+                  boss redonnerait le même refus. */}
+              {state?.status === 'success' && isBossRefusal(state.result) && (
+                <span className="text-danger text-2xs font-mono">not compared</span>
               )}
             </button>
           );

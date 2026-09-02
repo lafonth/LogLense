@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { isBossResult } from '../../boss-outcome';
+import { findCombatantByName } from '../combatant';
 import { fetchFightData } from '../fight-data';
 import { analyzeBoss } from '../pipeline';
+import { fetchCandidatePool } from '../references';
 import { analyzeReportBoss } from '../report-pipeline';
 
 /**
@@ -102,8 +105,28 @@ const INPUT = {
   specId: 103,
 };
 
-function reportBoss() {
-  return analyzeReportBoss('token', 'abc', 3306, 'Chimaerus', 63, 'Jumbaa', 17, 180000, 5);
+/**
+ * Les deux chemins, réduits à leur rendu : les suites ci-dessous lisent `renderId` et
+ * `character`, qu'un refus ne porte pas. Le refus a sa propre suite, tout en bas.
+ */
+async function charBoss(input: typeof INPUT = INPUT) {
+  const outcome = await analyzeBoss('token', input, 3306, 'Chimaerus');
+  return isBossResult(outcome) ? outcome : null;
+}
+
+async function reportBoss() {
+  const outcome = await analyzeReportBoss(
+    'token',
+    'abc',
+    3306,
+    'Chimaerus',
+    63,
+    'Jumbaa',
+    17,
+    180000,
+    5
+  );
+  return isBossResult(outcome) ? outcome : null;
 }
 
 describe('renderId', () => {
@@ -114,8 +137,8 @@ describe('renderId', () => {
   // Un verdict « pas comparable » se rattache à ce qui a été montré. Sans identifiant sur
   // le rendu, un refus ne peut être ni rattaché ni dédupliqué.
   it('is carried by the character path, and renewed at each analysis', async () => {
-    const first = await analyzeBoss('token', INPUT, 3306, 'Chimaerus');
-    const second = await analyzeBoss('token', INPUT, 3306, 'Chimaerus');
+    const first = await charBoss();
+    const second = await charBoss();
 
     expect(first?.renderId).toBeTruthy();
     expect(second?.renderId).toBeTruthy();
@@ -134,7 +157,7 @@ describe('renderId', () => {
   // Les deux chemins alimentent le même corpus : deux rendus ne doivent jamais se confondre,
   // même produits par des chemins différents.
   it('does not collide across the two paths', async () => {
-    const character = await analyzeBoss('token', INPUT, 3306, 'Chimaerus');
+    const character = await charBoss();
     const report = await reportBoss();
 
     expect(character?.renderId).not.toBe(report?.renderId);
@@ -150,9 +173,35 @@ describe('dps provenance', () => {
   });
 
   it('measures the character path with the rankings amount, never the damage table', async () => {
-    const result = await analyzeBoss('token', INPUT, 3306, 'Chimaerus');
+    const result = await charBoss();
 
     expect(vi.mocked(fetchFightData).mock.calls[0]?.[1]).toMatchObject({ dps: 250000 });
     expect(result?.character.dpsSource).toBe('ranking');
+  });
+});
+
+// Le défaut d'origine : une Prêtre Sacré comparée à des Ombre. Le formulaire annonçait une
+// spec de dégâts, le log en montrait une autre, et le rapport rendu était cohérent et
+// entièrement faux. C'est le log qui gagne, et le refus tombe avant le premier candidat.
+describe('unsupported spec', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('believes the log over the form, and refuses before building a pool', async () => {
+    // 257 = Prêtre Sacré dans le log ; 258 = Ombre dans le formulaire, une spec que nous
+    // classons — c'est elle qui faisait passer la garde.
+    vi.mocked(findCombatantByName).mockResolvedValue({
+      ...fixtures.combatant,
+      specID: 257,
+    } as never);
+
+    const outcome = await analyzeBoss('token', { ...INPUT, specId: 258 }, 3306, 'Chimaerus');
+
+    expect(outcome).toMatchObject({ refused: 'unsupported-spec', specId: 257 });
+    // Un refus qui a déjà coûté cinquante requêtes WCL est un refus mal placé.
+    expect(vi.mocked(fetchCandidatePool)).not.toHaveBeenCalled();
+    // Et surtout : aucun vivier d'Ombre n'a été constitué sous le nom d'une Sacré.
+    expect(isBossResult(outcome)).toBe(false);
   });
 });

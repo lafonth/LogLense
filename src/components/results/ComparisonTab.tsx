@@ -2,6 +2,7 @@ import type { BossState } from '@/hooks/useAnalysis';
 import type { Encounter, TalentNode } from '@/types';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { isBossRefusal, isBossResult } from '@/lib/boss-outcome';
 import { usableSample } from '@/lib/comparison/stat-distribution';
 import { FindingsList } from './FindingsList';
 import { OpeningChain } from './OpeningChain';
@@ -38,7 +39,23 @@ export function ComparisonTab({
     return <ErrorBanner message={bossState.message} onRetry={onRetry} />;
   }
 
-  const result = bossState.result;
+  const outcome = bossState.result;
+
+  // Même raison que dans l'onglet Overview : proposer de changer de difficulté à qui joue
+  // une spec que nous ne classons pas, c'est renvoyer le lecteur chercher une donnée qui
+  // n'existera nulle part.
+  if (isBossRefusal(outcome)) {
+    return (
+      <div className="py-6 font-mono text-xs">
+        <div className="text-dim">
+          {encounter.name} was not compared — the log shows{' '}
+          {outcome.specLabel ?? `spec ${outcome.specId}`}, which LogLense does not rank.
+        </div>
+      </div>
+    );
+  }
+
+  const result = isBossResult(outcome) ? outcome : null;
 
   if (!result) {
     return (

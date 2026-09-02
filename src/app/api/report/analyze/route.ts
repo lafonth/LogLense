@@ -8,6 +8,7 @@ import {
   guardMeteredWclSpend,
   MAX_ENCOUNTERS_PER_REQUEST,
 } from '@/lib/api/wcl-guard';
+import { isBossResult } from '@/lib/boss-outcome';
 import { recordExposure } from '@/lib/labels/record-exposure';
 import { getDpsSpecsForClass } from '@/lib/specs';
 import { getWCLToken } from '@/lib/wcl/auth';
@@ -184,14 +185,17 @@ export async function POST(req: NextRequest) {
       // Frappée par la route, pas par le pipeline : `analyzeReportBoss` reçoit les champs de la
       // désignation éclatés en arguments, et ne les rassemble jamais. Réappliquée sans condition
       // aux rencontres servies par un instantané — la valeur y est déjà la même.
-      const bosses = analysed.map((boss, i) => (boss ? { ...boss, snapshot: refs[i] } : null));
+      // Un refus traverse sans désignation et sans instantané : il ne désigne rien à relire.
+      const bosses = analysed.map((boss, i) =>
+        isBossResult(boss) ? { ...boss, snapshot: refs[i] } : boss
+      );
 
       // Écrit les seules rencontres calculées à froid : réécrire un instantané qu'on vient de
       // lire repousserait son expiration à chaque ouverture du lien, et une durée de vie qu'on
       // prolonge indéfiniment n'est plus une copie de travail.
       await Promise.all(
         bosses.map(async (boss, i) => {
-          if (snapshots[i] || !boss) return;
+          if (snapshots[i] || !isBossResult(boss)) return;
           await writeSnapshot(snapshotKeys[i], boss);
         })
       );

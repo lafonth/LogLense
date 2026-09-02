@@ -1,13 +1,13 @@
 'use client';
 
-import type { AnalysisInput, BossResult } from '@/types';
+import type { AnalysisInput, BossOutcome } from '@/types';
 import { useCallback, useRef, useState } from 'react';
 import { readApiError } from '@/lib/api/response-error';
 
 export type BossState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'success'; result: BossResult | null }
+  | { status: 'success'; result: BossOutcome | null }
   | { status: 'error'; message: string };
 
 /** Ce qui distingue deux analyses d'un même boss : la spec demandée et la pull demandée. */
@@ -47,7 +47,9 @@ async function fetchBoss(
     });
 
     if (!res.ok) return { status: 'error', message: await readApiError(res) };
-    const result = (await res.json()) as BossResult | null;
+    // Un refus arrive en 200 avec le reste : la route le rend comme une réponse, pas comme
+    // une panne. Le mettre en `error` le ferait afficher « échec » sans dire de quoi.
+    const result = (await res.json()) as BossOutcome | null;
     return { status: 'success', result };
   } catch (err) {
     return { status: 'error', message: err instanceof Error ? err.message : 'Network error' };

@@ -1,5 +1,6 @@
-import type { AnalysisInput, AnalysisResult, BossResult } from '@/types';
+import type { AnalysisInput, AnalysisResult, BossOutcome } from '@/types';
 import { randomUUID } from 'node:crypto';
+import { unsupportedSpecRefusal } from '@/lib/boss-outcome';
 import { getSpecInfo } from '@/lib/specs';
 import { getWCLToken } from './auth';
 import { gql } from './client';
@@ -43,13 +44,18 @@ export async function analyzeBoss(
   encounterName: string,
   specIdOverride?: number,
   fightOverride?: { code: string; fightID: number }
-): Promise<BossResult | null> {
-  const { characterName: name, serverSlug: slug, region, difficulty, specId } = input;
-
-  const fallbackSpec = getSpecInfo(specIdOverride ?? specId);
+): Promise<BossOutcome | null> {
+  const { characterName: name, serverSlug: slug, region, difficulty } = input;
 
   // When a specific spec is requested, filter rankings to that spec only
-  const overrideSpecInfo = specIdOverride ? getSpecInfo(specIdOverride) : null;
+  const overrideSpecInfo = specIdOverride === undefined ? null : getSpecInfo(specIdOverride);
+
+  // Refusé avant la première requête : la surcharge vient de l'écran, et une spec que nous
+  // ne savons pas analyser ne doit pas acheter une cinquantaine d'appels chez WCL pour se
+  // faire refuser ensuite.
+  if (specIdOverride !== undefined && !overrideSpecInfo?.supported) {
+    return unsupportedSpecRefusal(encounterId, encounterName, specIdOverride);
+  }
 
   const charData = await gql<CharacterRankingsResponse>(
     token,
@@ -94,8 +100,15 @@ export async function analyzeBoss(
   const charEvent = await findCombatantByName(token, bestCode, bestFightId, name);
   if (!charEvent) return null;
 
-  const actualSpec = getSpecInfo(charEvent.specID) ?? fallbackSpec;
-  if (!actualSpec) return null;
+  // Le log gagne sur le formulaire. `?? fallbackSpec` retombait sur la spec choisie à la
+  // main quand le `CombatantInfo` en donnait une que la table ignorait — c'est ce repli qui
+  // a comparé une Prêtre Sacré à des Prêtres Ombre et rendu un rapport cohérent, confiant,
+  // entièrement faux. Refusé ici, avant `fetchCandidatePool` : un refus qui a déjà coûté
+  // cinquante requêtes WCL est un refus mal placé.
+  const actualSpec = getSpecInfo(charEvent.specID);
+  if (!actualSpec?.supported) {
+    return unsupportedSpecRefusal(encounterId, encounterName, charEvent.specID);
+  }
   const { specName, className } = actualSpec;
 
   const poolPromise = fetchCandidatePool(token, {

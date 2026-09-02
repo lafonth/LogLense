@@ -17,6 +17,7 @@ import { useProviderKeys } from '@/hooks/useProviderKeys';
 import { providerInfo, PROVIDERS } from '@/lib/ai/catalog';
 import { DEFAULT_GROQ_MODEL, GROQ_MODELS } from '@/lib/ai/groq';
 import { buildAnalysisPrompt } from '@/lib/ai/prompt';
+import { isBossResult } from '@/lib/boss-outcome';
 import { getSpecInfo } from '@/lib/specs';
 import { ReportFeedback } from './ReportFeedback';
 import { StreamingText } from './StreamingText';
@@ -122,7 +123,11 @@ export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTab
   // Le boss dont le rapport parle, pas celui de la barre latérale : c'est son `renderId` que
   // le serveur a enregistré en empreinte du conseil.
   const reportedState = bossStates[selectedBossIdx];
-  const reportedBoss = reportedState?.status === 'success' ? reportedState.result : null;
+  // Un refus n'a pas de `renderId` : rien n'a été rendu sur quoi poser un avis.
+  const reportedBoss =
+    reportedState?.status === 'success' && isBossResult(reportedState.result)
+      ? reportedState.result
+      : null;
 
   return (
     <div className="max-w-[760px] py-6">

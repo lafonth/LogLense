@@ -2,6 +2,7 @@ import type { BossState } from '@/hooks/useAnalysis';
 import type { Encounter } from '@/types';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { isBossRefusal, isBossResult } from '@/lib/boss-outcome';
 import { DamageBreakdown } from './DamageBreakdown';
 import { StatsTable } from './StatsTable';
 import { TrajectoryChart } from './TrajectoryChart';
@@ -29,7 +30,24 @@ export function OverviewTab({ encounter, bossState, specName, onRetry }: Overvie
     return <ErrorBanner message={bossState.message} onRetry={onRetry} />;
   }
 
-  const result = bossState.result;
+  const outcome = bossState.result;
+
+  // Un refus n'est pas une absence de parse. Le dire « aucun parse trouvé » enverrait le
+  // lecteur changer de difficulté pour un problème qui n'en dépend pas — et c'est ce
+  // conseil-là, donné à une Prêtre Sacré, qui a fait passer un rapport faux pour un rapport
+  // vide. La raison complète est au-dessus des onglets ; ici on ne dit que le fait.
+  if (isBossRefusal(outcome)) {
+    return (
+      <div className="py-6 font-mono text-xs">
+        <div className="text-dim">
+          {encounter.name} was not compared — the log shows{' '}
+          {outcome.specLabel ?? `spec ${outcome.specId}`}, which LogLense does not rank.
+        </div>
+      </div>
+    );
+  }
+
+  const result = isBossResult(outcome) ? outcome : null;
 
   if (!result) {
     return (

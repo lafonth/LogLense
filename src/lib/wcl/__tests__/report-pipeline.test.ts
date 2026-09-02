@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { isBossResult } from '../../boss-outcome';
 import { gql } from '../client';
 import { fetchFightData } from '../fight-data';
 import { fetchCharacterHistory } from '../historical-parse';
@@ -77,6 +78,15 @@ function run() {
   return analyzeReportBoss('token', 'abc', 3306, 'Chimaerus', 63, 'Jumbaa', 17, 180000, 5);
 }
 
+/**
+ * Le rendu seul. Tout ce qui suit interroge `character` : un refus n'en a pas, et le
+ * confondre avec un résultat amputé est exactement ce que l'étape corrige.
+ */
+async function runResult() {
+  const outcome = await run();
+  return isBossResult(outcome) ? outcome : null;
+}
+
 describe('analyzeReportBoss', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -91,11 +101,13 @@ describe('analyzeReportBoss', () => {
     expect(await run()).toBeNull();
   });
 
-  it('gives up when the combatant reports a spec the table does not know', async () => {
+  // Une spec absente de la table ne rend plus `null` : elle se refuse, et le refus se nomme.
+  // `null` disait « rien à montrer » là où la vérité est « nous ne classons pas ça ».
+  it('refuses a spec the table does not know, instead of going quiet', async () => {
     combatantMock.mockResolvedValue({ ...fixtures.combatant, specID: 99999 } as never);
     stubGql(rankings('dps', [rankChar()]));
 
-    expect(await run()).toBeNull();
+    expect(await run()).toMatchObject({ refused: 'unsupported-spec', specId: 99999 });
   });
 
   // Un heal ou un tank apparaît dans son propre rôle : ne lire que `dps` le laissait sans
@@ -103,7 +115,7 @@ describe('analyzeReportBoss', () => {
   it('finds the player whichever role WCL filed them under', async () => {
     stubGql(rankings('healers', [rankChar()]));
 
-    const result = await run();
+    const result = await runResult();
 
     expect(result?.character.todayPct).toBe(91.3);
     expect(result?.character.bracket).toBe(84.4);
@@ -112,7 +124,7 @@ describe('analyzeReportBoss', () => {
   it('leaves the percentiles null when the player is absent from the rankings', async () => {
     stubGql(rankings('dps', [rankChar({ name: 'Quelqun' })]));
 
-    const result = await run();
+    const result = await runResult();
 
     expect(result?.character.todayPct).toBeNull();
     expect(result?.character.overallPct).toBeNull();
@@ -130,7 +142,7 @@ describe('analyzeReportBoss', () => {
       trajectory: [{ pct: 97.8 }],
     } as never);
 
-    const result = await run();
+    const result = await runResult();
 
     expect(result?.character.overallPct).toBe(97.8);
     expect(result?.character.overallPctOf).toBe(5000);
@@ -141,7 +153,7 @@ describe('analyzeReportBoss', () => {
   it('falls back on today’s percentile when the history fails', async () => {
     stubGql(rankings('dps', [rankChar()]));
 
-    const result = await run();
+    const result = await runResult();
 
     expect(result?.character.overallPct).toBe(91.3);
     expect(result?.character.overallPctOf).toBe(1200);
@@ -153,7 +165,7 @@ describe('analyzeReportBoss', () => {
   it('does not ask for a history it cannot address', async () => {
     stubGql(rankings('dps', [rankChar({ server: undefined })]));
 
-    const result = await run();
+    const result = await runResult();
 
     expect(historyMock).not.toHaveBeenCalled();
     expect(result?.character.overallPct).toBe(91.3);
@@ -165,7 +177,7 @@ describe('analyzeReportBoss', () => {
   it('measures the subject’s dps with the same ruler as the references', async () => {
     stubGql(rankings('dps', [rankChar()]));
 
-    const result = await run();
+    const result = await runResult();
 
     expect(vi.mocked(fetchFightData).mock.calls[0]?.[1]).toMatchObject({ dps: 250000 });
     expect(result?.character.dpsSource).toBe('ranking');
@@ -176,7 +188,7 @@ describe('analyzeReportBoss', () => {
   it('declares the fallback when the rankings hold nothing on the player', async () => {
     stubGql(rankings('dps', [rankChar({ name: 'Quelqun' })]));
 
-    const result = await run();
+    const result = await runResult();
 
     expect(vi.mocked(fetchFightData).mock.calls[0]?.[1]).toMatchObject({ dps: undefined });
     expect(result?.character.dpsSource).toBe('damage-table');
@@ -185,7 +197,7 @@ describe('analyzeReportBoss', () => {
   it('rounds the boss damage and carries the source of the fight', async () => {
     stubGql(rankings('dps', [rankChar()]), rankings('dps', [rankChar({ amount: 180000.6 })]));
 
-    const result = await run();
+    const result = await runResult();
 
     expect(result?.character.bossDps).toBe(180001);
     expect(result?.character.source).toEqual({ code: 'abc', fightID: 17, actorId: 63 });

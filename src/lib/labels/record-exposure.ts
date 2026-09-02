@@ -1,6 +1,7 @@
-import type { BossResult } from '@/types';
+import type { BossOutcome } from '@/types';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { isBossResult } from '@/lib/boss-outcome';
 import { redisAppend } from '@/lib/redis';
 import { hasCorpusRoom } from './corpus';
 import { buildExposure, exposureMonthKey } from './exposure';
@@ -23,8 +24,12 @@ import { consumeExposureQuota } from './rate-limit';
  * **N'écrit rien sans identité non plus.** Un rendu anonyme ne débite aucun quota : c'était
  * la seule écriture du corpus que rien ne bornait, et le corpus est append-only et jamais
  * purgé. Un enregistrement sans `by` n'est en outre ni déduplicable ni traçable en abus.
+ *
+ * **Un refus n'est pas une exposition.** La signature prend `BossOutcome` pour que ses trois
+ * appelants n'aient rien à trier, et les refus tombent ici : rien du jeu de l'utilisateur n'a
+ * été montré, il n'y a pas d'étiquette à poser dessus.
  */
-export async function recordExposure(bosses: (BossResult | null)[]): Promise<void> {
+export async function recordExposure(bosses: (BossOutcome | null)[]): Promise<void> {
   try {
     const session = await getServerSession(authOptions);
     const userId = session?.user?.email ?? session?.user?.name ?? '';
@@ -51,7 +56,7 @@ export async function recordExposure(bosses: (BossResult | null)[]): Promise<voi
     // plafond. C'est l'écriture, elle, qui n'a aucune raison d'attendre la précédente.
     const payloads: string[] = [];
     for (const boss of bosses) {
-      if (!boss) continue;
+      if (!isBossResult(boss)) continue;
 
       // Le quota se compte sur l'identité hachée, jamais sur l'IP : c'est le compte qui
       // écrit dans le corpus.

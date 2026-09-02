@@ -12,6 +12,7 @@ import { OpenAIProvider } from '@/lib/ai/openai';
 import { buildAnalysisPrompt, SYSTEM_PROMPT } from '@/lib/ai/prompt';
 import { logRouteError } from '@/lib/api/log-error';
 import { authOptions } from '@/lib/auth';
+import { isBossResult } from '@/lib/boss-outcome';
 import { hashUserId } from '@/lib/labels/identity';
 import { consumeAiQuota } from '@/lib/labels/rate-limit';
 import { recordAdvice } from '@/lib/labels/record-advice';
@@ -180,7 +181,9 @@ export async function POST(req: Request) {
     // Avant le flux, et attendue : ce qui part sans être enregistré ne se rattrape pas, et un
     // retour de lecteur arrivant sur un rendu sans empreinte ne dirait plus de quel conseil
     // il parle. L'appel ne jette jamais — le rapport ne dépend pas de sa capture.
-    const boss = result.bosses.find((b) => b !== null);
+    // Le premier résultat, jamais un refus : c'est lui qui porte le `renderId` auquel
+    // l'empreinte du conseil et le relevé de jetons se rattachent.
+    const boss = result.bosses.find(isBossResult);
     if (boss) {
       await recordAdvice(boss, {
         provider: providerName,

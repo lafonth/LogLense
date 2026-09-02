@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { logRouteError } from '@/lib/api/log-error';
 import { isNum, isOneOf, isRecord, isStr, readJson } from '@/lib/api/parse';
 import { BOSS_ANALYSIS_UNITS, guardMeteredWclSpend } from '@/lib/api/wcl-guard';
+import { isBossRefusal } from '@/lib/boss-outcome';
 import { recordExposure } from '@/lib/labels/record-exposure';
 import { getWCLToken } from '@/lib/wcl/auth';
 import { analyzeBoss } from '@/lib/wcl/pipeline';
@@ -158,6 +159,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ encount
         body.specIdOverride,
         body.fightOverride
       );
+
+      // Un refus part tel quel et s'arrête là : ni instantané, ni capture. L'écrire dans
+      // l'instantané le servirait 24 h à qui rouvrirait le lien, et l'enregistrer au corpus
+      // poserait une étiquette sur un rendu qui n'a montré aucun jeu.
+      //
+      // Rendu en 200, pas en 4xx : la requête n'a rien d'invalide, c'est la réponse qui est un
+      // refus nommé — et le client doit pouvoir l'afficher au lieu d'un « échec ».
+      if (isBossRefusal(analysed)) return NextResponse.json(analysed);
 
       // Frappée par la route, pas par le pipeline : la variante demandée n'existe en un seul
       // morceau qu'ici, et `analyzeBoss` la reçoit éclatée en arguments.

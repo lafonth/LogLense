@@ -13,6 +13,7 @@ import type {
   TalentNode,
   TopPlayer,
 } from '@/types';
+import { isBossRefusal } from '@/lib/boss-outcome';
 import { damageGaps } from '@/lib/comparison/damage-gap';
 import { leadingGap } from '@/lib/comparison/leading-gap';
 import { diffOpening } from '@/lib/comparison/opening-diff';
@@ -738,6 +739,17 @@ export function buildBossContext(result: AnalysisResult, talentNodes: TalentNode
 
   const bossSections = result.bosses
     .map((boss, i) => {
+      // Le refus se nomme avant de manquer. « No data available » laisserait le modèle
+      // combler le trou depuis les autres boss ; ici il doit dire pourquoi, et rien d'autre.
+      if (isBossRefusal(boss)) {
+        const what = boss.specLabel ?? `spec id ${boss.specId}`;
+        return (
+          `## ${boss.encounter}\nNot analysed: the log shows ${what}, which is not a damage spec. ` +
+          `This tool only compares damage output, so no comparison was made. ` +
+          `State this plainly, and analyse nothing for this boss.`
+        );
+      }
+
       if (!boss) return `## Boss ${i + 1}\nNo data available for this boss.`;
 
       const topPlayers = boss.topPlayers.slice(0, 3);

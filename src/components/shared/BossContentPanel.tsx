@@ -3,7 +3,7 @@
 import type { BossState } from '@/hooks/useAnalysis';
 import type { EncounterKill } from '@/lib/report-kills';
 import type { TabId } from '@/lib/routes';
-import type { AnalysisInput, BossResult, TalentNode } from '@/types';
+import type { AnalysisInput, BossOutcome, TalentNode } from '@/types';
 import { useEffect, useState } from 'react';
 import { AIReportTab } from '@/components/ai/AIReportTab';
 import { ChatTab } from '@/components/ai/ChatTab';
@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { tabId, tabPanelId } from '@/components/ui/tab-ids';
 import { Tabs } from '@/components/ui/Tabs';
+import { isBossRefusal, isBossResult } from '@/lib/boss-outcome';
 import { buildShareCard } from '@/lib/comparison/share-card';
 import { buildVerdict, verdictNamesIlvl } from '@/lib/comparison/verdict';
 import { getDpsSpecsForClass, getSpecInfo } from '@/lib/specs';
@@ -49,7 +50,7 @@ interface BossContentPanelProps {
    */
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
-  analysisResult: { input: AnalysisInput; bosses: (BossResult | null)[]; generatedAt: string };
+  analysisResult: { input: AnalysisInput; bosses: (BossOutcome | null)[]; generatedAt: string };
   onSwitchBossSpec?: (bossIdx: number, specId: number) => void;
   onSwitchBossFight?: (bossIdx: number, fight: { code: string; fightID: number }) => void;
   /** Relance le boss affiché quand il a échoué. Absent = pas de reprise offerte. */
@@ -100,7 +101,11 @@ export function BossContentPanel({
   const safeIdx = Math.min(activeBossIdx, Math.max(0, encounters.length - 1));
   const activeEnc = encounters[safeIdx];
   const activeBossState: BossState = bossStates[safeIdx] ?? { status: 'loading' };
-  const activeBossResult = activeBossState.status === 'success' ? activeBossState.result : null;
+  const activeOutcome = activeBossState.status === 'success' ? activeBossState.result : null;
+  // Le refus se lit à part, jamais comme un résultat amputé : tout ce qui suit — verdict,
+  // carte de partage, onglets — exige un résultat, et n'en aura pas.
+  const activeBossResult = isBossResult(activeOutcome) ? activeOutcome : null;
+  const activeRefusal = isBossRefusal(activeOutcome) ? activeOutcome : null;
   // Un seul `buildVerdict` pour le bloc entier : trois consommateurs le lisaient, chacun le
   // recalculait, et rien ne garantissait qu'ils parlent du même.
   const verdict = activeBossResult ? buildVerdict(activeBossResult) : null;
@@ -135,6 +140,23 @@ export function BossContentPanel({
 
   return (
     <>
+      {/* Devant tout le reste, bandeau de verdict compris : quand nous refusons de
+          comparer, c'est la première chose à lire, et la seule qui explique pourquoi les
+          onglets sont vides. Le rouge est réservé aux erreurs — sauf ici : signaler une
+          comparaison illégitime est l'autre chose qu'il a le droit de dire. */}
+      {activeRefusal && (
+        <div
+          role="status"
+          className="border-danger bg-danger/10 text-danger mb-6 rounded-sm border px-4 py-3 font-mono text-xs"
+        >
+          <span className="font-semibold">
+            {activeRefusal.specLabel ?? `Spec ${activeRefusal.specId}`}
+          </span>{' '}
+          — not compared. LogLense measures damage output, and the log shows a spec it does not
+          rank. Nothing here was compared to anyone.
+        </div>
+      )}
+
       {/* Au-dessus des onglets, donc sur les deux chemins d'analyse : le lecteur n'a pas à
           choisir un onglet pour savoir s'il a quelque chose à apprendre. */}
       {activeBossResult && verdict && (

@@ -341,6 +341,28 @@ export interface BossResult {
   comparability: Comparability;
 }
 
+/**
+ * Un refus nommé, rendu à la place d'un `BossResult` par les deux pipelines à références.
+ *
+ * C'est une **valeur**, pas une exception. `runAnalysis` et la route rapport enveloppent
+ * chaque boss dans `.catch(() => null)` : un refus qui jette redevient `null` avant l'écran,
+ * et l'écran ne sait plus dire que « pas de données ». C'est exactement ce silence qui a
+ * laissé comparer une Prêtre Sacré à des Prêtres Ombre et rendre un rapport cohérent et faux.
+ */
+export interface BossRefusal {
+  /** Le discriminant de l'union. Une seule cause aujourd'hui ; d'autres viendront s'y ranger. */
+  refused: 'unsupported-spec';
+  encounter: string;
+  encounterId: number;
+  /** La spec lue dans le log, jamais celle du formulaire : c'est le log qui gagne. */
+  specId: number;
+  /** « Holy Priest », ou `null` quand la table ne connaît pas cet id. */
+  specLabel: string | null;
+}
+
+/** Ce qu'une analyse de boss peut rendre : un résultat, ou un refus qui se dit. */
+export type BossOutcome = BossResult | BossRefusal;
+
 export interface ReportFight {
   id: number;
   name: string;
@@ -367,7 +389,7 @@ export interface ReportMeta {
 
 export interface AnalysisResult {
   input: AnalysisInput;
-  bosses: (BossResult | null)[];
+  bosses: (BossOutcome | null)[];
   generatedAt: string;
 }
 
