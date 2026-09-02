@@ -1,6 +1,8 @@
 import type { TalentDiffEntry, TalentDiffResult, TalentSource } from '@/lib/comparison/talent-diff';
+import type { IconIndex } from '@/lib/wcl/icons';
 import type { TalentNode } from '@/types';
 import { Card } from '@/components/ui/Card';
+import { SpellIcon } from '@/components/ui/SpellIcon';
 import { diffTalents, isMarginal } from '@/lib/comparison/talent-diff';
 
 interface TalentDiffProps {
@@ -9,9 +11,19 @@ interface TalentDiffProps {
   /** Toute la fenêtre comparable, pas les trois références chères : l'adoption d'un talent
    * se lit sur un effectif, et douze en disent plus que trois pour le même prix. */
   references: TalentSource[];
+  /** Voir {@link TalentDiffCardProps.icons}. */
+  icons?: IconIndex;
 }
 
-function EntryRow({ entry, accent }: { entry: TalentDiffEntry; accent: 'mine' | 'theirs' }) {
+function EntryRow({
+  entry,
+  accent,
+  icons,
+}: {
+  entry: TalentDiffEntry;
+  accent: 'mine' | 'theirs';
+  icons?: IconIndex;
+}) {
   const share = entry.referenceTotal > 0 ? entry.referenceCount / entry.referenceTotal : 0;
   return (
     <li
@@ -19,7 +31,10 @@ function EntryRow({ entry, accent }: { entry: TalentDiffEntry; accent: 'mine' | 
         accent === 'mine' ? 'border-deviation' : 'border-brass'
       }`}
     >
-      <span className="text-text font-sans text-xs">{entry.label}</span>
+      <span className="flex min-w-0 items-center gap-1.5">
+        <SpellIcon name={entry.label} icon={icons?.[entry.label]} />
+        <span className="text-text truncate font-sans text-xs">{entry.label}</span>
+      </span>
       <span className="flex shrink-0 items-center gap-2">
         {entry.referenceTotal > 0 && (
           <span className="bg-border h-1 w-12 overflow-hidden rounded-xs" aria-hidden="true">
@@ -44,10 +59,12 @@ function DiffColumn({
   title,
   entries,
   accent,
+  icons,
 }: {
   title: string;
   entries: TalentDiffEntry[];
   accent: 'mine' | 'theirs';
+  icons?: IconIndex;
 }) {
   const signal = entries.filter((e) => !isMarginal(e, accent));
   const marginal = entries.filter((e) => isMarginal(e, accent));
@@ -64,7 +81,7 @@ function DiffColumn({
       {signal.length > 0 && (
         <ul className="flex flex-col gap-1">
           {signal.map((entry) => (
-            <EntryRow key={entry.nodeId} entry={entry} accent={accent} />
+            <EntryRow key={entry.nodeId} entry={entry} accent={accent} icons={icons} />
           ))}
         </ul>
       )}
@@ -76,7 +93,7 @@ function DiffColumn({
           </summary>
           <ul className="mt-1 flex flex-col gap-1">
             {marginal.map((entry) => (
-              <EntryRow key={entry.nodeId} entry={entry} accent={accent} />
+              <EntryRow key={entry.nodeId} entry={entry} accent={accent} icons={icons} />
             ))}
           </ul>
         </details>
@@ -88,12 +105,22 @@ function DiffColumn({
 /** La partie présentationnelle : reçoit un écart déjà calculé, n'en calcule aucun.
  *  Séparée de `TalentDiff` pour que le mode pull-comparison, dont l'écart vient déjà de
  *  `comparePulls`, l'utilise sans repasser par `diffTalents`. */
+interface TalentDiffCardProps extends TalentDiffResult {
+  /**
+   * L'index du combat, indexé par nom de capacité. Un talent passif n'a lancé aucun sort et
+   * ne figure donc dans aucune table : il rend sa pastille neutre, et c'est le comportement
+   * attendu, pas un défaut.
+   */
+  icons?: IconIndex;
+}
+
 export function TalentDiffCard({
   mineOnly,
   theirsOnly,
   sharedCount,
   referenceTotal,
-}: TalentDiffResult) {
+  icons,
+}: TalentDiffCardProps) {
   if (referenceTotal === 0) {
     return (
       <Card header="Build">
@@ -102,7 +129,7 @@ export function TalentDiffCard({
         </p>
         <ul className="mt-3 flex flex-col gap-1">
           {mineOnly.map((entry) => (
-            <EntryRow key={entry.nodeId} entry={entry} accent="mine" />
+            <EntryRow key={entry.nodeId} entry={entry} accent="mine" icons={icons} />
           ))}
         </ul>
       </Card>
@@ -132,8 +159,10 @@ export function TalentDiffCard({
       }
     >
       <div className={showMine && showTheirs ? 'grid grid-cols-1 gap-6 md:grid-cols-2' : ''}>
-        {showMine && <DiffColumn title="You only" entries={mineOnly} accent="mine" />}
-        {showTheirs && <DiffColumn title="References only" entries={theirsOnly} accent="theirs" />}
+        {showMine && <DiffColumn title="You only" entries={mineOnly} accent="mine" icons={icons} />}
+        {showTheirs && (
+          <DiffColumn title="References only" entries={theirsOnly} accent="theirs" icons={icons} />
+        )}
       </div>
       <p className="border-border text-2xs text-dim mt-4 border-t pt-3 font-sans">
         <span className="font-mono">{sharedCount}</span> identical node
@@ -143,8 +172,8 @@ export function TalentDiffCard({
   );
 }
 
-export function TalentDiff({ nodes, myTalents, references }: TalentDiffProps) {
+export function TalentDiff({ nodes, myTalents, references, icons }: TalentDiffProps) {
   const result = diffTalents(nodes, myTalents, references);
 
-  return <TalentDiffCard {...result} />;
+  return <TalentDiffCard {...result} icons={icons} />;
 }

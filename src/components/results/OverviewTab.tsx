@@ -76,7 +76,10 @@ export function OverviewTab({ encounter, bossState, specName, onRetry }: Overvie
         <h3 className="text-muted mb-2 font-mono text-xs tracking-wider uppercase">
           Damage breakdown
         </h3>
-        <DamageBreakdown entries={result.character.damageTable.entries} />
+        <DamageBreakdown
+          entries={result.character.damageTable.entries}
+          icons={result.character.rotation.icons}
+        />
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import type { ComparabilityLevel } from '@/lib/wcl/comparability';
 import type { DisqualificationReason, EligibilityProfile } from '@/lib/wcl/eligibility';
 import type { FightContext } from '@/lib/wcl/fight-context';
+import type { IconIndex } from '@/lib/wcl/icons';
 import type { TrajectoryPoint } from '@/lib/wcl/trajectory';
 
 /**
@@ -94,6 +95,13 @@ export interface RotationSummary {
    * exploitable — l'écran doit alors dire qu'il ne sait pas, pas afficher une ouverture vide.
    */
   opening: OpeningCast[];
+  /**
+   * Nom de capacité → icône, pour tout ce que ce combat a rendu : casts, auras et lignes de
+   * dégâts. Facultatif, et il doit le rester : un instantané écrit avant que le parse ne
+   * garde `abilityIcon` est relu tel quel pendant 24 h. L'écran retombe alors sur sa
+   * pastille neutre — jamais sur une image cassée.
+   */
+  icons?: IconIndex;
 }
 
 export interface DamageEntry {

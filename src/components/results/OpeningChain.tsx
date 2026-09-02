@@ -1,19 +1,23 @@
 import type { OpeningSource } from '@/lib/comparison/opening-diff';
+import type { IconIndex } from '@/lib/wcl/icons';
 import type { OpeningCast } from '@/types';
 import { Card } from '@/components/ui/Card';
+import { SpellIcon } from '@/components/ui/SpellIcon';
 import { diffOpening } from '@/lib/comparison/opening-diff';
 
 interface OpeningChainProps {
   mine: OpeningCast[];
   /** Les références dont la rotation a été payée — l'ordre des sorts n'existe que là. */
   references: OpeningSource[];
+  /** L'index du combat. Absent, chaque rang rend sa pastille neutre. */
+  icons?: IconIndex;
 }
 
 function offsetLabel(offsetMs: number): string {
   return `+${(offsetMs / 1000).toFixed(1)}s`;
 }
 
-export function OpeningChain({ mine, references }: OpeningChainProps) {
+export function OpeningChain({ mine, references, icons }: OpeningChainProps) {
   const { steps, referenceTotal, firstDivergence } = diffOpening(mine, references);
 
   if (steps.length === 0) {
@@ -61,7 +65,16 @@ export function OpeningChain({ mine, references }: OpeningChainProps) {
           >
             <span className="text-2xs text-dim font-mono">{step.index + 1}</span>
             <span className="text-text font-sans text-xs">
-              {step.mine ?? <span className="text-dim">—</span>}
+              {step.mine ? (
+                <>
+                  <span className="mr-1.5">
+                    <SpellIcon name={step.mine} icon={icons?.[step.mine]} />
+                  </span>
+                  {step.mine}
+                </>
+              ) : (
+                <span className="text-dim">—</span>
+              )}
               {step.mine && mine[step.index] && (
                 <span className="text-2xs text-dim ml-2 font-mono">
                   {offsetLabel(mine[step.index].offsetMs)}
@@ -73,6 +86,9 @@ export function OpeningChain({ mine, references }: OpeningChainProps) {
                 <span className="text-dim">—</span>
               ) : (
                 <>
+                  <span className="mr-1.5">
+                    <SpellIcon name={step.consensus} icon={icons?.[step.consensus]} />
+                  </span>
                   <span className={step.matches ? 'text-muted' : 'text-deviation'}>
                     {step.consensus}
                   </span>

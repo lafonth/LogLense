@@ -7,7 +7,14 @@ import { gql } from './client';
 import { MIN_TARGET_PCT, OPENING_EVENT_LIMIT, OPENING_LENGTH } from './constants';
 import { eligibilityOf } from './eligibility';
 import { fetchFightContext } from './fight-context';
-import { parseCasts, parseOpening, parseStats, parseUptime, summarizeRotation } from './parsers';
+import {
+  collectIcons,
+  parseCasts,
+  parseOpening,
+  parseStats,
+  parseUptime,
+  summarizeRotation,
+} from './parsers';
 import { Q_CAST_EVENTS, Q_DAMAGE, Q_ROTATION } from './queries';
 
 interface DamageResponse {
@@ -19,6 +26,7 @@ interface DamageResponse {
             guid: number;
             name: string;
             total: number;
+            abilityIcon?: string;
             targets?: { name: string; total: number; type: string }[];
           }[];
         };
@@ -117,7 +125,16 @@ export async function fetchFightData(token: string, args: FightDataArgs): Promis
     castTable,
     OPENING_LENGTH
   );
-  const rotation = summarizeRotation(name, casts, buffs, fightMs, opening, dps);
+  // Les quatre tables du combat sont déjà en main : l'index d'icônes ne coûte qu'un
+  // parcours. La table de dégâts en premier — c'est la seule qui nomme un sort dont le
+  // joueur n'a rien lancé lui-même (un dot posé par un autre effet, une invocation).
+  const icons = collectIcons(
+    dmgData.reportData.report.table,
+    castTable,
+    rotData.reportData.report.buffs,
+    rotData.reportData.report.debuffs
+  );
+  const rotation = summarizeRotation(name, casts, buffs, fightMs, opening, dps, icons);
 
   const damageEntries: DamageEntry[] = allDmgEntries
     .map((e) => ({ guid: e.guid, name: e.name, total: e.total }))

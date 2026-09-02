@@ -1,4 +1,5 @@
 import type { CombatantEvent } from './combatant';
+import type { IconIndex } from './icons';
 import type { CastEntry, CharacterStats, OpeningCast, RotationSummary } from '@/types';
 
 /** parseStats reads gear, stats and talents — it never needs the combatant's identity. */
@@ -6,9 +7,32 @@ type CombatantStats = Omit<CombatantEvent, 'sourceID'>;
 
 export interface WCLTable {
   data?: {
-    entries?: Array<{ guid: number; name: string; total: number }>;
-    auras?: Array<{ guid: number; name: string; totalUptime: number; totalUses: number }>;
+    entries?: Array<{ guid: number; name: string; total: number; abilityIcon?: string }>;
+    auras?: Array<{
+      guid: number;
+      name: string;
+      totalUptime: number;
+      totalUses: number;
+      abilityIcon?: string;
+    }>;
   };
+}
+
+/**
+ * L'index d'icônes de ce combat, pris dans les tables déjà récupérées.
+ *
+ * Aucune requête : `abilityIcon` voyage dans la charge de `table()` depuis toujours. Les
+ * tables sont fusionnées dans l'ordre reçu et la première qui nomme une capacité gagne —
+ * une même aura vue en buff et en debuff porte la même icône, l'ordre ne déplace rien.
+ */
+export function collectIcons(...tables: (WCLTable | null | undefined)[]): IconIndex {
+  const icons: IconIndex = {};
+  for (const table of tables) {
+    for (const row of [...(table?.data?.entries ?? []), ...(table?.data?.auras ?? [])]) {
+      if (row.abilityIcon && !icons[row.name]) icons[row.name] = row.abilityIcon;
+    }
+  }
+  return icons;
 }
 
 export function fmtMs(ms: number): string {
@@ -102,7 +126,8 @@ export function summarizeRotation(
   buffs: Record<string, number>,
   fightMs: number,
   opening: OpeningCast[],
-  dps?: number
+  dps?: number,
+  icons: IconIndex = {}
 ): RotationSummary {
-  return { name, dps, fightDurationMs: fightMs, casts, buffs, opening };
+  return { name, dps, fightDurationMs: fightMs, casts, buffs, opening, icons };
 }

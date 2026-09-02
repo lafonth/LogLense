@@ -1,9 +1,12 @@
 import type { AbilityGroup } from '@/lib/comparison/ability-groups';
 import type { AbilityComparison } from '@/lib/comparison/rotation-stats';
+import type { IconIndex } from '@/lib/wcl/icons';
 import type { DamageEntry, RotationSummary, TopPlayer } from '@/types';
 import { Card } from '@/components/ui/Card';
+import { SpellIcon } from '@/components/ui/SpellIcon';
 import { groupCasts, groupUptimes } from '@/lib/comparison/ability-groups';
 import { compareCasts, compareUptimes, inReferenceBand } from '@/lib/comparison/rotation-stats';
+import { mergeIcons } from '@/lib/wcl/icons';
 
 interface RotationCardsProps {
   character: RotationSummary;
@@ -20,7 +23,15 @@ function formatDeviation(pct: number): string {
   return `${sign}${Math.abs(pct).toFixed(1)} %`;
 }
 
-function AbilityCard({ row, unit }: { row: AbilityComparison; unit: string }) {
+function AbilityCard({
+  row,
+  unit,
+  icons,
+}: {
+  row: AbilityComparison;
+  unit: string;
+  icons?: IconIndex;
+}) {
   const hasRange = row.referenceMedian !== null;
   const scale = Math.max(row.referenceMax ?? 0, row.mine) * 1.1 || 1;
   const bandLeft = hasRange ? (row.referenceMin! / scale) * 100 : 0;
@@ -33,6 +44,11 @@ function AbilityCard({ row, unit }: { row: AbilityComparison; unit: string }) {
         {/* `damageShare` est ce qui pilote le tri : elle se lit à côté du nom, pas en pied de
             carte. Un ordre dont la grandeur est enterrée en `text-2xs` ne se voit pas. */}
         <span className="min-w-0 truncate">
+          {/* En flux inline, pas en `flex` : `truncate` sur le conteneur doit continuer de
+              couper le nom, et une boîte flex casserait la troncature. */}
+          <span className="mr-1.5">
+            <SpellIcon name={row.name} icon={icons?.[row.name]} />
+          </span>
           <span className="text-text font-sans text-xs">{row.name}</span>
           {row.damageShare !== null && row.damageShare > 0 && (
             <span className="text-2xs text-muted ml-2 font-mono">
@@ -88,11 +104,13 @@ function GroupedAbilities({
   groups,
   unit,
   fullWidth,
+  icons,
 }: {
   groups: AbilityGroup[];
   unit: string;
   /** Une colonne unique : l'œil descend le classement au lieu de balayer en Z. */
   fullWidth?: boolean;
+  icons?: IconIndex;
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -103,7 +121,7 @@ function GroupedAbilities({
             className={fullWidth ? 'flex flex-col gap-2' : 'grid grid-cols-1 gap-2 md:grid-cols-2'}
           >
             {group.rows.map((row) => (
-              <AbilityCard key={row.name} row={row} unit={unit} />
+              <AbilityCard key={row.name} row={row} unit={unit} icons={icons} />
             ))}
           </ul>
         </div>
@@ -124,6 +142,8 @@ interface RotationComparisonCardsProps {
    * droit de traiter comme un consensus.
    */
   foldMatching?: boolean;
+  /** L'index du combat. Absent, chaque carte rend sa pastille neutre. */
+  icons?: IconIndex;
 }
 
 /** La partie présentationnelle : reçoit des comparaisons déjà calculées, n'en calcule aucune.
@@ -134,6 +154,7 @@ export function RotationComparisonCards({
   uptimes,
   showEmptyReferenceNote,
   foldMatching,
+  icons,
 }: RotationComparisonCardsProps) {
   // Le libellé doit dire ce que l'ordre suit réellement : sans table de dégâts, la
   // pondération n'a pas eu lieu et annoncer un coût serait un mensonge.
@@ -168,7 +189,12 @@ export function RotationComparisonCards({
           </p>
         )}
         {shownCasts.length > 0 ? (
-          <GroupedAbilities groups={groupCasts(shownCasts)} unit="/min" fullWidth={foldMatching} />
+          <GroupedAbilities
+            groups={groupCasts(shownCasts)}
+            unit="/min"
+            fullWidth={foldMatching}
+            icons={icons}
+          />
         ) : (
           <p className="text-muted font-sans text-xs">
             Every ability sits inside the reference range.
@@ -186,10 +212,14 @@ export function RotationComparisonCards({
             </summary>
             <div className="mt-2 flex flex-col gap-3">
               {matchingCasts.length > 0 && (
-                <GroupedAbilities groups={groupCasts(matchingCasts)} unit="/min" />
+                <GroupedAbilities groups={groupCasts(matchingCasts)} unit="/min" icons={icons} />
               )}
               {matchingUptimes.length > 0 && (
-                <GroupedAbilities groups={groupUptimes(matchingUptimes, castNames)} unit="%" />
+                <GroupedAbilities
+                  groups={groupUptimes(matchingUptimes, castNames)}
+                  unit="%"
+                  icons={icons}
+                />
               )}
             </div>
           </details>
@@ -202,6 +232,7 @@ export function RotationComparisonCards({
             groups={groupUptimes(shownUptimes, castNames)}
             unit="%"
             fullWidth={foldMatching}
+            icons={icons}
           />
         </Card>
       )}
@@ -218,11 +249,18 @@ export function RotationCards({
   const casts = compareCasts(character, topPlayers, characterDamage);
   const uptimes = compareUptimes(character, topPlayers).filter((row) => row.mine > 0);
 
+  // `compare*` unionne mes noms et ceux des références : une ligne peut n'exister que chez
+  // elles, et serait alors la seule à rester en pastille neutre — à l'écran, un repli qui ne
+  // frappe qu'une catégorie de lignes se lit comme une image cassée, pas comme une intention.
+  // Le mien passe en dernier : à nom égal, c'est l'icône de mon propre combat qui gagne.
+  const icons = mergeIcons(...topPlayers.map((player) => player.rotation.icons), character.icons);
+
   return (
     <RotationComparisonCards
       casts={casts}
       uptimes={uptimes}
       showEmptyReferenceNote={topPlayers.length === 0}
+      icons={icons}
       // Sans référence, il n'y a pas de fourchette : tout serait « hors bande » et le repli
       // n'aurait rien à replier — mais le dire ici évite de le déduire du comportement.
       foldMatching={foldMatching && topPlayers.length > 0}

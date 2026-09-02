@@ -4,6 +4,7 @@ import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { isBossRefusal, isBossResult } from '@/lib/boss-outcome';
 import { usableSample } from '@/lib/comparison/stat-distribution';
+import { mergeIcons } from '@/lib/wcl/icons';
 import { FindingsList } from './FindingsList';
 import { OpeningChain } from './OpeningChain';
 import { ReferenceLabels } from './ReferenceLabels';
@@ -71,6 +72,14 @@ export function ComparisonTab({
     );
   }
 
+  // Les trois blocs ci-dessous affichent l'union des noms : l'ouverture montre le consensus
+  // des références, le diff de talents montre ce qu'elles prennent et pas moi. L'index des
+  // références les couvre ; le mien passe en dernier et gagne à nom égal.
+  const icons = mergeIcons(
+    ...result.topPlayers.map((player) => player.rotation.icons),
+    result.character.rotation.icons
+  );
+
   return (
     <div>
       {/* La conclusion, en tête. Mesuré : derrière les deux bandeaux elle démarrait à 870 px,
@@ -106,13 +115,18 @@ export function ComparisonTab({
         <StatsTable character={result.character.stats} sample={result.sample} />
       </div>
       <div className="mt-6">
-        <OpeningChain mine={result.character.rotation.opening} references={result.topPlayers} />
+        <OpeningChain
+          mine={result.character.rotation.opening}
+          references={result.topPlayers}
+          icons={icons}
+        />
       </div>
       <div className="mt-6">
         <TalentDiff
           nodes={talentNodes}
           myTalents={result.character.stats.talents}
           references={usableSample(result.sample).entries}
+          icons={icons}
         />
       </div>
     </div>
