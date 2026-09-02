@@ -78,7 +78,12 @@ function bossResult(
     specId,
     encounter,
     encounterId: 1,
-    character: { dps: 100000, stats: { avgIlvl: 285, name: 'Jumbaa' }, context: null },
+    character: {
+      dps: 100000,
+      stats: { avgIlvl: 285, name: 'Jumbaa' },
+      context: null,
+      source: { code: 'aBcD1234', fightID: 3, actorId: 12 },
+    },
     sample: [{ dps: 120000, qualified: true }],
     topPlayers: [],
     comparability: {
@@ -470,6 +475,25 @@ describe('bossContentPanel', () => {
       await user.selectOptions(screen.getByLabelText('Pull'), '11');
 
       expect(onSelectPull).toHaveBeenCalledWith(1, 11);
+    });
+  });
+
+  // Le testeur veut atteindre la source : ce que nous ne rendons pas — timeline, buffs,
+  // autres joueurs — n'existe que sur WCL.
+  describe('lien vers le log', () => {
+    it('pointe le combat analysé, pas le rapport seul', () => {
+      renderPanel();
+
+      expect(screen.getByRole('link', { name: /Warcraft Logs/ })).toHaveAttribute(
+        'href',
+        'https://www.warcraftlogs.com/reports/aBcD1234#fight=3&source=12'
+      );
+    });
+
+    it('ne s’affiche pas sans résultat à pointer', () => {
+      renderPanel({ bossStates: [{ status: 'loading' }] });
+
+      expect(screen.queryByRole('link', { name: /Warcraft Logs/ })).toBeNull();
     });
   });
 });

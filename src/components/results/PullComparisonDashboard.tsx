@@ -1,12 +1,32 @@
 import type { PullComparisonResult } from '@/lib/wcl/pull-pipeline';
 import { BackLink } from '@/components/ui/BackLink';
 import { Card } from '@/components/ui/Card';
+import { ExternalLink } from '@/components/ui/ExternalLink';
+import { fightUrl } from '@/lib/wcl/fight-url';
 import { mergeIcons } from '@/lib/wcl/icons';
 import { DamageBreakdown } from './DamageBreakdown';
 import { PullContextCard } from './PullContextCard';
 import { PullVerdictBanner } from './PullVerdictBanner';
 import { RotationComparisonCards } from './RotationCards';
 import { TalentDiffCard } from './TalentDiff';
+
+/**
+ * L'identifiant d'une pull, cliquable quand il l'est.
+ *
+ * `ExternalLink` s'efface sur une adresse refusée, et c'est ce qu'on veut pour un lien
+ * dont le libellé n'existe que pour lui. Ici l'inverse : l'identifiant nomme la pull, il
+ * était à l'écran avant d'être un lien et doit y rester sans.
+ */
+function PullRef({ pull }: { pull: { code: string; fightId: number; actorId: number } }) {
+  const label = `${pull.code}#${pull.fightId}`;
+  const href = fightUrl(pull.code, pull.fightId, pull.actorId);
+
+  return href ? (
+    <ExternalLink href={href}>{label}</ExternalLink>
+  ) : (
+    <span className="font-mono">{label}</span>
+  );
+}
 
 interface PullComparisonDashboardProps {
   result: PullComparisonResult;
@@ -33,9 +53,14 @@ export function PullComparisonDashboard({ result, onBack }: PullComparisonDashbo
 
         {/* Cet écran n'a pas d'autre titre : commencer à `h2` ouvrait la hiérarchie sur un
             niveau manquant. `font-sans` l'emporte sur la règle d'élément, le rendu ne bouge pas. */}
-        <h1 className="text-text m-0 mb-6 font-sans text-sm">
-          <span className="font-mono">{before.name}</span> — {before.code}#{before.fightId} vs{' '}
-          {after.code}#{after.fightId}
+        {/* Les deux identifiants étaient déjà à l'écran, inertes : chacun désigne une pull
+            qu'on peut vouloir rouvrir sur WCL. Les rendre cliquables ne coûte rien de plus. */}
+        <h1 className="text-text m-0 mb-6 flex flex-wrap items-center gap-2 font-sans text-sm">
+          <span className="font-mono">{before.name}</span>
+          <span>—</span>
+          <PullRef pull={before} />
+          <span>vs</span>
+          <PullRef pull={after} />
         </h1>
 
         <div className="flex flex-col gap-4">

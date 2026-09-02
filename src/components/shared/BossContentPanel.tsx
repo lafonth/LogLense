@@ -15,6 +15,7 @@ import { OverviewTab } from '@/components/results/OverviewTab';
 import { ShareCard } from '@/components/results/ShareCard';
 import { VerdictBanner } from '@/components/results/VerdictBanner';
 import { Button } from '@/components/ui/Button';
+import { ExternalLink } from '@/components/ui/ExternalLink';
 import { Select } from '@/components/ui/Select';
 import { tabId, tabPanelId } from '@/components/ui/tab-ids';
 import { Tabs } from '@/components/ui/Tabs';
@@ -22,6 +23,7 @@ import { isBossRefusal, isBossResult } from '@/lib/boss-outcome';
 import { buildShareCard } from '@/lib/comparison/share-card';
 import { buildVerdict, verdictNamesIlvl } from '@/lib/comparison/verdict';
 import { getDpsSpecsForClass, getSpecInfo } from '@/lib/specs';
+import { fightUrl } from '@/lib/wcl/fight-url';
 import { fmtMs } from '@/lib/wcl/parsers';
 
 function fightKey(fight: { code: string; fightID: number }): string {
@@ -308,6 +310,24 @@ export function BossContentPanel({
                   </option>
                 ))}
               </Select>
+            </div>
+          )}
+
+          {/* La source. Ce que LogLense ne rend pas — la timeline, les buffs, les autres
+              joueurs — n'existe que sur le log lui-même. Posé sous les sélecteurs plutôt que
+              dedans : il suit le combat analysé, y compris quand aucun sélecteur ne s'affiche
+              parce qu'il n'y a qu'une pull. */}
+          {activeBossResult && (
+            <div className="mb-4">
+              <ExternalLink
+                href={fightUrl(
+                  activeBossResult.character.source.code,
+                  activeBossResult.character.source.fightID,
+                  activeBossResult.character.source.actorId
+                )}
+              >
+                View this fight on Warcraft Logs
+              </ExternalLink>
             </div>
           )}
 
