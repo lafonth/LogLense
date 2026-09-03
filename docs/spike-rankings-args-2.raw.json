@@ -1,0 +1,310 @@
+{
+  "probedAt": "2026-09-02T23:55:31.683Z",
+  "encounterID": 3470,
+  "a": {
+    "gearJoin": [
+      {
+        "id": 271546,
+        "name": "Skull of the Damned Necrolyte",
+        "icon": "inv_helm_cloth_raidwarlockulatek_d_01.jpg",
+        "setID": 2066
+      },
+      {
+        "id": 251234,
+        "name": "Graft of the Domanaar",
+        "icon": "inv_12_jewelry_devouringhost_necklace_silver2.jpg",
+        "setID": null
+      },
+      {
+        "id": 271544,
+        "name": "Spires of the Damned Necrolyte",
+        "icon": "inv_shoulder_cloth_raidwarlockulatek_d_01.jpg",
+        "setID": 2066
+      },
+      {
+        "id": 42377,
+        "name": "Purple Martial Shirt",
+        "icon": "inv_shirt_purple_01.jpg",
+        "setID": null
+      },
+      {
+        "id": 271549,
+        "name": "Damned Necrolyte's Rattling Robes",
+        "icon": "inv_robe_cloth_raidwarlockulatek_d_01.jpg",
+        "setID": 2066
+      },
+      {
+        "id": 239649,
+        "name": "Martyr's Waistwrap",
+        "icon": "inv_belt_cloth_questbloodelf_b_01.jpg",
+        "setID": null
+      },
+      {
+        "id": 271545,
+        "name": "Damned Necrolyte's Leg Bindings",
+        "icon": "inv_pant_cloth_raidwarlockulatek_d_01.jpg",
+        "setID": 2066
+      },
+      {
+        "id": 268255,
+        "name": "Cackling Soultreads",
+        "icon": "inv_boot_cloth_raidmageulatek_d_01.jpg",
+        "setID": null
+      },
+      {
+        "id": 268228,
+        "name": "Venom-Singed Cuffs",
+        "icon": "inv_bracer_cloth_raidmageulatek_d_01.jpg",
+        "setID": null
+      },
+      {
+        "id": 271547,
+        "name": "Damned Necrolyte's Charred Grasps",
+        "icon": "inv_glove_cloth_raidwarlockulatek_d_01.jpg",
+        "setID": 2066
+      },
+      {
+        "id": 273792,
+        "name": "Band of the Amani Warlord",
+        "icon": "inv_121_jewelry_ring02_green.jpg",
+        "setID": null
+      },
+      {
+        "id": 158366,
+        "name": "Charged Sandstone Band",
+        "icon": "inv_ring_80_03d.jpg",
+        "setID": null
+      },
+      {
+        "id": 273796,
+        "name": "Vile Vial of Volatile Venom",
+        "icon": "inv_121_trinket_dungeon_ulatek_vile.jpg",
+        "setID": null
+      },
+      {
+        "id": 270164,
+        "name": "Gebbo's Bottomless Bag",
+        "icon": "inv_10_tailoring_bag1_color2.jpg",
+        "setID": null
+      },
+      {
+        "id": 251132,
+        "name": "Speakeasy Shroud",
+        "icon": "inv_cape_leather_dungeonharronir_c_01.jpg",
+        "setID": null
+      },
+      {
+        "id": 273778,
+        "name": "Polished Lightwood Channeler",
+        "icon": "inv_knife_1h_zuljin_d_01.jpg",
+        "setID": null
+      },
+      {
+        "id": 245769,
+        "name": "Aln'hara Lantern",
+        "icon": "inv_offhand_1h_dungeonharronir_c_01.jpg",
+        "setID": null
+      },
+      {
+        "id": 0,
+        "name": "Unknown Item",
+        "icon": "inv_axe_02.jpg",
+        "setID": null
+      }
+    ],
+    "setSuffixes": [
+      "of the Damned Necrolyte",
+      "Necrolyte's Rattling Robes",
+      "Necrolyte's Leg Bindings",
+      "Necrolyte's Charred Grasps"
+    ],
+    "suffixCollision": false,
+    "rankingsGearKeys": [
+      "name",
+      "quality",
+      "id",
+      "icon",
+      "itemLevel",
+      "permanentEnchant",
+      "bonusIDs",
+      "gems",
+      "temporaryEnchant"
+    ],
+    "combatantInfoGearKeys": [
+      "id",
+      "quality",
+      "icon",
+      "itemLevel",
+      "permanentEnchant",
+      "bonusIDs",
+      "setID",
+      "gems",
+      "temporaryEnchant"
+    ],
+    "overlap": 17,
+    "gearCountRankings": 18,
+    "gearCountCombatantInfo": 18,
+    "setIdsCombatantInfo": [
+      2066,
+      2066,
+      2066,
+      2066,
+      2066
+    ],
+    "sampleCombatantInfoPiece": {
+      "id": 271546,
+      "quality": 4,
+      "icon": "inv_helm_cloth_raidwarlockulatek_d_01.jpg",
+      "itemLevel": 334,
+      "permanentEnchant": 7961,
+      "bonusIDs": [
+        13334,
+        6652,
+        13846,
+        13696,
+        13692,
+        13698,
+        12854
+      ],
+      "setID": 2066
+    },
+    "sampleRankingsPiece": {
+      "name": "Skull of the Damned Necrolyte",
+      "quality": "epic",
+      "id": 271546,
+      "icon": "inv_helm_cloth_raidwarlockulatek_d_01.jpg",
+      "itemLevel": "334",
+      "permanentEnchant": "7961",
+      "bonusIDs": [
+        "13334",
+        "6652",
+        "13846",
+        "13696",
+        "13692",
+        "13698",
+        "12854"
+      ]
+    }
+  },
+  "b": {
+    "bracket 0": {
+      "count": 100,
+      "span": "309–324",
+      "errors": null
+    },
+    "bracket 1": {
+      "count": 0,
+      "span": "—",
+      "errors": null
+    },
+    "bracket 10": {
+      "count": 100,
+      "span": "299–301",
+      "errors": null
+    },
+    "bracket 13": {
+      "count": 100,
+      "span": "308–310",
+      "errors": null
+    },
+    "bracket 15": {
+      "count": 100,
+      "span": "314–316",
+      "errors": null
+    },
+    "bracket 17": {
+      "count": 100,
+      "span": "320–322",
+      "errors": null
+    },
+    "bracket 18": {
+      "count": 10,
+      "span": "323–324",
+      "errors": null
+    },
+    "bracket 20": {
+      "count": 0,
+      "span": "—",
+      "errors": null
+    },
+    "bracket 25": {
+      "count": 0,
+      "span": "—",
+      "errors": null
+    },
+    "bracket 30": {
+      "count": 0,
+      "span": "—",
+      "errors": null
+    }
+  },
+  "c": {
+    "enumValues": [
+      "Any",
+      "Require",
+      "Exclude"
+    ],
+    "Any": {
+      "count": 100,
+      "errors": null
+    },
+    "Require": {
+      "count": 100,
+      "errors": null
+    },
+    "Exclude": {
+      "count": 100,
+      "errors": null
+    }
+  },
+  "d": {
+    "Any": {
+      "count": 100,
+      "withExternal": 59,
+      "buffNames": [
+        "Power Infusion"
+      ],
+      "firstThree": [
+        "Ragsharos",
+        "我心态很好丶",
+        "Grimshunter"
+      ]
+    },
+    "Require": {
+      "count": 100,
+      "withExternal": 100,
+      "buffNames": [
+        "Power Infusion"
+      ],
+      "firstThree": [
+        "Ragsharos",
+        "我心态很好丶",
+        "Grimshunter"
+      ]
+    },
+    "Exclude": {
+      "count": 100,
+      "withExternal": 0,
+      "buffNames": [],
+      "firstThree": [
+        "Хочуснятблид",
+        "Threefatez",
+        "Клемск"
+      ]
+    }
+  },
+  "e": {
+    "page 1": {
+      "bytes": 633258,
+      "count": 100,
+      "span": "314–316",
+      "hasMorePages": true
+    },
+    "page 2": {
+      "bytes": 632237,
+      "count": 100,
+      "span": "314–316",
+      "hasMorePages": true
+    }
+  }
+}

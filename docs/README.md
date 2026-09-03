@@ -13,6 +13,11 @@ si les deux divergent, c'est le code qui a raison ici.
 | [04-ia-et-ml.md](04-ia-et-ml.md) | Où le LLM intervient, où le ML n'intervient pas encore, et pourquoi |
 | [05-capture-de-donnees.md](05-capture-de-donnees.md) | Le corpus d'étiquettes : ce qui est écrit, quand, et sous quelle identité |
 | [06-deploiement.md](06-deploiement.md) | Comment le produit arrive en production, et ce que coûte l'admission d'un testeur |
+| [07-spike-rankings.md](07-spike-rankings.md) | Ce que `characterRankings` accepte vraiment comme arguments — mesuré contre l'API, pas lu dans la doc |
+
+La ligne 07 est la seule qui ne décrit pas le code existant : c'est un relevé de terrain, daté,
+qui conditionne un travail à venir. Les deux `spike-rankings-args*.raw.json` en sont les
+réponses brutes.
 
 ## Le résumé en une image
 

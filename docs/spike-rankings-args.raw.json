@@ -1,0 +1,915 @@
+{
+  "probedAt": "2026-09-02T23:50:09.474Z",
+  "introspection": {
+    "characterRankings": {
+      "name": "characterRankings",
+      "args": [
+        {
+          "name": "bracket",
+          "defaultValue": "0",
+          "type": {
+            "kind": "SCALAR",
+            "name": "Int",
+            "ofType": null
+          }
+        },
+        {
+          "name": "difficulty",
+          "defaultValue": "0",
+          "type": {
+            "kind": "SCALAR",
+            "name": "Int",
+            "ofType": null
+          }
+        },
+        {
+          "name": "filter",
+          "defaultValue": "\"\"",
+          "type": {
+            "kind": "SCALAR",
+            "name": "String",
+            "ofType": null
+          }
+        },
+        {
+          "name": "page",
+          "defaultValue": "1",
+          "type": {
+            "kind": "SCALAR",
+            "name": "Int",
+            "ofType": null
+          }
+        },
+        {
+          "name": "partition",
+          "defaultValue": "0",
+          "type": {
+            "kind": "SCALAR",
+            "name": "Int",
+            "ofType": null
+          }
+        },
+        {
+          "name": "serverRegion",
+          "defaultValue": "\"\"",
+          "type": {
+            "kind": "SCALAR",
+            "name": "String",
+            "ofType": null
+          }
+        },
+        {
+          "name": "serverSlug",
+          "defaultValue": "\"\"",
+          "type": {
+            "kind": "SCALAR",
+            "name": "String",
+            "ofType": null
+          }
+        },
+        {
+          "name": "size",
+          "defaultValue": "0",
+          "type": {
+            "kind": "SCALAR",
+            "name": "Int",
+            "ofType": null
+          }
+        },
+        {
+          "name": "leaderboard",
+          "defaultValue": "Any",
+          "type": {
+            "kind": "ENUM",
+            "name": "LeaderboardRank",
+            "ofType": null
+          }
+        },
+        {
+          "name": "hardModeLevel",
+          "defaultValue": "Any",
+          "type": {
+            "kind": "ENUM",
+            "name": "HardModeLevelRankFilter",
+            "ofType": null
+          }
+        },
+        {
+          "name": "metric",
+          "defaultValue": "default",
+          "type": {
+            "kind": "ENUM",
+            "name": "CharacterRankingMetricType",
+            "ofType": null
+          }
+        },
+        {
+          "name": "includeCombatantInfo",
+          "defaultValue": "false",
+          "type": {
+            "kind": "SCALAR",
+            "name": "Boolean",
+            "ofType": null
+          }
+        },
+        {
+          "name": "includeOtherPlayers",
+          "defaultValue": "false",
+          "type": {
+            "kind": "SCALAR",
+            "name": "Boolean",
+            "ofType": null
+          }
+        },
+        {
+          "name": "className",
+          "defaultValue": "\"Any\"",
+          "type": {
+            "kind": "SCALAR",
+            "name": "String",
+            "ofType": null
+          }
+        },
+        {
+          "name": "specName",
+          "defaultValue": "\"Any\"",
+          "type": {
+            "kind": "SCALAR",
+            "name": "String",
+            "ofType": null
+          }
+        },
+        {
+          "name": "externalBuffs",
+          "defaultValue": "Any",
+          "type": {
+            "kind": "ENUM",
+            "name": "ExternalBuffRankFilter",
+            "ofType": null
+          }
+        },
+        {
+          "name": "covenantID",
+          "defaultValue": "0",
+          "type": {
+            "kind": "SCALAR",
+            "name": "Int",
+            "ofType": null
+          }
+        },
+        {
+          "name": "soulbindID",
+          "defaultValue": "0",
+          "type": {
+            "kind": "SCALAR",
+            "name": "Int",
+            "ofType": null
+          }
+        }
+      ]
+    },
+    "allFields": [
+      "id",
+      "name",
+      "characterRankings",
+      "fightRankings",
+      "zone",
+      "journalID"
+    ]
+  },
+  "encounterID": 3470,
+  "brackets": {
+    "data": {
+      "worldData": {
+        "encounter": {
+          "id": 3470,
+          "name": "Nek'zali the Soulcoiler",
+          "zone": {
+            "id": 53,
+            "name": "The Venomous Abyss",
+            "brackets": {
+              "type": "Item Level",
+              "min": 272,
+              "max": 344,
+              "bucket": 3
+            }
+          }
+        }
+      }
+    }
+  },
+  "q1": {
+    "errors": null,
+    "bytesWithout": 36349,
+    "bytesWith": 633913,
+    "sampleEntryWithout": {
+      "name": "Ragsharos",
+      "class": "Warlock",
+      "spec": "Demonology",
+      "amount": 242485.19393947,
+      "hardModeLevel": 0,
+      "duration": 451842,
+      "startTime": 1788379162667,
+      "report": {
+        "code": "zmjNQtYvhMp6G9r4",
+        "fightID": 22,
+        "startTime": 1788360067809
+      },
+      "guild": {
+        "id": 1235,
+        "name": "Unic",
+        "faction": 1
+      },
+      "server": {
+        "id": 408,
+        "name": "Blackrock",
+        "region": "EU"
+      },
+      "bracketData": 321,
+      "faction": 0
+    },
+    "sampleEntryWith": {
+      "name": "Ragsharos",
+      "class": "Warlock",
+      "spec": "Demonology",
+      "amount": 242485.19393947,
+      "hardModeLevel": 0,
+      "duration": 451842,
+      "startTime": 1788379162667,
+      "report": {
+        "code": "zmjNQtYvhMp6G9r4",
+        "fightID": 22,
+        "startTime": 1788360067809
+      },
+      "guild": {
+        "id": 1235,
+        "name": "Unic",
+        "faction": 1
+      },
+      "server": {
+        "id": 408,
+        "name": "Blackrock",
+        "region": "EU"
+      },
+      "bracketData": 321,
+      "faction": 0,
+      "talents": [
+        {
+          "talentID": 91425,
+          "points": 1
+        },
+        {
+          "talentID": 91430,
+          "points": 1
+        },
+        {
+          "talentID": 91431,
+          "points": 1
+        },
+        {
+          "talentID": 91432,
+          "points": 2
+        },
+        {
+          "talentID": 91434,
+          "points": 1
+        },
+        {
+          "talentID": 91438,
+          "points": 1
+        },
+        {
+          "talentID": 91439,
+          "points": 1
+        },
+        {
+          "talentID": 91440,
+          "points": 1
+        },
+        {
+          "talentID": 91441,
+          "points": 1
+        },
+        {
+          "talentID": 91444,
+          "points": 1
+        },
+        {
+          "talentID": 91445,
+          "points": 1
+        },
+        {
+          "talentID": 91452,
+          "points": 1
+        },
+        {
+          "talentID": 91459,
+          "points": 1
+        },
+        {
+          "talentID": 91460,
+          "points": 1
+        },
+        {
+          "talentID": 91461,
+          "points": 2
+        },
+        {
+          "talentID": 91463,
+          "points": 2
+        },
+        {
+          "talentID": 91466,
+          "points": 1
+        },
+        {
+          "talentID": 91468,
+          "points": 1
+        },
+        {
+          "talentID": 91469,
+          "points": 1
+        },
+        {
+          "talentID": 117423,
+          "points": 1
+        },
+        {
+          "talentID": 117427,
+          "points": 1
+        },
+        {
+          "talentID": 117428,
+          "points": 1
+        },
+        {
+          "talentID": 117430,
+          "points": 1
+        },
+        {
+          "talentID": 117433,
+          "points": 1
+        },
+        {
+          "talentID": 117440,
+          "points": 1
+        },
+        {
+          "talentID": 117446,
+          "points": 1
+        },
+        {
+          "talentID": 117449,
+          "points": 1
+        },
+        {
+          "talentID": 117452,
+          "points": 1
+        },
+        {
+          "talentID": 117453,
+          "points": 1
+        },
+        {
+          "talentID": 118838,
+          "points": 1
+        },
+        {
+          "talentID": 123386,
+          "points": 1
+        },
+        {
+          "talentID": 124694,
+          "points": 1
+        },
+        {
+          "talentID": 125829,
+          "points": 2
+        },
+        {
+          "talentID": 125830,
+          "points": 1
+        },
+        {
+          "talentID": 125834,
+          "points": 1
+        },
+        {
+          "talentID": 125836,
+          "points": 1
+        },
+        {
+          "talentID": 125837,
+          "points": 1
+        },
+        {
+          "talentID": 125839,
+          "points": 1
+        },
+        {
+          "talentID": 125848,
+          "points": 2
+        },
+        {
+          "talentID": 125850,
+          "points": 1
+        },
+        {
+          "talentID": 125854,
+          "points": 1
+        },
+        {
+          "talentID": 125855,
+          "points": 1
+        },
+        {
+          "talentID": 125860,
+          "points": 2
+        },
+        {
+          "talentID": 125866,
+          "points": 1
+        },
+        {
+          "talentID": 125869,
+          "points": 1
+        },
+        {
+          "talentID": 135303,
+          "points": 1
+        },
+        {
+          "talentID": 135306,
+          "points": 1
+        },
+        {
+          "talentID": 135310,
+          "points": 1
+        },
+        {
+          "talentID": 135312,
+          "points": 1
+        },
+        {
+          "talentID": 135313,
+          "points": 1
+        },
+        {
+          "talentID": 135314,
+          "points": 1
+        },
+        {
+          "talentID": 135315,
+          "points": 1
+        },
+        {
+          "talentID": 136090,
+          "points": 1
+        },
+        {
+          "talentID": 136091,
+          "points": 1
+        },
+        {
+          "talentID": 136092,
+          "points": 1
+        },
+        {
+          "talentID": 136101,
+          "points": 1
+        },
+        {
+          "talentID": 136102,
+          "points": 2
+        },
+        {
+          "talentID": 136103,
+          "points": 1
+        },
+        {
+          "talentID": 136106,
+          "points": 1
+        },
+        {
+          "talentID": 136107,
+          "points": 1
+        },
+        {
+          "talentID": 136227,
+          "points": 1
+        },
+        {
+          "talentID": 136568,
+          "points": 1
+        },
+        {
+          "talentID": 136569,
+          "points": 1
+        },
+        {
+          "talentID": 136570,
+          "points": 1
+        },
+        {
+          "talentID": 136571,
+          "points": 1
+        },
+        {
+          "talentID": 136572,
+          "points": 1
+        },
+        {
+          "talentID": 136573,
+          "points": 1
+        },
+        {
+          "talentID": 136719,
+          "points": 1
+        },
+        {
+          "talentID": 136722,
+          "points": 1
+        },
+        {
+          "talentID": 136726,
+          "points": 1
+        },
+        {
+          "talentID": 136727,
+          "points": 1
+        },
+        {
+          "talentID": 136728,
+          "points": 1
+        },
+        {
+          "talentID": 136730,
+          "points": 1
+        },
+        {
+          "talentID": 136978,
+          "points": 1
+        },
+        {
+          "talentID": 136979,
+          "points": 2
+        },
+        {
+          "talentID": 136980,
+          "points": 1
+        }
+      ],
+      "gear": [
+        {
+          "name": "Skull of the Damned Necrolyte",
+          "quality": "epic",
+          "id": 271546,
+          "icon": "inv_helm_cloth_raidwarlockulatek_d_01.jpg",
+          "itemLevel": "334",
+          "permanentEnchant": "7961",
+          "bonusIDs": [
+            "13334",
+            "6652",
+            "13846",
+            "13696",
+            "13692",
+            "13698",
+            "12854"
+          ]
+        },
+        {
+          "name": "Graft of the Domanaar",
+          "quality": "rare",
+          "id": 251234,
+          "icon": "inv_12_jewelry_devouringhost_necklace_silver2.jpg",
+          "itemLevel": "311",
+          "bonusIDs": [
+            "12843",
+            "13440",
+            "6652",
+            "13668",
+            "12699"
+          ],
+          "gems": [
+            {
+              "id": "240983",
+              "itemLevel": "295"
+            }
+          ]
+        },
+        {
+          "name": "Spires of the Damned Necrolyte",
+          "quality": "epic",
+          "id": 271544,
+          "icon": "inv_shoulder_cloth_raidwarlockulatek_d_01.jpg",
+          "itemLevel": "321",
+          "permanentEnchant": "8001",
+          "bonusIDs": [
+            "6652",
+            "13440",
+            "13694",
+            "13697",
+            "12846"
+          ]
+        },
+        {
+          "name": "Purple Martial Shirt",
+          "quality": "uncommon",
+          "id": 42377,
+          "icon": "inv_shirt_purple_01.jpg",
+          "itemLevel": "1"
+        },
+        {
+          "name": "Damned Necrolyte's Rattling Robes",
+          "quality": "epic",
+          "id": 271549,
+          "icon": "inv_robe_cloth_raidwarlockulatek_d_01.jpg",
+          "itemLevel": "321",
+          "permanentEnchant": "7987",
+          "bonusIDs": [
+            "6652",
+            "13440",
+            "13690",
+            "13698",
+            "12846"
+          ]
+        },
+        {
+          "name": "Martyr's Waistwrap",
+          "quality": "epic",
+          "id": 239649,
+          "icon": "inv_belt_cloth_questbloodelf_b_01.jpg",
+          "itemLevel": "331",
+          "bonusIDs": [
+            "12214",
+            "13667",
+            "12497",
+            "13751",
+            "14001",
+            "8960",
+            "12384",
+            "8790",
+            "13836",
+            "13696"
+          ]
+        },
+        {
+          "name": "Damned Necrolyte's Leg Bindings",
+          "quality": "epic",
+          "id": 271545,
+          "icon": "inv_pant_cloth_raidwarlockulatek_d_01.jpg",
+          "itemLevel": "318",
+          "permanentEnchant": "7935",
+          "bonusIDs": [
+            "6652",
+            "13440",
+            "13693",
+            "13698",
+            "12845"
+          ]
+        },
+        {
+          "name": "Cackling Soultreads",
+          "quality": "epic",
+          "id": 268255,
+          "icon": "inv_boot_cloth_raidmageulatek_d_01.jpg",
+          "itemLevel": "315",
+          "permanentEnchant": "7993",
+          "bonusIDs": [
+            "6652",
+            "13662",
+            "13334",
+            "12844"
+          ]
+        },
+        {
+          "name": "Venom-Singed Cuffs",
+          "quality": "epic",
+          "id": 268228,
+          "icon": "inv_bracer_cloth_raidmageulatek_d_01.jpg",
+          "itemLevel": "321",
+          "bonusIDs": [
+            "6652",
+            "13696",
+            "13662",
+            "13335",
+            "12850"
+          ]
+        },
+        {
+          "name": "Damned Necrolyte's Charred Grasps",
+          "quality": "epic",
+          "id": 271547,
+          "icon": "inv_glove_cloth_raidwarlockulatek_d_01.jpg",
+          "itemLevel": "321",
+          "bonusIDs": [
+            "12850",
+            "13335",
+            "13691",
+            "6652",
+            "13697"
+          ]
+        },
+        {
+          "name": "Band of the Amani Warlord",
+          "quality": "rare",
+          "id": 273792,
+          "icon": "inv_121_jewelry_ring02_green.jpg",
+          "itemLevel": "311",
+          "permanentEnchant": "7967",
+          "bonusIDs": [
+            "12843",
+            "13440",
+            "6652",
+            "13668",
+            "12699"
+          ],
+          "gems": [
+            {
+              "id": "240908",
+              "itemLevel": "295"
+            }
+          ]
+        },
+        {
+          "name": "Charged Sandstone Band",
+          "quality": "rare",
+          "id": 158366,
+          "icon": "inv_ring_80_03d.jpg",
+          "itemLevel": "321",
+          "permanentEnchant": "7967",
+          "bonusIDs": [
+            "13440",
+            "6652",
+            "13668",
+            "12699",
+            "12846"
+          ],
+          "gems": [
+            {
+              "id": "240892",
+              "itemLevel": "295"
+            }
+          ]
+        },
+        {
+          "name": "Vile Vial of Volatile Venom",
+          "quality": "rare",
+          "id": 273796,
+          "icon": "inv_121_trinket_dungeon_ulatek_vile.jpg",
+          "itemLevel": "321",
+          "bonusIDs": [
+            "13440",
+            "6652",
+            "12699",
+            "12846"
+          ]
+        },
+        {
+          "name": "Gebbo's Bottomless Bag",
+          "quality": "epic",
+          "id": 270164,
+          "icon": "inv_10_tailoring_bag1_color2.jpg",
+          "itemLevel": "334",
+          "bonusIDs": [
+            "41",
+            "13335",
+            "12854"
+          ]
+        },
+        {
+          "name": "Speakeasy Shroud",
+          "quality": "rare",
+          "id": 251132,
+          "icon": "inv_cape_leather_dungeonharronir_c_01.jpg",
+          "itemLevel": "311",
+          "bonusIDs": [
+            "12843",
+            "13440",
+            "6652",
+            "13662",
+            "12699"
+          ]
+        },
+        {
+          "name": "Polished Lightwood Channeler",
+          "quality": "rare",
+          "id": 273778,
+          "icon": "inv_knife_1h_zuljin_d_01.jpg",
+          "itemLevel": "321",
+          "permanentEnchant": "7981",
+          "temporaryEnchant": "8052",
+          "bonusIDs": [
+            "13440",
+            "6652",
+            "12701",
+            "12846"
+          ]
+        },
+        {
+          "name": "Aln'hara Lantern",
+          "quality": "epic",
+          "id": 245769,
+          "icon": "inv_offhand_1h_dungeonharronir_c_01.jpg",
+          "itemLevel": "331",
+          "bonusIDs": [
+            "12214",
+            "12497",
+            "13751",
+            "14001",
+            "13771",
+            "8960",
+            "8790",
+            "13836"
+          ]
+        },
+        {
+          "name": "Unknown Item",
+          "quality": "common",
+          "id": 0,
+          "icon": "inv_axe_02.jpg",
+          "itemLevel": "0"
+        }
+      ],
+      "externalBuffs": [
+        {
+          "name": "Power Infusion",
+          "id": 10060,
+          "icon": "spell_holy_powerinfusion.jpg",
+          "applications": 4
+        }
+      ]
+    }
+  },
+  "q2": {
+    "bracket: 1": {
+      "errors": null,
+      "count": 0,
+      "bracketDataSpan": "—"
+    },
+    "bracket: 5": {
+      "errors": null,
+      "count": 0,
+      "bracketDataSpan": "—"
+    },
+    "bracket: 99": {
+      "errors": null,
+      "count": 0,
+      "bracketDataSpan": "—"
+    },
+    "size: 20": {
+      "errors": null,
+      "count": 100,
+      "bracketDataSpan": "309–324",
+      "sample": {
+        "name": "Ragsharos",
+        "class": "Warlock",
+        "spec": "Demonology",
+        "amount": 242485.19393947,
+        "hardModeLevel": 0,
+        "duration": 451842,
+        "startTime": 1788379162667,
+        "report": {
+          "code": "zmjNQtYvhMp6G9r4",
+          "fightID": 22,
+          "startTime": 1788360067809
+        },
+        "guild": {
+          "id": 1235,
+          "name": "Unic",
+          "faction": 1
+        },
+        "server": {
+          "id": 408,
+          "name": "Blackrock",
+          "region": "EU"
+        },
+        "bracketData": 321,
+        "faction": 0
+      }
+    },
+    "size: 30": {
+      "errors": null,
+      "count": 0,
+      "bracketDataSpan": "—"
+    },
+    "(référence)": {
+      "count": 100,
+      "bracketDataSpan": "309–324"
+    }
+  },
+  "q3": {
+    "page 1": {
+      "bytesWithout": 36349,
+      "bytesWith": 633913
+    },
+    "page 5": {
+      "bytesWithout": 35835,
+      "bytesWith": 634082
+    },
+    "page 10": {
+      "bytesWithout": 35505,
+      "bytesWith": 632297
+    }
+  }
+}
