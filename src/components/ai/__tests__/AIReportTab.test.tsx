@@ -92,12 +92,16 @@ function ok(boss: BossResult): BossState {
   return { status: 'success', result: boss };
 }
 
-/** `/api/ai-report` annonce les fournisseurs dont la clé est déjà posée côté serveur. */
-function mockConfiguredProviders(providers: string[]) {
+/**
+ * `/api/ai-report` annonce ce qu'il peut réellement servir : offert par le déploiement **et**
+ * muni de sa clé. Depuis le retrait du BYOK c'est la seule source du choix — l'onglet ne
+ * connaît plus de fournisseur que par cette réponse.
+ */
+function mockServed(providers: string[]) {
   vi.stubGlobal(
     'fetch',
     vi.fn().mockResolvedValue({
-      json: () => Promise.resolve({ configuredProviders: providers }),
+      json: () => Promise.resolve({ providers }),
     } as Response)
   );
 }
@@ -122,6 +126,13 @@ function renderTab(over: Partial<Parameters<typeof AIReportTab>[0]> = {}) {
   );
 }
 
+/** Rend l'onglet et attend que la réponse du serveur ait débloqué le bouton. */
+async function renderReady(over: Partial<Parameters<typeof AIReportTab>[0]> = {}) {
+  const rendered = renderTab(over);
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Analyse' })).toBeEnabled());
+  return rendered;
+}
+
 describe('aIReportTab', () => {
   beforeEach(() => {
     aiState = { text: '', usage: null, loading: false, error: null };
@@ -129,91 +140,86 @@ describe('aIReportTab', () => {
     reset.mockClear();
     storage = fakeStorage();
     vi.stubGlobal('localStorage', storage);
-    mockConfiguredProviders([]);
+    mockServed(['claude']);
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('refuses to spend a call while no key is available anywhere', async () => {
+  it('refuses to spend a call while the server names no provider', async () => {
+    mockServed([]);
     renderTab();
 
     const analyse = await screen.findByRole('button', { name: 'Analyse' });
     expect(analyse).toBeDisabled();
   });
 
-  it('takes the server key as sufficient, and stops asking for one', async () => {
-    mockConfiguredProviders(['groq']);
+  it('unlocks the analysis as soon as the server names one', async () => {
     renderTab();
 
-    await waitFor(() => expect(screen.getByText(/configured on server/i)).toBeInTheDocument());
-    expect(screen.getByRole('button', { name: 'Analyse' })).toBeEnabled();
-    expect(screen.queryByLabelText(/Groq API Key/i)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Analyse' })).toBeEnabled());
   });
 
-  it('unlocks the analysis once a key is typed', async () => {
-    const user = userEvent.setup();
-    renderTab();
+  // Un menu à une entrée fait passer pour un réglage ce qui n'est pas un choix.
+  it('hides the provider picker when there is only one to pick', async () => {
+    await renderReady();
 
-    await user.type(await screen.findByLabelText(/Groq API Key/i), 'gsk_secret');
-
-    expect(screen.getByRole('button', { name: 'Analyse' })).toBeEnabled();
+    expect(screen.queryByLabelText('Provider')).not.toBeInTheDocument();
   });
 
-  it('does not treat blank space as a key', async () => {
-    const user = userEvent.setup();
-    renderTab();
+  it('offers the picker when the deployment serves several', async () => {
+    mockServed(['groq', 'claude']);
+    await renderReady();
 
-    await user.type(await screen.findByLabelText(/Groq API Key/i), '   ');
-
-    expect(screen.getByRole('button', { name: 'Analyse' })).toBeDisabled();
+    expect(await screen.findByLabelText('Provider')).toBeInTheDocument();
+    expect(screen.getAllByRole('option', { name: /Groq|Claude/ })).toHaveLength(2);
   });
 
-  it('sends only the selected boss, and the trimmed key', async () => {
+  it('sends only the selected boss, and the provider the server named', async () => {
     const user = userEvent.setup();
-    renderTab();
+    await renderReady();
 
-    await user.type(await screen.findByLabelText(/Groq API Key/i), '  gsk_secret  ');
     await user.click(screen.getByRole('button', { name: 'Analyse' }));
 
     expect(start).toHaveBeenCalledTimes(1);
-    const [payload, key, provider] = start.mock.calls[0];
+    const [payload, provider] = start.mock.calls[0];
     expect(payload.bosses).toHaveLength(1);
     expect(payload.bosses[0].encounterId).toBe(3306);
     expect(payload.input).toEqual(input);
-    expect(key).toBe('gsk_secret');
-    expect(provider).toBe('groq');
+    expect(provider).toBe('claude');
   });
 
   it('passes a model only for the provider that has one', async () => {
     const user = userEvent.setup();
-    renderTab();
+    mockServed(['groq', 'claude']);
+    await renderReady();
 
-    await user.type(await screen.findByLabelText(/Groq API Key/i), 'gsk_secret');
     await user.click(screen.getByRole('button', { name: 'Analyse' }));
-    expect(start.mock.calls[0][3]).toBeDefined();
+    expect(start.mock.calls[0][1]).toBe('groq');
+    expect(start.mock.calls[0][2]).toBeDefined();
 
     start.mockClear();
     await user.selectOptions(screen.getByLabelText('Provider'), 'claude');
-    await user.type(await screen.findByLabelText(/Anthropic API Key/i), 'sk-ant-secret');
     await user.click(screen.getByRole('button', { name: 'Analyse' }));
 
-    expect(start.mock.calls[0][2]).toBe('claude');
-    expect(start.mock.calls[0][3]).toBeUndefined();
+    expect(start.mock.calls[0][1]).toBe('claude');
+    expect(start.mock.calls[0][2]).toBeUndefined();
   });
 
-  it('keeps each provider key apart rather than reusing one field', async () => {
+  it('shows the model radios only for Groq', async () => {
     const user = userEvent.setup();
-    renderTab();
+    mockServed(['groq', 'claude']);
+    await renderReady();
 
-    await user.type(await screen.findByLabelText(/Groq API Key/i), 'gsk_secret');
+    expect(screen.getAllByRole('radio').length).toBeGreaterThan(0);
+
     await user.selectOptions(screen.getByLabelText('Provider'), 'claude');
 
-    expect(await screen.findByLabelText(/Anthropic API Key/i)).toHaveValue('');
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
   });
 
-  it('selects the sidebar boss before the first render, not after', async () => {
+  it('selects the sidebar boss before the first render, not after', () => {
     const other = bossResult({ encounterId: 3307, encounter: 'Fractillus', renderId: 'render-2' });
     renderTab({
       bossStates: [ok(bossResult()), ok(other)],
@@ -227,10 +233,9 @@ describe('aIReportTab', () => {
   it('lets the reader override the sidebar boss, and sends that one', async () => {
     const user = userEvent.setup();
     const other = bossResult({ encounterId: 3307, encounter: 'Fractillus', renderId: 'render-2' });
-    renderTab({ bossStates: [ok(bossResult()), ok(other)], activeBossResult: other });
+    await renderReady({ bossStates: [ok(bossResult()), ok(other)], activeBossResult: other });
 
     await user.selectOptions(screen.getByLabelText('Boss'), '0');
-    await user.type(await screen.findByLabelText(/Groq API Key/i), 'gsk_secret');
     await user.click(screen.getByRole('button', { name: 'Analyse' }));
 
     expect(start.mock.calls[0][0].bosses[0].encounterId).toBe(3306);
@@ -300,19 +305,22 @@ describe('aIReportTab', () => {
 
   it('remembers the groq model across sessions', async () => {
     const user = userEvent.setup();
-    renderTab();
+    mockServed(['groq']);
+    await renderReady();
 
-    const radios = screen.getAllByRole('radio');
+    const radios = await screen.findAllByRole('radio');
     await user.click(radios[radios.length - 1]);
 
     expect(storage.getItem('loglense_groq_model')).toBeTruthy();
     expect(reset).toHaveBeenCalled();
   });
 
-  it('survives a server that will not say which providers it holds', async () => {
+  // Sans clé personnelle, un serveur muet ne laisse rien à quoi retomber : le bouton reste
+  // fermé plutôt que de partir sur un fournisseur que la route refuserait.
+  it('stays shut when the server will not say which providers it serves', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
     renderTab();
 
-    expect(await screen.findByLabelText(/Groq API Key/i)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Analyse' })).toBeDisabled();
   });
 });

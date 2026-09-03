@@ -58,10 +58,12 @@ cp .env.example .env.local
 | `ADMIN_BATTLETAGS` | **Yes** | **Yes** | Comma-separated battletags allowed on `/admin`. Never stored in Redis — that identity is what authorises writing to Redis |
 | `NEXTAUTH_URL_DEV` | **Yes** | — | `http://localhost:3000` |
 | `NEXTAUTH_URL_PROD` | — | **Yes** | Deployed origin. Read at **build** time by `next.config.ts` |
-| `GROQ_API_KEY` | No | No | Server-side Groq key — users can paste their own in the UI instead |
-| `GEMINI_API_KEY` | No | No | Server-side Gemini key — users can paste their own in the UI |
+| `ANTHROPIC_API_KEY` | No | **In practice** | The key the AI report and the chat spend. There is no personal key to fall back on since the BYOK surface was removed: without it both answer `503` |
+| `AI_PROVIDERS` | No | No | Comma-separated names opening the catalogue beyond Claude (`claude,gemini,openai,groq`). Unknown names are ignored; unset means Claude alone |
+| `GROQ_API_KEY` | No | No | Server-side Groq key. Served only if `AI_PROVIDERS` names `groq`, and never to the chat — Groq has no `streamTurn` |
+| `GEMINI_API_KEY` | No | No | Server-side Gemini key. Served only if `AI_PROVIDERS` names `gemini` |
 | `GEMINI_MODEL` | No | No | Override the Gemini model (default: `gemini-3.5-flash-lite`) |
-| `ANTHROPIC_API_KEY` | No | No | Server-side Claude key — users can paste their own in the UI |
+| `OPENAI_API_KEY` | No | No | Server-side OpenAI key. Served only if `AI_PROVIDERS` names `openai` |
 | `ENABLE_DEV_SESSION` | No | **Never** | Dev-only fake session for browser tests. The production guard throws if it is set |
 
 The eight variables the production guard checks are `WCL_CLIENT_ID`, `WCL_CLIENT_SECRET`,
@@ -73,8 +75,11 @@ list but are required in practice: the guard lets the deployment boot, every log
 refused, and `/admin` — the one screen that could reopen the door — answers `404` to
 everybody.
 
-If no server-side AI key is set for a provider, the user is prompted to paste their own key
-in the AI Report tab.
+There is no personal-key field in the interface: the report and the chat spend the server
+key, under the hourly quotas of `src/lib/labels/rate-limit.ts` — one per account, one shared
+by everybody. `GET /api/ai-report` and `GET /api/chat` name the providers actually servable
+(offered by `AI_PROVIDERS` **and** holding their key); with none, both surfaces answer `503`
+and the AI Report tab keeps its button shut.
 
 ### 4. Start the dev server
 
@@ -119,8 +124,8 @@ tester has nothing to send you — their battletag is already in the queue.
    - **Compare Two Pulls** — two pulls of the same boss, side by side
 3. Results load per-boss as they arrive
 4. Switch between **Overview**, **Comparison** and **AI Report** tabs
-5. In AI Report, choose a provider (Groq / Gemini / Claude) and paste your API key if none is
-   set server-side
+5. In AI Report, launch the analysis — the provider comes from the server, and the picker
+   only appears when the deployment serves more than one
 
 ---
 

@@ -64,8 +64,8 @@ fixture du dépôt ([`src/lib/demo/boss-result.ts`](../src/lib/demo/boss-result.
 `scripts/build-demo-fixture.ts`), anonymisée, sans une requête à WCL ni à Redis. Les chiffres
 sont ceux d'un vrai `analyzeBoss` : un exemple fabriqué contredirait ce que le produit affirme.
 Les deux onglets qui appellent un modèle en direct s'ouvrent et disent en une ligne ce qui leur
-manque, plutôt que d'être cachés — le chat exige une session même avec une clé personnelle, et
-c'est une position produit, pas une limite de cette page.
+manque, plutôt que d'être cachés — le rapport comme le chat exigent une session, et c'est une
+position produit, pas une limite de cette page.
 
 Les routes de résultat déclarent un `generateMetadata`, ce qui donne à un lien collé une carte
 dans Discord ou sur Reddit. [`share-meta.ts`](../src/lib/share-meta.ts) en pose les deux
@@ -231,7 +231,7 @@ graph TB
     end
 
     subgraph AIT["AIReportTab"]
-        KEY[useApiKey · choix du fournisseur]
+        PROV[useServedProviders · ce que le serveur peut servir]
         STREAM[StreamingText — SSE]
         FB[ReportFeedback<br/>utile / inutile + axes]
     end

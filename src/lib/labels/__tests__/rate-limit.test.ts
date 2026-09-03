@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  AI_GLOBAL_LIMIT,
+  AI_GLOBAL_SUBJECT,
   AI_LIMIT,
   AI_PREFIX,
+  consumeAiGlobalQuota,
   consumeAiQuota,
   consumeLabelQuota,
   consumeWclGlobalQuota,
@@ -149,6 +152,46 @@ describe('consumeAiQuota', () => {
     redisExpire.mockRejectedValue(new Error('upstash down'));
 
     const verdict = await consumeAiQuota(BY, 0);
+
+    expect(verdict.allowed).toBe(false);
+    expect(verdict.unavailable).toBe(true);
+  });
+});
+
+describe('consumeAiGlobalQuota', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    redisExpire.mockResolvedValue(undefined);
+  });
+
+  // `hashUserId` rend trente-deux caractères hexadécimaux : aucun compte ne peut s'appeler
+  // `all`, donc le compteur commun ne partage sa clé avec personne.
+  it('counts everyone on one key, under a subject no account can wear', async () => {
+    redisIncrBy.mockResolvedValue(1);
+
+    await consumeAiGlobalQuota(0);
+
+    expect(redisIncrBy).toHaveBeenCalledWith(quotaKey(AI_PREFIX, AI_GLOBAL_SUBJECT, 0), 1);
+  });
+
+  it('leaves room above the per-account ceiling, or it would be the only one that ever spoke', () => {
+    expect(AI_GLOBAL_LIMIT).toBeGreaterThan(AI_LIMIT);
+  });
+
+  it('refuses the one past it and points at the next window', async () => {
+    redisIncrBy.mockResolvedValue(AI_GLOBAL_LIMIT + 1);
+
+    const verdict = await consumeAiGlobalQuota(WINDOW_MS / 2);
+
+    expect(verdict.allowed).toBe(false);
+    expect(verdict.retryAfterSeconds).toBe(WINDOW_MS / 2000);
+  });
+
+  // Fermé comme son jumeau personnel : un compteur muet est une dépense sans plafond.
+  it('refuses when the counter cannot be read', async () => {
+    redisIncrBy.mockRejectedValue(new Error('upstash down'));
+
+    const verdict = await consumeAiGlobalQuota(0);
 
     expect(verdict.allowed).toBe(false);
     expect(verdict.unavailable).toBe(true);

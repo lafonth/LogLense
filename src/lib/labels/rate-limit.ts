@@ -11,10 +11,35 @@ export const LABEL_LIMIT = 60;
 export const EXPOSURE_LIMIT = 120;
 
 /**
- * Rapports IA par heure et par compte, **sur la clé serveur uniquement**. Bien plus bas que
- * les deux précédents : ceux-là bornent des écritures, celui-ci borne une dépense réelle.
+ * Rapports IA par heure et par compte. Bien plus bas que les deux précédents : ceux-là bornent
+ * des écritures, celui-ci borne une dépense réelle.
+ *
+ * Il n'y a plus de voie qui l'évite. Tant que le BYOK existait, une clé personnelle passait à
+ * côté du compteur — c'était cohérent, elle ne dépensait pas notre argent. Depuis son retrait,
+ * toute génération est la nôtre, et ce plafond est le seul qui la borne par compte.
  */
 export const AI_LIMIT = 20;
+
+/**
+ * Rapports IA par heure, **tous comptes confondus**.
+ *
+ * Même raisonnement que pour Warcraft Logs, et même chiffre relatif : `AI_LIMIT` borne un
+ * compte, il ne compose pas. Dix bêta-testeurs à vingt rapports, c'est deux cents générations
+ * par heure sur notre carte bancaire sans qu'aucun d'eux n'ait rien fait d'anormal. La
+ * différence avec WCL est que la sanction n'est pas une clé révoquée mais une facture : elle
+ * n'arrête rien, elle se constate à la fin du mois. Raison de plus pour la borner ici.
+ *
+ * Trois fois le plafond individuel, comme `WCL_GLOBAL_UNIT_LIMIT` et pour la même raison :
+ * trois comptes peuvent brûler leur quota entier avant que le partagé ne morde.
+ */
+export const AI_GLOBAL_LIMIT = 60;
+
+/**
+ * Le sujet du compteur d'IA partagé. Même littéral que `WCL_GLOBAL_SUBJECT`, sans collision
+ * possible : les deux vivent sous des préfixes différents, et `quotaSubject` ne rend jamais
+ * autre chose que trente-deux caractères hexadécimaux.
+ */
+export const AI_GLOBAL_SUBJECT = 'all';
 
 /**
  * Appels Warcraft Logs par heure et par compte — des unités, pas des requêtes HTTP.
@@ -198,6 +223,18 @@ export async function consumeStrictQuota(
 
 export function consumeAiQuota(by: string, atMs: number): Promise<StrictVerdict> {
   return consumeStrictQuota(AI_PREFIX, AI_LIMIT, by, atMs);
+}
+
+/**
+ * Consomme un rapport du budget d'IA horaire **partagé par tous les comptes**.
+ *
+ * À consommer *après* le quota du compte, jamais avant, pour la raison écrite sur
+ * `consumeWclGlobalQuota` : un appelant déjà au-delà de son plafond personnel gonflerait sinon
+ * le compteur commun à chaque tentative, et un seul utilisateur qui martèle fermerait la porte
+ * à tous les autres. `aiGuard` est le seul appelant, et c'est lui qui tient cet ordre.
+ */
+export function consumeAiGlobalQuota(atMs: number): Promise<StrictVerdict> {
+  return consumeStrictQuota(AI_PREFIX, AI_GLOBAL_LIMIT, AI_GLOBAL_SUBJECT, atMs);
 }
 
 /**

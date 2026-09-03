@@ -58,7 +58,7 @@ describe('useAIReport', () => {
     const { result } = renderHook(() => useAIReport());
 
     await act(async () => {
-      await result.current.start(mockAnalysisResult, 'test-key', 'groq');
+      await result.current.start(mockAnalysisResult, 'groq');
     });
 
     expect(result.current.text).toBe('Hello world');
@@ -87,7 +87,7 @@ describe('useAIReport', () => {
     const { result } = renderHook(() => useAIReport());
 
     await act(async () => {
-      await result.current.start(mockAnalysisResult, 'test-key', 'groq');
+      await result.current.start(mockAnalysisResult, 'groq');
     });
 
     expect(result.current.text).toBe('Analysis complete.');
@@ -104,7 +104,7 @@ describe('useAIReport', () => {
     const { result } = renderHook(() => useAIReport());
 
     await act(async () => {
-      await result.current.start(mockAnalysisResult, 'bad-key', 'groq');
+      await result.current.start(mockAnalysisResult, 'groq');
     });
 
     expect(result.current.error).toBe('Invalid API key');
@@ -117,7 +117,7 @@ describe('useAIReport', () => {
     const { result } = renderHook(() => useAIReport());
 
     await act(async () => {
-      await result.current.start(mockAnalysisResult, 'test-key', 'groq');
+      await result.current.start(mockAnalysisResult, 'groq');
     });
 
     expect(result.current.error).toBe('Network error');
@@ -132,7 +132,7 @@ describe('useAIReport', () => {
     const { result } = renderHook(() => useAIReport());
 
     await act(async () => {
-      await result.current.start(mockAnalysisResult, 'test-key', 'groq');
+      await result.current.start(mockAnalysisResult, 'groq');
     });
 
     expect(result.current.text).toBe('Some text');
@@ -161,7 +161,7 @@ describe('useAIReport', () => {
     const { result } = renderHook(() => useAIReport());
 
     await act(async () => {
-      await result.current.start(mockAnalysisResult, 'test-key', 'groq');
+      await result.current.start(mockAnalysisResult, 'groq');
     });
 
     expect(result.current.text).toBe('Hello world');
@@ -174,7 +174,7 @@ describe('useAIReport', () => {
     const { result } = renderHook(() => useAIReport());
 
     await act(async () => {
-      await result.current.start(mockAnalysisResult, 'test-key', 'groq');
+      await result.current.start(mockAnalysisResult, 'groq');
     });
 
     expect(result.current.text).toBe('first last');
@@ -190,7 +190,7 @@ describe('useAIReport', () => {
     const { result } = renderHook(() => useAIReport());
 
     await act(async () => {
-      await result.current.start(mockAnalysisResult, 'test-key', 'groq');
+      await result.current.start(mockAnalysisResult, 'groq');
     });
 
     expect(result.current.text).toBe('été');
@@ -204,7 +204,7 @@ describe('useAIReport', () => {
     const { result } = renderHook(() => useAIReport());
 
     await act(async () => {
-      await result.current.start(mockAnalysisResult, 'test-key', 'groq');
+      await result.current.start(mockAnalysisResult, 'groq');
     });
 
     expect(result.current.error).toBeNull();

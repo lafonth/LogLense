@@ -46,9 +46,9 @@ sequenceDiagram
     participant A as recordAdvice
     participant M as Fournisseur
 
-    U->>H: start(result, apiKey, provider, model?)
-    H->>R: POST AnalysisResult<br/>en-têtes x-ai-key / x-ai-provider / x-ai-model
-    R->>R: clé = env OU en-tête ; sinon 401
+    U->>H: start(result, provider, model?)
+    H->>R: POST AnalysisResult<br/>en-têtes x-ai-provider / x-ai-model
+    R->>R: session, sinon 401 ; fournisseur servable, sinon 503 ; quota, sinon 429
     R->>P: buildAnalysisPrompt(result, talentNodes)
     P-->>R: tableaux de comparaison en texte
     R->>A: await recordAdvice(boss, { provider, model })
@@ -78,11 +78,14 @@ export interface AIProvider {
 }
 ```
 
-Trois implémentations — `ClaudeProvider`, `GeminiProvider`, `GroqProvider` — et le choix se
-fait par en-tête, avec `claude` par défaut côté route. La clé vient de l'environnement
-(`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`) ou, à défaut, de l'en-tête `x-ai-key`
-fourni par l'utilisateur. `GET /api/ai-report` dit à l'interface quels fournisseurs sont déjà
-configurés côté serveur, pour ne pas demander une clé inutilement.
+Quatre implémentations — `ClaudeProvider`, `GeminiProvider`, `OpenAIProvider`,
+`GroqProvider` — et le choix se fait par en-tête, parmi les seuls fournisseurs servables. La
+clé est **toujours** la nôtre, lue dans l'environnement (`ANTHROPIC_API_KEY`,
+`GEMINI_API_KEY`, `OPENAI_API_KEY`, `GROQ_API_KEY`) : il n'y a plus d'en-tête `x-ai-key`, et
+un appelant qui en pose un le voit ignoré. Est servable un fournisseur à la fois nommé par
+`AI_PROVIDERS` — `claude` seul par défaut — et muni de sa clé ; `GET /api/ai-report` en donne
+la liste à l'interface, qui n'affiche son sélecteur qu'au-delà d'un. Sans aucun servable, la
+route répond 503 plutôt que de faire miroiter un fournisseur qu'elle refuserait.
 
 ## Ce que le modèle reçoit
 

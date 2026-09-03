@@ -7,13 +7,11 @@ import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
-import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { useChat } from '@/hooks/useChat';
-import { useProvider } from '@/hooks/useProvider';
-import { useProviderKeys } from '@/hooks/useProviderKeys';
-import { CHAT_PROVIDERS, providerInfo } from '@/lib/ai/catalog';
+import { useServedProviders } from '@/hooks/useServedProviders';
+import { providerInfo } from '@/lib/ai/catalog';
 import { StreamingText } from './StreamingText';
 
 interface ChatTabProps {
@@ -33,26 +31,11 @@ const SUGGESTIONS = [
 ];
 
 export function ChatTab({ boss }: ChatTabProps) {
-  // Son propre choix, et sa propre clé de stockage : le rapport peut rester sur Groq, que le
-  // chat refuse. Un seul réglage partagé ouvrirait le chat sur un fournisseur que la route 400.
-  const [provider, setProvider] = useProvider('loglense_chat_provider', CHAT_PROVIDERS, 'claude');
-  const [apiKey, setApiKey] = useProviderKeys()[provider];
-  const [serverProviders, setServerProviders] = useState<string[]>([]);
-  const [draft, setDraft] = useState('');
-  const { messages, usage, loading, error, send, reset } = useChat(
-    boss?.snapshot,
-    apiKey.trim(),
-    provider
-  );
-  const endRef = useRef<HTMLDivElement>(null);
-
   // `/api/chat` et non `/api/ai-report` : le rapport annonce aussi Groq, que le chat ne sert pas.
-  useEffect(() => {
-    fetch('/api/chat')
-      .then((r) => r.json())
-      .then((d: { configuredProviders: string[] }) => setServerProviders(d.configuredProviders))
-      .catch(() => {});
-  }, []);
+  const { served, provider, setProvider } = useServedProviders('/api/chat');
+  const [draft, setDraft] = useState('');
+  const { messages, usage, loading, error, send, reset } = useChat(boss?.snapshot, provider);
+  const endRef = useRef<HTMLDivElement>(null);
 
   // Le flux écrit dans le dernier message : sans ça, la réponse s'écrit sous le pli et il faut
   // suivre à la molette pendant qu'elle arrive.
@@ -76,9 +59,7 @@ export function ChatTab({ boss }: ChatTabProps) {
     );
   }
 
-  const active = providerInfo(provider);
-  const serverHasKey = serverProviders.includes(provider);
-  const canSend = serverHasKey || !!apiKey.trim();
+  const canSend = provider !== null;
 
   function submit(text: string) {
     if (!canSend) return;
@@ -94,38 +75,24 @@ export function ChatTab({ boss }: ChatTabProps) {
         scope: we do not read them, so we do not comment on them.
       </p>
 
-      <div className="mb-4">
-        <Select
-          label="Provider"
-          value={provider}
-          disabled={loading}
-          onChange={(e) => setProvider(e.target.value as Provider)}
-        >
-          {CHAT_PROVIDERS.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div className="mb-4">
-        {serverHasKey ? (
-          <p className="text-dim m-0 font-mono text-xs">
-            <span className="text-muted mr-1.5">●</span>
-            {active.keyLabel} configured on server
-          </p>
-        ) : (
-          <Input
-            type="password"
-            label={`${active.keyLabel} — ${active.keyHint}`}
-            placeholder={active.placeholder}
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
+      {/* Masqué quand le déploiement n'en offre qu'un : un menu à une entrée fait passer pour
+          un réglage ce qui n'est pas un choix. */}
+      {served.length > 1 && provider && (
+        <div className="mb-4">
+          <Select
+            label="Provider"
+            value={provider}
             disabled={loading}
-          />
-        )}
-      </div>
+            onChange={(e) => setProvider(e.target.value as Provider)}
+          >
+            {served.map((id) => (
+              <option key={id} value={id}>
+                {providerInfo(id).label}
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
 
       {messages.length === 0 && (
         <div className="mb-4 flex flex-col items-start gap-2">

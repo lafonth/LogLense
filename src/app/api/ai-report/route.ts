@@ -3,18 +3,17 @@ import type { GroqModelId } from '@/lib/ai/groq';
 import type { AIProvider, AIStreamChunk, UsageData } from '@/lib/ai/provider';
 import type { AnalysisResult } from '@/types';
 import { getServerSession } from 'next-auth/next';
-import { envKeyFor, isProvider, PROVIDERS } from '@/lib/ai/catalog';
+import { envKeyFor, isProvider, servableProviders } from '@/lib/ai/catalog';
 
 import { ClaudeProvider } from '@/lib/ai/claude';
 import { GeminiProvider } from '@/lib/ai/gemini';
 import { DEFAULT_GROQ_MODEL, GROQ_MODELS, GroqProvider } from '@/lib/ai/groq';
 import { OpenAIProvider } from '@/lib/ai/openai';
 import { buildAnalysisPrompt, SYSTEM_PROMPT } from '@/lib/ai/prompt';
+import { guardAiSpend } from '@/lib/api/ai-guard';
 import { logRouteError } from '@/lib/api/log-error';
 import { authOptions } from '@/lib/auth';
 import { isBossResult } from '@/lib/boss-outcome';
-import { hashUserId } from '@/lib/labels/identity';
-import { consumeAiQuota } from '@/lib/labels/rate-limit';
 import { recordAdvice } from '@/lib/labels/record-advice';
 import { recordUsage } from '@/lib/labels/record-usage';
 import { getTalentNodes } from '@/lib/talent-loader';
@@ -22,10 +21,17 @@ import { getTalentNodes } from '@/lib/talent-loader';
 export const runtime = 'nodejs';
 
 /*
- * Les fournisseurs acceptés viennent du catalogue, et la liste reste fermée : un nom inconnu
- * retombait silencieusement sur Claude, donc sur la clé serveur, et un en-tête mal orthographié
- * suffisait à faire payer l'hôte. Le rapport les prend tous, y compris Groq — il n'appelle pas
- * d'outil, donc rien n'y exige `streamTurn`.
+ * Les fournisseurs acceptés viennent du catalogue, et la liste reste doublement fermée : offerts
+ * par le déploiement, et munis d'une clé. Un nom inconnu retombait autrefois silencieusement sur
+ * Claude, et un en-tête mal orthographié suffisait à faire payer l'hôte. Le rapport prend tous
+ * ceux qui sont offerts, Groq compris — il n'appelle pas d'outil, donc rien n'y exige
+ * `streamTurn`.
+ *
+ * La clé est la nôtre, toujours : l'en-tête `x-ai-key` n'existe plus. Ce que le produit dit de
+ * la rotation d'un joueur engage le produit, et il ne peut pas l'engager sur un modèle choisi
+ * par l'utilisateur. Conséquence directe : plus rien ne contourne le quota — la voie BYOK
+ * sautait `guardServerKey`, donc le plafond horaire, ce qui était cohérent tant qu'elle payait
+ * sa propre facture.
  */
 
 /**
@@ -74,65 +80,38 @@ function parseAnalysisResult(raw: unknown): AnalysisResult | null {
 }
 
 /**
- * Garde de la voie « clé serveur » : session obligatoire, puis quota horaire par compte.
+ * Les fournisseurs que le rapport peut réellement servir.
  *
- * Rend la réponse de refus, ou `null` quand la dépense est autorisée. La voie BYOK ne passe
- * jamais ici : elle ne dépense ni notre clé ni notre quota, et une friction y serait
- * gratuite. Ce n'est pas dire qu'elle ne touche à rien de nôtre — elle atteint
- * `recordAdvice`, donc le corpus. C'est `recordAdvice` qui borne cette écriture-là, en
- * refusant d'écrire sans identité ; cette garde ne couvre que la dépense.
+ * Le client rend ce que cette réponse contient plutôt que le catalogue : sans clé personnelle,
+ * proposer un fournisseur dont le serveur n'a pas la clé, c'est proposer un 401.
  */
-async function guardServerKey(): Promise<Response | null> {
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.email ?? session?.user?.name ?? '';
-  if (!userId) {
-    return jsonResponse({ error: 'Sign in, or provide your own API key' }, 401);
-  }
-
-  let by: string;
-  try {
-    by = hashUserId(userId);
-  } catch {
-    return jsonResponse({ error: 'AI reports unavailable' }, 503);
-  }
-
-  const verdict = await consumeAiQuota(by, Date.now());
-  if (verdict.unavailable) {
-    return jsonResponse({ error: 'AI reports unavailable' }, 503);
-  }
-  if (!verdict.allowed) {
-    return jsonResponse({ error: 'Hourly AI report quota reached' }, 429, {
-      'Retry-After': String(verdict.retryAfterSeconds),
-    });
-  }
-
-  return null;
-}
-
 export async function GET() {
-  const configured = PROVIDERS.filter((p) => envKeyFor(p.id)).map((p) => p.id);
-  return jsonResponse({ configuredProviders: configured });
+  return jsonResponse({ providers: servableProviders() });
 }
 
 export async function POST(req: Request) {
   try {
-    const headerKey = req.headers.get('x-ai-key')?.trim() ?? '';
-    const providerName = req.headers.get('x-ai-provider') ?? 'claude';
+    // Avant tout le reste : une génération se facture, elle exige donc un compte.
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.email ?? session?.user?.name ?? '';
+    if (!userId) return jsonResponse({ error: 'Sign in to generate an AI report' }, 401);
 
-    if (!isProvider(providerName)) {
-      const names = PROVIDERS.map((p) => p.id).join(', ');
-      return jsonResponse({ error: `Unknown AI provider — expected ${names}` }, 400);
+    const servable = servableProviders();
+    if (servable.length === 0) {
+      return jsonResponse({ error: 'AI reports unavailable' }, 503);
     }
 
-    // BYOK d'abord : qui fournit sa clé paie avec elle. La clé serveur n'est qu'un secours.
-    const apiKey = headerKey || envKeyFor(providerName);
-
-    if (!apiKey) {
+    const requested = req.headers.get('x-ai-provider')?.trim() || servable[0];
+    if (!isProvider(requested) || !servable.includes(requested)) {
       return jsonResponse(
-        { error: 'API key required — enter one in the UI or set it in the server environment' },
-        401
+        { error: `Unsupported AI provider — expected ${servable.join(', ')}` },
+        400
       );
     }
+    const providerName: Provider = requested;
+
+    // Non vide par construction : `servableProviders` ne retient que ceux qui ont une clé.
+    const apiKey = envKeyFor(providerName);
 
     const requestedModel = req.headers.get('x-ai-model');
     if (
@@ -168,10 +147,8 @@ export async function POST(req: Request) {
 
     // Après validation du corps : un quota se dépense sur une requête qui produira vraiment
     // un rapport, pas sur une qu'on s'apprête à refuser.
-    if (!headerKey) {
-      const refusal = await guardServerKey();
-      if (refusal) return refusal;
-    }
+    const refusal = await guardAiSpend(userId, 'AI reports');
+    if (refusal) return refusal;
 
     const provider = makeProvider(providerName, apiKey, groqModel);
 
@@ -221,7 +198,10 @@ export async function POST(req: Request) {
           await recordUsage(boss.renderId, {
             surface: 'report',
             turn: null,
-            serverKey: !headerKey,
+            // Toujours vrai depuis le retrait du BYOK. Le champ reste : le corpus porte des
+            // enregistrements antérieurs où il est faux, et les additionner sans lui ferait
+            // passer notre budget d'inférence pour plus qu'il n'était.
+            serverKey: true,
             provider: providerName,
             usage,
           });

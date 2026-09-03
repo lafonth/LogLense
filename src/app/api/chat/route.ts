@@ -4,7 +4,7 @@ import type { AIStreamChunk, ChatTurn, ToolCapableProvider, UsageData } from '@/
 import type { PromotionSubject } from '@/lib/wcl/promote';
 import type { BossResult, ReferenceSample, SnapshotRef, TopPlayer } from '@/types';
 import { getServerSession } from 'next-auth/next';
-import { CHAT_PROVIDERS, envKeyFor, isChatProvider } from '@/lib/ai/catalog';
+import { CHAT_PROVIDERS, envKeyFor, isChatProvider, servableProviders } from '@/lib/ai/catalog';
 
 import { runChatLoop } from '@/lib/ai/chat-loop';
 import { buildChatSystemPrompt } from '@/lib/ai/chat-prompt';
@@ -12,12 +12,11 @@ import { subjectKillTimeMs } from '@/lib/ai/chat-tools';
 import { ClaudeProvider } from '@/lib/ai/claude';
 import { GeminiProvider } from '@/lib/ai/gemini';
 import { OpenAIProvider } from '@/lib/ai/openai';
+import { guardAiSpend } from '@/lib/api/ai-guard';
 import { logRouteError } from '@/lib/api/log-error';
 import { isNum, isRecord, isStr } from '@/lib/api/parse';
 import { guardWclSpend, PROMOTION_UNITS } from '@/lib/api/wcl-guard';
 import { authOptions } from '@/lib/auth';
-import { hashUserId } from '@/lib/labels/identity';
-import { consumeAiQuota } from '@/lib/labels/rate-limit';
 import { recordChat } from '@/lib/labels/record-chat';
 import { recordUsage } from '@/lib/labels/record-usage';
 import { getTalentNodes } from '@/lib/talent-loader';
@@ -33,12 +32,13 @@ export const runtime = 'nodejs';
  *
  * Deux propriétés distinguent cette route de `/api/ai-report`, et aucune n'est négociable.
  *
- * **La session est exigée pour toute requête, BYOK comprise.** Le rapport laisse passer qui
- * apporte sa clé : il ne dépense alors ni la nôtre ni notre quota, et son corps porte déjà
- * l'analyse. Ici le corps ne porte qu'une désignation, et la réponse tient à une lecture
- * d'instantané — donc à une analyse dérivée de Warcraft Logs. C'est §2a des CGU : ce que
+ * **La session est exigée avant tout le reste.** Elle l'a toujours été ici, y compris du temps
+ * où une clé personnelle dispensait le rapport de compte : le corps du rapport portait déjà son
+ * analyse, celui-ci ne porte qu'une désignation, et la réponse tient à une lecture d'instantané
+ * — donc à une analyse dérivée de Warcraft Logs. C'est §2a des CGU : ce que
  * `guardMeteredWclSpend` garantit ailleurs par sa réservation, on le tient ici par le 401.
- * Une clé personnelle achète le modèle, pas le droit de lire nos données.
+ * Depuis le retrait du BYOK, le rapport exige la même chose, et pour une raison de plus : il n'y
+ * a plus d'autre clé que la nôtre.
  *
  * **Le client désigne l'instantané, il ne le nomme pas.** Le corps porte les champs du
  * pipeline — royaume, personnage, rencontre — et la clé Redis se reforme ici. Accepter une clé
@@ -188,32 +188,6 @@ function makePromoter(boss: BossResult): (sample: ReferenceSample) => Promise<Ch
 }
 
 /**
- * Garde de la voie « clé serveur » : le même quota horaire que le rapport.
- *
- * Partagé volontairement, et non dédoublé : vingt rapports ou vingt tours de chat coûtent le
- * même modèle au même compte, et deux compteurs séparés doubleraient le budget d'un abus sans
- * rien changer pour un usage normal.
- */
-async function guardAiSpend(userId: string): Promise<Response | null> {
-  let by: string;
-  try {
-    by = hashUserId(userId);
-  } catch {
-    return jsonResponse({ error: 'Chat unavailable' }, 503);
-  }
-
-  const verdict = await consumeAiQuota(by, Date.now());
-  if (verdict.unavailable) return jsonResponse({ error: 'Chat unavailable' }, 503);
-  if (!verdict.allowed) {
-    return jsonResponse({ error: 'Hourly AI quota reached' }, 429, {
-      'Retry-After': String(verdict.retryAfterSeconds),
-    });
-  }
-
-  return null;
-}
-
-/**
  * Le fournisseur, à partir d'un nom déjà validé.
  *
  * Le type de retour est `ToolCapableProvider` : ajouter ici un fournisseur qui n'implémente pas
@@ -227,14 +201,13 @@ function makeProvider(name: Provider, apiKey: string): ToolCapableProvider {
 }
 
 /**
- * Les fournisseurs que le chat peut servir sans clé personnelle.
+ * Les fournisseurs que le chat peut réellement servir.
  *
  * Séparé du `GET` de `/api/ai-report` : celui-là répond pour le rapport, qui accepte Groq. Les
  * lire au même endroit ferait proposer dans le chat un fournisseur que la route refuse en 400.
  */
 export async function GET() {
-  const configured = CHAT_PROVIDERS.filter((p) => envKeyFor(p.id)).map((p) => p.id);
-  return jsonResponse({ configuredProviders: configured });
+  return jsonResponse({ providers: servableProviders(CHAT_PROVIDERS) });
 }
 
 export async function POST(req: Request) {
@@ -244,22 +217,22 @@ export async function POST(req: Request) {
     const userId = session?.user?.email ?? session?.user?.name ?? '';
     if (!userId) return jsonResponse({ error: 'Sign in to use the chat' }, 401);
 
-    const requested = req.headers.get('x-ai-provider')?.trim() || 'claude';
-    if (!isChatProvider(requested)) {
-      const names = CHAT_PROVIDERS.map((p) => p.id).join(', ');
-      return jsonResponse({ error: `Unsupported chat provider — expected ${names}` }, 400);
+    const servable = servableProviders(CHAT_PROVIDERS);
+    if (servable.length === 0) {
+      return jsonResponse({ error: 'Chat unavailable' }, 503);
+    }
+
+    const requested = req.headers.get('x-ai-provider')?.trim() || servable[0];
+    if (!isChatProvider(requested) || !servable.includes(requested)) {
+      return jsonResponse(
+        { error: `Unsupported chat provider — expected ${servable.join(', ')}` },
+        400
+      );
     }
     const providerName: Provider = requested;
 
-    const headerKey = req.headers.get('x-ai-key')?.trim() ?? '';
-    // BYOK d'abord, comme le rapport : qui fournit sa clé paie avec elle.
-    const apiKey = headerKey || envKeyFor(providerName);
-    if (!apiKey) {
-      return jsonResponse(
-        { error: 'API key required — enter one in the UI or set it in the server environment' },
-        401
-      );
-    }
+    // Non vide par construction : `servableProviders` ne retient que ceux qui ont une clé.
+    const apiKey = envKeyFor(providerName);
 
     const declared = Number(req.headers.get('content-length'));
     if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
@@ -292,11 +265,9 @@ export async function POST(req: Request) {
     }
 
     // Après validation et après l'instantané : un quota se dépense sur une requête qui produira
-    // vraiment une réponse. La voie BYOK ne le touche pas — elle ne dépense pas notre clé.
-    if (!headerKey) {
-      const refusal = await guardAiSpend(userId);
-      if (refusal) return refusal;
-    }
+    // vraiment une réponse. Plus aucune voie ne l'évite depuis le retrait du BYOK.
+    const refusal = await guardAiSpend(userId, 'Chat');
+    if (refusal) return refusal;
 
     const provider = makeProvider(providerName, apiKey);
     const systemPrompt = buildChatSystemPrompt(boss, getTalentNodes(boss.specId));
@@ -361,7 +332,8 @@ export async function POST(req: Request) {
         await recordUsage(boss.renderId, {
           surface: 'chat',
           turn,
-          serverKey: !headerKey,
+          // Toujours vrai depuis le retrait du BYOK — voir le champ dans `usage.ts`.
+          serverKey: true,
           provider: providerName,
           usage,
         });

@@ -95,6 +95,11 @@ function toMessages(turns: ChatTurn[]): Anthropic.MessageParam[] {
   // Le bloc de queue sort toujours de cette fonction meme : texte, `tool_use` ou `tool_result`,
   // et les trois portent `cache_control`. L'union le refuse a cause des blocs `thinking`, que
   // nous n'emettons jamais — d'ou l'assertion, qui ne couvre que ce cas-la.
+  //
+  // Cinq minutes ici, contrairement au prompt système : ce point de coupure se déplace à chaque
+  // appel, et ses relectures sont celles d'une boucle d'outils — quelques secondes. Payer une
+  // rétention d'une heure sur un préfixe réécrit au tour suivant serait du double tarif pour
+  // rien.
   blocks[blocks.length - 1] = {
     ...tail,
     cache_control: { type: 'ephemeral' },
@@ -122,7 +127,21 @@ export class ClaudeProvider implements AIProvider, ToolCapableProvider {
             max_tokens: 1500,
             // Le prompt système est fixe et fait le gros de l'entrée facturée : le mettre en
             // cache est le seul levier de coût qui ne change rien au produit.
-            system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+            //
+            // Une heure et non cinq minutes, le défaut. Ce préfixe-là ne sert pas un tour à
+            // l'autre d'une même conversation mais un rapport à l'autre, tous comptes confondus
+            // — le cache est celui de la clé, pas celui de l'utilisateur. Avec cinq minutes, un
+            // trafic de bêta n'y touche presque jamais deux fois. L'écriture coûte le double du
+            // tarif plein au lieu d'un quart en plus, la lecture rescapée en économise neuf
+            // dixièmes : il suffit que cinq écritures sur six soient relues une fois pour que le
+            // choix soit gagnant, et à ce rythme-là elles le sont toutes.
+            system: [
+              {
+                type: 'text',
+                text: systemPrompt,
+                cache_control: { type: 'ephemeral', ttl: '1h' },
+              },
+            ],
             messages: [{ role: 'user', content: prompt }],
           });
 
@@ -179,9 +198,17 @@ export class ClaudeProvider implements AIProvider, ToolCapableProvider {
           const stream = client.messages.stream({
             model: CLAUDE_MODEL,
             max_tokens: CHAT_MAX_TOKENS,
-            // Même raison qu'au rapport : le contexte du boss est fixe pour toute la
-            // conversation, et c'est lui qui fait le gros de l'entrée facturée.
-            system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+            // Même raison qu'au rapport, et même heure de rétention : le contexte du boss est
+            // fixe pour toute la conversation, et c'est lui qui fait le gros de l'entrée
+            // facturée. Ici la relecture est celle d'un tour à l'autre — quelques minutes de
+            // rédaction entre deux questions passent la fenêtre de cinq minutes sans mal.
+            system: [
+              {
+                type: 'text',
+                text: systemPrompt,
+                cache_control: { type: 'ephemeral', ttl: '1h' },
+              },
+            ],
             tools: tools.map((t) => ({
               name: t.name,
               description: t.description,

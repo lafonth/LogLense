@@ -173,8 +173,10 @@ src/lib/comparison/
 src/lib/ai/
   prompt.ts           Le prompt du rapport one-shot, PROMPT_VERSION comprise
   provider.ts         Les types partagés : AIProvider, ToolCapableProvider, ChatTurn
-  catalog.ts          Les fournisseurs : libellé, clé de stockage, variable d'env, outillé ou non.
-                      La seule liste — route et interface la lisent toutes deux
+  catalog.ts          Les fournisseurs : libellé, variable d'env, outillé ou non. `servableProviders`
+                      croise l'offre du déploiement (`AI_PROVIDERS`, Claude seul par défaut) avec
+                      les clés réellement posées : les deux `GET` en font leur réponse et les deux
+                      `POST` leur liste fermée. Plus rien n'y décrit de clé personnelle
   claude.ts gemini.ts openai.ts
                       Rapport et chat : ils implémentent `streamTurn`
   groq.ts             Rapport one-shot seulement : pas d'outils, donc pas de chat
@@ -186,6 +188,10 @@ src/lib/api/
   parse.ts            Validation des corps de requête — un `as` sur `req.json()` ne vérifie rien
   response-error.ts   Ce qu'une réponse en échec dit au client, `Retry-After` compris
   wcl-guard.ts        Ce qu'un compte a le droit de dépenser chez WCL avant d'être refusé
+  ai-guard.ts         La même paire pour l'IA : quota du compte, puis quota commun à tous les
+                      comptes — le second seulement si le premier a laissé passer, sinon un seul
+                      appelant qui martèle fermerait la porte aux autres. Les deux routes d'IA
+                      l'appellent après validation du corps
 src/lib/labels/
   corpus.ts           Écriture bornée par mois, jamais purgée : le corpus est l'actif
   record-exposure.ts  Capture de ce qui a été rendu, avec la provenance du DPS
@@ -269,9 +275,9 @@ Le différenciateur, et la seule partie outillée du produit. Il relit l'instant
 `BossResult` (`result-snapshot.ts`, 24 h) et rejoue la cohorte à la demande. Quatre invariants,
 tous portés par `src/app/api/chat/route.ts` :
 
-- **La session est exigée pour toute requête, BYOK comprise.** Une clé personnelle achète le
-  modèle, pas le droit de lire nos données dérivées de Warcraft Logs. Le rapport, lui, laisse
-  passer qui apporte sa clé — son corps porte déjà l'analyse.
+- **La session est exigée avant tout le reste.** Lire un instantané, c'est lire une analyse
+  dérivée de Warcraft Logs. Le rapport l'exige désormais aussi : depuis le retrait du BYOK il
+  n'y a plus d'autre clé que la nôtre, et chaque génération se facture.
 - **Le client désigne l'instantané, il ne le nomme pas.** La clé Redis se reforme côté serveur
   depuis royaume / personnage / rencontre. Accepter une clé toute faite laisserait lire le cache
   d'un autre joueur.
@@ -283,9 +289,9 @@ tous portés par `src/app/api/chat/route.ts` :
 
 Le chat exige `ToolCapableProvider` (`streamTurn`) et non `AIProvider` : un fournisseur sans
 outils est refusé à la compilation, jamais au premier appel d'outil ignoré. Claude, Gemini et
-OpenAI le servent ; Groq reste au rapport. La liste admissible est `CHAT_PROVIDERS` — le chat
-choisit son fournisseur sous sa propre clé de stockage, sinon un rapport laissé sur Groq
-ouvrirait le chat sur un fournisseur que la route refuse en 400.
+OpenAI le servent ; Groq reste au rapport. La liste admissible est `servableProviders(CHAT_PROVIDERS)`,
+et le client la reçoit du `GET` plutôt que de la déduire du catalogue : sans clé personnelle,
+proposer un fournisseur dont le serveur n'a pas la clé, c'est proposer un 503.
 
 ## Interface : tokens et primitives
 

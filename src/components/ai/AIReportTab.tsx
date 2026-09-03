@@ -5,16 +5,14 @@ import type { Provider } from '@/lib/ai/catalog';
 import type { GroqModelId } from '@/lib/ai/groq';
 import type { AnalysisInput, AnalysisResult, BossResult } from '@/types';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
-import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { useAIReport } from '@/hooks/useAIReport';
-import { useProvider } from '@/hooks/useProvider';
-import { useProviderKeys } from '@/hooks/useProviderKeys';
-import { providerInfo, PROVIDERS } from '@/lib/ai/catalog';
+import { useServedProviders } from '@/hooks/useServedProviders';
+import { providerInfo } from '@/lib/ai/catalog';
 import { DEFAULT_GROQ_MODEL, GROQ_MODELS } from '@/lib/ai/groq';
 import { buildAnalysisPrompt } from '@/lib/ai/prompt';
 import { isBossResult } from '@/lib/boss-outcome';
@@ -29,9 +27,7 @@ interface AIReportTabProps {
 }
 
 export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTabProps) {
-  const [provider, setProvider] = useProvider('loglense_ai_provider', PROVIDERS, 'groq');
-  const [apiKey, setApiKey] = useProviderKeys()[provider];
-  const [serverProviders, setServerProviders] = useState<string[]>([]);
+  const { served, provider, setProvider } = useServedProviders('/api/ai-report');
   const [selectedBossIdx, setSelectedBossIdx] = useState<number>(() => {
     const first = bossStates.findIndex((s) => s.status === 'success' && s.result !== null);
     return first >= 0 ? first : 0;
@@ -64,16 +60,6 @@ export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTab
     if (idx >= 0) setSelectedBossIdx(idx);
   }
 
-  useEffect(() => {
-    fetch('/api/ai-report')
-      .then((r) => r.json())
-      .then((d: { configuredProviders: string[] }) => setServerProviders(d.configuredProviders))
-      .catch(() => {});
-  }, []);
-
-  const active = providerInfo(provider);
-  const serverHasKey = serverProviders.includes(provider);
-
   const availableBosses = bossStates
     .map((s, i) => ({
       boss: s.status === 'success' && s.result ? s.result : null,
@@ -92,8 +78,8 @@ export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTab
   }
 
   function handleGenerate() {
-    if (!serverHasKey && !apiKey.trim()) return;
-    start(buildPayload(), apiKey.trim(), provider, provider === 'groq' ? groqModel : undefined);
+    if (!provider) return;
+    start(buildPayload(), provider, provider === 'groq' ? groqModel : undefined);
   }
 
   function handleDownloadPrompt() {
@@ -118,7 +104,7 @@ export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTab
     setSelectedBossIdx(Number(value));
   }
 
-  const canGenerate = serverHasKey || !!apiKey.trim();
+  const canGenerate = provider !== null;
 
   // Le boss dont le rapport parle, pas celui de la barre latérale : c'est son `renderId` que
   // le serveur a enregistré en empreinte du conseil.
@@ -131,21 +117,24 @@ export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTab
 
   return (
     <div className="max-w-[760px] py-6">
-      {/* Provider picker */}
-      <div className="mb-4">
-        <Select
-          label="Provider"
-          value={provider}
-          disabled={loading}
-          onChange={(e) => setProvider(e.target.value as Provider)}
-        >
-          {PROVIDERS.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
-          ))}
-        </Select>
-      </div>
+      {/* Provider picker — masqué quand le déploiement n'en offre qu'un : un menu à une entrée
+          fait passer pour un réglage ce qui n'est pas un choix. */}
+      {served.length > 1 && provider && (
+        <div className="mb-4">
+          <Select
+            label="Provider"
+            value={provider}
+            disabled={loading}
+            onChange={(e) => setProvider(e.target.value as Provider)}
+          >
+            {served.map((id) => (
+              <option key={id} value={id}>
+                {providerInfo(id).label}
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
 
       {/* Groq model selector */}
       {provider === 'groq' && (
@@ -199,25 +188,8 @@ export function AIReportTab({ bossStates, input, activeBossResult }: AIReportTab
         </div>
       )}
 
-      {/* Key input + action */}
-      <div className="mb-6 flex flex-wrap items-end gap-3">
-        <div className="min-w-0 flex-1">
-          {serverHasKey ? (
-            <p className="text-dim m-0 font-mono text-xs">
-              <span className="text-muted mr-1.5">●</span>
-              {active.keyLabel} configured on server
-            </p>
-          ) : (
-            <Input
-              type="password"
-              label={`${active.keyLabel} — ${active.keyHint}`}
-              placeholder={active.placeholder}
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              disabled={loading}
-            />
-          )}
-        </div>
+      {/* Action row */}
+      <div className="mb-6 flex flex-wrap items-center gap-3">
         <Button
           variant="ghost"
           size="sm"

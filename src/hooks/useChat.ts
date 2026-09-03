@@ -36,11 +36,11 @@ const MAX_SENT_MESSAGES = 24;
  * `[DONE]`, trames `_meta: 'usage'`. Ce qui change est la destination du texte : il s'écrit
  * dans le dernier message de la liste au lieu d'un état à lui.
  *
- * `provider` voyage en en-tête, comme la clé et comme dans le rapport : le corps porte la
- * conversation, pas la façon de la servir. Il part toujours, clé personnelle ou non — sans lui
- * la route retomberait sur Claude, et l'utilisateur paierait un modèle qu'il n'a pas choisi.
+ * `provider` voyage en en-tête et non dans le corps : celui-ci porte la conversation, pas la
+ * façon de la servir. Il vaut `null` tant que la route n'a pas dit ce qu'elle sert — c'est elle
+ * qui arbitre, le catalogue du client ne dit rien des clés réellement posées.
  */
-export function useChat(snapshot: SnapshotRef | undefined, apiKey: string, provider: Provider) {
+export function useChat(snapshot: SnapshotRef | undefined, provider: Provider | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -59,6 +59,9 @@ export function useChat(snapshot: SnapshotRef | undefined, apiKey: string, provi
         setError('This analysis cannot be chatted about — run it again.');
         return;
       }
+      // Rien à envoyer tant que la route n'a annoncé aucun fournisseur : le bouton est déjà
+      // désactivé dans ce cas, la garde couvre l'appel programmatique.
+      if (!provider) return;
 
       setError(null);
       setUsage(null);
@@ -88,7 +91,6 @@ export function useChat(snapshot: SnapshotRef | undefined, apiKey: string, provi
           headers: {
             'Content-Type': 'application/json',
             'x-ai-provider': provider,
-            ...(apiKey ? { 'x-ai-key': apiKey } : {}),
           },
           body: JSON.stringify({
             snapshot,
@@ -152,7 +154,7 @@ export function useChat(snapshot: SnapshotRef | undefined, apiKey: string, provi
         setLoading(false);
       }
     },
-    [apiKey, loading, messages, provider, snapshot]
+    [loading, messages, provider, snapshot]
   );
 
   const reset = useCallback(() => {

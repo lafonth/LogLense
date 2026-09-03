@@ -1,19 +1,28 @@
 import type { AIStreamChunk } from '@/lib/ai/provider';
 import type { BossResult } from '@/types';
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AI_GLOBAL_LIMIT, AI_GLOBAL_SUBJECT, AI_LIMIT } from '@/lib/labels/rate-limit';
 import { GET, POST } from '../route';
 
-const { getServerSession, readSnapshot, runChatLoop, consumeAiQuota, recordChat } = vi.hoisted(
-  () => ({
-    getServerSession: vi.fn(),
-    readSnapshot: vi.fn(),
-    runChatLoop: vi.fn(),
-    consumeAiQuota: vi.fn(),
-    recordChat: vi.fn(),
-  })
-);
+const {
+  getServerSession,
+  readSnapshot,
+  runChatLoop,
+  recordChat,
+  redisAppend,
+  redisIncrBy,
+  redisExpire,
+} = vi.hoisted(() => ({
+  getServerSession: vi.fn(),
+  readSnapshot: vi.fn(),
+  runChatLoop: vi.fn(),
+  recordChat: vi.fn(),
+  redisAppend: vi.fn(),
+  redisIncrBy: vi.fn(),
+  redisExpire: vi.fn(),
+}));
 
 vi.mock('next-auth/next', () => ({ getServerSession }));
 vi.mock('@/lib/auth', () => ({ authOptions: {} }));
@@ -27,8 +36,10 @@ vi.mock('@/lib/ai/chat-prompt', () => ({
 }));
 vi.mock('@/lib/ai/chat-loop', () => ({ runChatLoop }));
 vi.mock('@/lib/labels/record-chat', () => ({ recordChat }));
-vi.mock('@/lib/labels/rate-limit', () => ({ consumeAiQuota }));
-vi.mock('@/lib/labels/identity', () => ({ hashUserId: vi.fn().mockReturnValue('hashed') }));
+
+// Redis plutôt que `rate-limit` : c'est la paire de compteurs qu'on veut voir tourner, pas un
+// verdict qu'on aurait posé soi-même.
+vi.mock('@/lib/redis', () => ({ redisAppend, redisIncrBy, redisExpire }));
 
 vi.mock('@/lib/ai/claude', () => ({ ClaudeProvider: vi.fn() }));
 vi.mock('@/lib/ai/gemini', () => ({ GeminiProvider: vi.fn() }));
@@ -61,16 +72,18 @@ function makeRequest(headers: Record<string, string> = {}): Request {
   });
 }
 
-const AI_KEYS = ['ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'OPENAI_API_KEY', 'GROQ_API_KEY'] as const;
-
 beforeEach(() => {
   vi.clearAllMocks();
-  for (const k of AI_KEYS) delete process.env[k];
+  vi.unstubAllEnvs();
+  vi.stubEnv('LABEL_SALT', 'pepper');
+  vi.stubEnv('ANTHROPIC_API_KEY', 'sk-ant-serveur');
 
   getServerSession.mockResolvedValue({ user: { email: 'raider@example.com' } });
   readSnapshot.mockResolvedValue(mockBoss);
-  consumeAiQuota.mockResolvedValue({ allowed: true });
   recordChat.mockResolvedValue(undefined);
+  redisIncrBy.mockResolvedValue(1);
+  redisExpire.mockResolvedValue(undefined);
+  redisAppend.mockResolvedValue(undefined);
   runChatLoop.mockReturnValue(
     new ReadableStream<AIStreamChunk>({
       start(controller) {
@@ -81,107 +94,171 @@ beforeEach(() => {
   );
 });
 
-afterEach(() => {
-  for (const k of AI_KEYS) delete process.env[k];
-});
-
 describe('chat route — le fournisseur', () => {
-  it('retombe sur Claude quand aucun en-tête ne le désigne', async () => {
+  it('spends the server key when no header names a provider', async () => {
+    const { ClaudeProvider } = await import('@/lib/ai/claude');
+
+    const res = await POST(makeRequest());
+
+    expect(res.status).toBe(200);
+    expect(ClaudeProvider).toHaveBeenCalledWith('sk-ant-serveur');
+  });
+
+  // La clé personnelle n'achetait le modèle qu'à condition de payer sa facture. Elle n'existe
+  // plus : l'en-tête est du texte inerte, et la requête passe sur notre clé et notre quota.
+  it('ignores a key brought by the caller', async () => {
     const { ClaudeProvider } = await import('@/lib/ai/claude');
 
     const res = await POST(makeRequest({ 'x-ai-key': 'sk-ant-perso' }));
 
     expect(res.status).toBe(200);
-    expect(ClaudeProvider).toHaveBeenCalledWith('sk-ant-perso');
+    expect(ClaudeProvider).toHaveBeenCalledWith('sk-ant-serveur');
+    expect(redisIncrBy).toHaveBeenCalled();
   });
 
-  it('construit GeminiProvider quand x-ai-provider vaut gemini', async () => {
+  it('builds GeminiProvider when the deployment offers it', async () => {
+    vi.stubEnv('AI_PROVIDERS', 'claude,gemini');
+    vi.stubEnv('GEMINI_API_KEY', 'AIza-serveur');
     const { GeminiProvider } = await import('@/lib/ai/gemini');
 
-    const res = await POST(makeRequest({ 'x-ai-key': 'AIza-perso', 'x-ai-provider': 'gemini' }));
+    const res = await POST(makeRequest({ 'x-ai-provider': 'gemini' }));
 
     expect(res.status).toBe(200);
-    expect(GeminiProvider).toHaveBeenCalledWith('AIza-perso');
+    expect(GeminiProvider).toHaveBeenCalledWith('AIza-serveur');
   });
 
-  it('construit OpenAIProvider quand x-ai-provider vaut openai', async () => {
-    const { OpenAIProvider } = await import('@/lib/ai/openai');
-
-    const res = await POST(makeRequest({ 'x-ai-key': 'sk-perso', 'x-ai-provider': 'openai' }));
-
-    expect(res.status).toBe(200);
-    expect(OpenAIProvider).toHaveBeenCalledWith('sk-perso');
-  });
-
-  // Groq n'implémente pas `streamTurn`. Le refuser ici plutôt que retomber en silence sur Claude :
-  // sinon notre clé paie pour un fournisseur que l'utilisateur croyait avoir choisi.
-  it('refuse Groq en 400, sans retomber sur Claude', async () => {
-    const { ClaudeProvider } = await import('@/lib/ai/claude');
-
-    const res = await POST(makeRequest({ 'x-ai-key': 'gsk-perso', 'x-ai-provider': 'groq' }));
-
-    expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({
-      error: 'Unsupported chat provider — expected gemini, claude, openai',
-    });
-    expect(ClaudeProvider).not.toHaveBeenCalled();
-  });
-
-  it('refuse un nom de fournisseur inconnu en 400', async () => {
-    const res = await POST(makeRequest({ 'x-ai-key': 'k', 'x-ai-provider': 'mistral' }));
-
-    expect(res.status).toBe(400);
-  });
-
-  it('accepte la clé serveur du fournisseur demandé, sans en-tête de clé', async () => {
-    process.env.OPENAI_API_KEY = 'sk-serveur';
+  it('builds OpenAIProvider when the deployment offers it', async () => {
+    vi.stubEnv('AI_PROVIDERS', 'openai');
+    vi.stubEnv('OPENAI_API_KEY', 'sk-serveur');
     const { OpenAIProvider } = await import('@/lib/ai/openai');
 
     const res = await POST(makeRequest({ 'x-ai-provider': 'openai' }));
 
     expect(res.status).toBe(200);
     expect(OpenAIProvider).toHaveBeenCalledWith('sk-serveur');
-    // Voie clé serveur : le quota se dépense, contrairement au BYOK.
-    expect(consumeAiQuota).toHaveBeenCalled();
   });
 
-  // La clé serveur de Claude ne rend pas OpenAI utilisable : chaque fournisseur lit la sienne.
-  it("refuse en 401 quand aucune clé n'existe pour le fournisseur demandé", async () => {
-    process.env.ANTHROPIC_API_KEY = 'sk-ant-serveur';
+  // Groq n'implémente pas `streamTurn`. Le refuser ici plutôt que retomber en silence sur Claude :
+  // sinon notre clé paie pour un fournisseur que l'utilisateur croyait avoir choisi.
+  it('refuses Groq in 400, offered and keyed as it may be', async () => {
+    vi.stubEnv('AI_PROVIDERS', 'claude,groq');
+    vi.stubEnv('GROQ_API_KEY', 'gsk-serveur');
+    const { ClaudeProvider } = await import('@/lib/ai/claude');
+
+    const res = await POST(makeRequest({ 'x-ai-provider': 'groq' }));
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      error: 'Unsupported chat provider — expected claude',
+    });
+    expect(ClaudeProvider).not.toHaveBeenCalled();
+  });
+
+  it('refuses an unknown provider name in 400', async () => {
+    const res = await POST(makeRequest({ 'x-ai-provider': 'mistral' }));
+
+    expect(res.status).toBe(400);
+  });
+
+  // Le catalogue reste dans le code, l'offre non : une clé posée ne suffit pas à rouvrir un
+  // fournisseur que le déploiement ne propose pas.
+  it('refuses a keyed provider the deployment does not offer', async () => {
+    vi.stubEnv('OPENAI_API_KEY', 'sk-serveur');
+    const { OpenAIProvider } = await import('@/lib/ai/openai');
 
     const res = await POST(makeRequest({ 'x-ai-provider': 'openai' }));
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(400);
+    expect(OpenAIProvider).not.toHaveBeenCalled();
   });
 
-  // La session est exigée avant tout le reste, BYOK comprise : une clé personnelle achète le
-  // modèle, pas le droit de lire nos données dérivées de Warcraft Logs.
-  it('exige la session même avec une clé personnelle', async () => {
+  it('refuses in 503 when nothing is both offered and keyed', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', '');
+
+    const res = await POST(makeRequest());
+
+    expect(res.status).toBe(503);
+  });
+
+  // La session est exigée avant tout le reste : lire un instantané, c'est lire une analyse
+  // dérivée de Warcraft Logs.
+  it('demands the session before touching the snapshot', async () => {
     getServerSession.mockResolvedValue(null);
 
-    const res = await POST(makeRequest({ 'x-ai-key': 'sk-perso', 'x-ai-provider': 'openai' }));
+    const res = await POST(makeRequest());
 
     expect(res.status).toBe(401);
     expect(readSnapshot).not.toHaveBeenCalled();
   });
 });
 
-describe('chat route — les fournisseurs configurés', () => {
-  it('ne liste que les fournisseurs outillés dont la clé serveur existe', async () => {
-    process.env.OPENAI_API_KEY = 'sk-serveur';
-    process.env.GROQ_API_KEY = 'gsk-serveur';
+describe('chat route — le quota', () => {
+  it('counts the turn against the account, then against everyone', async () => {
+    const res = await POST(makeRequest());
+
+    expect(res.status).toBe(200);
+    expect(redisIncrBy).toHaveBeenCalledTimes(2);
+    const [account, shared] = vi.mocked(redisIncrBy).mock.calls.map((c) => String(c[0]));
+    expect(account).toContain('ratelimit:ai');
+    expect(account).not.toContain(`:${AI_GLOBAL_SUBJECT}:`);
+    expect(shared).toContain(`ratelimit:ai:${AI_GLOBAL_SUBJECT}:`);
+  });
+
+  it('refuses in 429 past the account ceiling', async () => {
+    redisIncrBy.mockResolvedValue(AI_LIMIT + 1);
+
+    const res = await POST(makeRequest());
+
+    expect(res.status).toBe(429);
+    expect(Number(res.headers.get('Retry-After'))).toBeGreaterThan(0);
+  });
+
+  it('refuses in 429 past the shared ceiling, account in order', async () => {
+    redisIncrBy.mockResolvedValueOnce(1).mockResolvedValueOnce(AI_GLOBAL_LIMIT + 1);
+
+    const res = await POST(makeRequest());
+
+    expect(res.status).toBe(429);
+  });
+
+  // Le quota se dépense sur un tour qui produira une réponse. Un instantané expiré n'en produit
+  // pas : le compteur ne bouge pas.
+  it('charges nothing once the snapshot has expired', async () => {
+    readSnapshot.mockResolvedValue(null);
+
+    const res = await POST(makeRequest());
+
+    expect(res.status).toBe(410);
+    expect(redisIncrBy).not.toHaveBeenCalled();
+  });
+});
+
+describe('chat route — les fournisseurs servis', () => {
+  it('serves Claude alone while nothing widens the offer', async () => {
+    vi.stubEnv('OPENAI_API_KEY', 'sk-serveur');
 
     const res = await GET();
 
     expect(res.status).toBe(200);
-    // Groq a beau être configuré, il n'est pas outillé : le proposer ferait promettre au chat un
-    // fournisseur que le POST refuse en 400.
-    expect(await res.json()).toEqual({ configuredProviders: ['openai'] });
+    expect(await res.json()).toEqual({ providers: ['claude'] });
   });
 
-  it("rend une liste vide quand aucune clé serveur n'est posée", async () => {
+  it('announces only the tool-capable, offered and keyed', async () => {
+    vi.stubEnv('AI_PROVIDERS', 'groq,claude,openai');
+    vi.stubEnv('GROQ_API_KEY', 'gsk-serveur');
+
     const res = await GET();
 
-    expect(await res.json()).toEqual({ configuredProviders: [] });
+    // Groq a beau être offert et configuré, il n'est pas outillé : le proposer ferait promettre
+    // au chat un fournisseur que le POST refuse en 400. OpenAI est offert sans clé.
+    expect(await res.json()).toEqual({ providers: ['claude'] });
+  });
+
+  it('returns an empty list when no server key is set', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', '');
+
+    const res = await GET();
+
+    expect(await res.json()).toEqual({ providers: [] });
   });
 });
