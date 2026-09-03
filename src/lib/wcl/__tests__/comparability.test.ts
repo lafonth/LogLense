@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { comparabilityLevel, medianOf, scoreCandidate, selectClosest } from '../comparability';
+import {
+  comparabilityLevel,
+  matchPercent,
+  medianOf,
+  scoreCandidate,
+  selectClosest,
+} from '../comparability';
 
 const MY_ILVL = 284;
 const MY_MS = 300000; // 5:00
@@ -144,5 +150,59 @@ describe('medianOf', () => {
 
   it('returns null for an empty list', () => {
     expect(medianOf([])).toBeNull();
+  });
+});
+
+describe('matchPercent', () => {
+  it('is 100% for a candidate identical to the player', () => {
+    expect(matchPercent(0)).toBe(100);
+  });
+
+  // Les deux ancres documentées de l'échelle : ce sont les seuils sur lesquels
+  // `comparabilityLevel` tranche déjà, donc les deux lectures ne peuvent pas diverger.
+  it('lands on the two thresholds the comparability level rules on', () => {
+    expect(matchPercent(1)).toBe(75);
+    expect(matchPercent(2)).toBe(50);
+  });
+
+  it('agrees with the level of a panel whose references all sit at the same distance', () => {
+    const panel = (d: number) => [{ candidate: null, distance: d }];
+
+    expect(comparabilityLevel(panel(1))).toBe('close');
+    expect(matchPercent(1)).toBeGreaterThanOrEqual(75);
+
+    expect(comparabilityLevel(panel(2))).toBe('approximate');
+    expect(matchPercent(2)).toBeGreaterThanOrEqual(50);
+
+    expect(comparabilityLevel(panel(2.5))).toBe('poor');
+    expect(matchPercent(2.5)).toBeLessThan(50);
+  });
+
+  // La jointure entre la droite et la queue : même valeur et même pente, sinon le chiffre
+  // sauterait sur deux candidats que la sélection considère quasi identiques.
+  it('does not jump at the seam between the linear stretch and the tail', () => {
+    expect(matchPercent(1.99)).toBe(50); // 50.25, arrondi
+    expect(matchPercent(2.01)).toBe(50); // 49.75, arrondi
+  });
+
+  it('decreases without ever reaching zero on a scored candidate', () => {
+    expect(matchPercent(4)).toBe(25);
+    expect(matchPercent(10)).toBe(10);
+    expect(matchPercent(10000)).toBe(1);
+  });
+
+  it('never reads higher for a farther candidate', () => {
+    const steps = [0, 0.3, 0.9, 1, 1.5, 2, 2.7, 5, 20, 500];
+    const percents = steps.map(matchPercent);
+    for (let i = 1; i < percents.length; i++) {
+      expect(percents[i]!).toBeLessThanOrEqual(percents[i - 1]!);
+    }
+  });
+
+  // Non scoré et scoré très loin sont deux états différents : le premier n'a pas de chiffre,
+  // le second en a un mauvais. Les confondre à l'écran ferait passer une absence pour un zéro.
+  it('has no percentage at all for an unscorable candidate', () => {
+    expect(matchPercent(Number.POSITIVE_INFINITY)).toBeNull();
+    expect(matchPercent(Number.NaN)).toBeNull();
   });
 });

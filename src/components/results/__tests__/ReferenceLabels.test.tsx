@@ -1,5 +1,5 @@
 import type { BossResult, ReferenceProvenance, TopPlayer } from '@/types';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseSubmission } from '@/lib/labels/schema';
@@ -278,6 +278,34 @@ describe('referenceLabels', () => {
 
     expect(screen.queryByText('Recorded')).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Not comparable' })).toHaveLength(2);
+  });
+
+  // Le chiffre que le testeur réclamait, aux deux ancres documentées de l'échelle. Une
+  // référence identique lit 100 %, une à la tolérance exacte 75 % — le plancher d'un panel
+  // que le bandeau appelle « Comparable ».
+  it('rend le pourcentage de correspondance de chaque référence', () => {
+    const scored = result();
+    scored.topPlayers[0].provenance.distance = 0;
+    scored.topPlayers[1].provenance.distance = 1;
+
+    render(<ReferenceLabels result={scored} />);
+
+    // Dans la liste, et non dans la légende sous elle : elle cite les mêmes deux ancres.
+    const list = within(screen.getByRole('list'));
+    expect(list.getByText('100%')).toBeInTheDocument();
+    expect(list.getByText('75%')).toBeInTheDocument();
+  });
+
+  // Non scoré et scoré très loin sont deux états distincts. Un blanc à la place du chiffre se
+  // lirait comme celui de la ligne d'au-dessus.
+  it('dit « not scored » plutôt que zéro quand la référence n’a pas pu être scorée', () => {
+    const unscored = result();
+    unscored.topPlayers[0].provenance.distance = Number.POSITIVE_INFINITY;
+
+    render(<ReferenceLabels result={unscored} />);
+
+    expect(screen.getByText('not scored')).toBeInTheDocument();
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
   });
 
   // C'est la carte qui demande le plus au lecteur — le signalement d'une comparaison injuste

@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { LABEL_REASONS } from '@/lib/labels/schema';
+import { matchPercent } from '@/lib/wcl/comparability';
 
 const REASON_LABELS: Record<LabelReason, string> = {
   externals: 'Externals',
@@ -121,11 +122,25 @@ export function ReferenceLabels({ result }: ReferenceLabelsProps) {
           const rank = i + 1;
           const key = referenceKey(player.provenance);
           const state = status[key] ?? 'idle';
+          const match = matchPercent(player.provenance.distance);
 
           return (
             <li key={key}>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-xs">{player.provenance.name}</span>
+
+                {/*
+                  Un candidat non scoré n'a pas de chiffre bas, il n'en a pas du tout : la
+                  sélection l'a retenu sans pouvoir le mesurer. Le dire, plutôt que de laisser
+                  un blanc que le lecteur comblera avec le pourcentage de la ligne d'au-dessus.
+                */}
+                {match === null ? (
+                  <span className="text-dim text-2xs">not scored</span>
+                ) : (
+                  <span className="text-dim text-2xs">
+                    <span className="font-mono">{match}%</span> match
+                  </span>
+                )}
 
                 {/*
                   Rouge, et non bleu : une substitution n'est pas un écart dans une
@@ -178,6 +193,19 @@ export function ReferenceLabels({ result }: ReferenceLabelsProps) {
           );
         })}
       </ul>
+
+      {/*
+        L'échelle est écrite sous la liste, et non laissée à deviner. Sans elle, un panel à
+        70 % se lit comme un échec alors qu'il tient la comparaison, et surtout un « 62 % »
+        isolé paraîtrait contredire le bandeau qui vient de dire « Comparable » : ce bandeau
+        tranche sur la médiane du panel, jamais sur une référence seule.
+      */}
+      <p className="text-dim text-2xs mt-3 font-sans">
+        Match is the distance between your pull and the reference on item level and kill time:{' '}
+        <span className="font-mono">100%</span> is identical on both,{' '}
+        <span className="font-mono">75%</span> one criterion exactly at tolerance. The basis above
+        rules on the median of these, not on any single one.
+      </p>
     </Card>
   );
 }

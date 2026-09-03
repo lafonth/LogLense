@@ -82,3 +82,53 @@ export function comparabilityLevel(scored: ScoredCandidate<unknown>[]): Comparab
   if (median <= 2) return 'approximate';
   return 'poor';
 }
+
+/**
+ * Points de correspondance dépensés par unité de tolérance sur la partie linéaire.
+ *
+ * Choisis pour que les deux seuils de `comparabilityLevel` tombent sur des chiffres ronds :
+ * distance 1 — un axe exactement à sa tolérance, le plancher de `close` — vaut 75 %, et
+ * distance 2, le plancher d'`approximate`, vaut 50 %.
+ */
+const MATCH_POINTS_PER_UNIT = 25;
+
+/** Où la partie linéaire s'arrête et la queue prend le relais : le plancher d'`approximate`. */
+const MATCH_LINEAR_LIMIT = 2;
+
+/**
+ * `distance` rendue en pourcentage de correspondance, comme Warcraft Logs en affiche un
+ * au-dessus de ses filtres de classement. `null` quand le candidat n'a pas pu être scoré.
+ *
+ * **L'échelle est choisie, pas déduite** — le joueur croira ce chiffre, donc elle est écrite
+ * ici plutôt que lisible seulement à l'écran :
+ *
+ * - **0 → 100 %.** Même ilvl, même kill time : rien ne sépare les deux logs sur les axes
+ *   que nous mesurons.
+ * - **Linéaire jusqu'à la distance 2, à 25 points par unité de tolérance.** Les deux chiffres
+ *   qui comptent sont ceux sur lesquels `comparabilityLevel` tranche déjà : la distance 1 vaut
+ *   **75 %** — le plancher d'un panel `close` — et la distance 2 vaut **50 %**, celui d'un
+ *   panel `approximate`. Sous 50 %, la médiane d'un panel est `poor`. Les deux lectures ne
+ *   peuvent donc pas se contredire : elles lisent la même graduation.
+ * - **Hyperbolique au-delà, `100 / d`.** Elle rejoint la partie linéaire en 2 avec la même
+ *   valeur *et* la même pente (−25 points par unité), donc rien ne casse à la jointure, et
+ *   elle approche 0 sans l'atteindre : un candidat scoré loin est mauvais, pas non scoré, et
+ *   les deux ne doivent pas se lire pareil.
+ * - **Plancher à 1 %, et `null` au-dessus.** `null` est réservé à une distance qui n'est pas
+ *   un nombre — pas d'ilvl sur le candidat, ou pas d'ilvl sur le joueur. Arrondir un candidat
+ *   très lointain à `0 %` le ferait passer pour non scoré, ce qui est autre chose.
+ *
+ * Monotone sur tout le domaine : un candidat plus proche ne lit jamais plus bas qu'un plus
+ * lointain.
+ */
+export function matchPercent(distance: number): number | null {
+  if (!Number.isFinite(distance)) return null;
+
+  const raw =
+    distance <= MATCH_LINEAR_LIMIT
+      ? 100 - MATCH_POINTS_PER_UNIT * distance
+      : (100 - MATCH_POINTS_PER_UNIT * MATCH_LINEAR_LIMIT) * (MATCH_LINEAR_LIMIT / distance);
+
+  // Une distance négative est impossible (`scoreCandidate` rend une racine carrée) : la borne
+  // haute est là pour que la fonction reste totale, pas pour couvrir un cas attendu.
+  return Math.min(100, Math.max(1, Math.round(raw)));
+}
