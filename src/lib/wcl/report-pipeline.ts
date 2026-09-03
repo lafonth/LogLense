@@ -47,13 +47,6 @@ export async function analyzeReportBoss(
   }
   const { specName, className } = specInfo;
 
-  const poolPromise = fetchCandidatePool(token, {
-    encounterId,
-    difficulty,
-    specName,
-    className,
-  });
-
   // Le DPS du sujet doit sortir de la même mesure que celui des références — le montant des
   // classements WCL — sinon l'écart affiché soustrait deux mesures différentes. D'où
   // l'attente ici, avant les données de combat : la requête est en vol depuis la construction
@@ -77,7 +70,21 @@ export async function analyzeReportBoss(
       context: { encounterId, difficulty },
     });
 
-  const [pool, myBossRank] = await Promise.all([poolPromise, rankings.bossDps(fightId, actorName)]);
+  // Le vivier part après les données de combat, et non en parallèle comme avant : il se
+  // demande désormais avec l'ilvl du sujet et avec ce qu'il a reçu comme externals, dont aucun
+  // n'est connu plus tôt. Ce qu'on perd est de la latence, jamais une requête. Voir l'en-tête
+  // de `fetchCandidatePool`.
+  const [pool, myBossRank] = await Promise.all([
+    fetchCandidatePool(token, {
+      encounterId,
+      difficulty,
+      specName,
+      className,
+      myIlvl: stats.avgIlvl,
+      excludeExternals: eligibility.externalUptime === 0,
+    }),
+    rankings.bossDps(fightId, actorName),
+  ]);
 
   // Le percentile verrouillé n'existe pas dans `report.rankings` : il faut le demander au
   // personnage, puis retrouver le parse du combat exact. Un échec ici (log privé, royaume

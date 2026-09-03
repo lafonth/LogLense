@@ -94,17 +94,30 @@ export const Q_COMBATANT_WITH_ACTORS = `
   }
 `;
 
+/**
+ * Le classement mondial, filtré à la source.
+ *
+ * `bracket` et `externalBuffs` sont **non nullables** et ont chacun leur valeur neutre —
+ * `0` et `Any` — mesurées au spike de l'étape 3. C'est ce qui évite la paire de constantes
+ * qu'a demandée `$partition` : là-bas, omettre l'argument et lui passer `null` ne sont pas
+ * la même chose côté GraphQL et WCL ne documente pas la différence ; ici, « ne pas filtrer »
+ * est une valeur du domaine, pas une absence.
+ *
+ * Les deux filtres **réduisent** la réponse, ils ne l'enrichissent pas : zéro octet de
+ * surcoût, à la différence d'`includeCombatantInfo` (facteur 17, refusé par le spike).
+ */
 export const Q_WORLD_RANKINGS = `
   query WorldRankings(
     $encounterID: Int!, $difficulty: Int!,
-    $specName: String!, $className: String!, $page: Int!
+    $specName: String!, $className: String!, $page: Int!,
+    $bracket: Int!, $externalBuffs: ExternalBuffRankFilter!
   ) {
     worldData {
       encounter(id: $encounterID) {
         characterRankings(
           specName: $specName, className: $className,
           metric: dps, difficulty: $difficulty, leaderboard: LogsOnly,
-          page: $page
+          page: $page, bracket: $bracket, externalBuffs: $externalBuffs
         )
       }
     }
@@ -121,6 +134,10 @@ export const Q_WORLD_RANKINGS = `
  * à la zone, pas à la rencontre : sans la liste de ses rencontres, l'analyse d'un rapport de
  * douze boss redemande douze fois la même réponse, parce que rien dans les onze autres appels
  * ne dit qu'ils tomberaient sur la zone déjà résolue. Voir `partitions.ts`.
+ *
+ * `brackets` voyage avec elles pour la même raison, et sans requête de plus : le découpage
+ * d'ilvl appartient à la zone, et c'est lui qui rend `bracket` calculable côté client — les
+ * bornes changent de palier en palier, les coder en dur les ferait mentir au suivant.
  */
 export const Q_ENCOUNTER_PARTITIONS = `
   query EncounterPartitions($encounterID: Int!) {
@@ -130,6 +147,7 @@ export const Q_ENCOUNTER_PARTITIONS = `
           id
           encounters { id }
           partitions { id name default }
+          brackets { type min max bucket }
         }
       }
     }
@@ -147,14 +165,16 @@ export const Q_ENCOUNTER_PARTITIONS = `
 export const Q_WORLD_RANKINGS_PARTITION = `
   query WorldRankingsPartition(
     $encounterID: Int!, $difficulty: Int!,
-    $specName: String!, $className: String!, $page: Int!, $partition: Int!
+    $specName: String!, $className: String!, $page: Int!, $partition: Int!,
+    $bracket: Int!, $externalBuffs: ExternalBuffRankFilter!
   ) {
     worldData {
       encounter(id: $encounterID) {
         characterRankings(
           specName: $specName, className: $className,
           metric: dps, difficulty: $difficulty, leaderboard: LogsOnly,
-          page: $page, partition: $partition
+          page: $page, partition: $partition,
+          bracket: $bracket, externalBuffs: $externalBuffs
         )
       }
     }

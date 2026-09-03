@@ -1,4 +1,4 @@
-import type { CandidatePool } from '../references';
+import type { PoolSlice } from '../references';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { POOL_TTL_SECONDS, poolCacheKey, readCachedPool, writeCachedPool } from '../pool-cache';
 
@@ -9,9 +9,19 @@ const { redisGet, redisSetEx } = vi.hoisted(() => ({
 
 vi.mock('@/lib/redis', () => ({ redisGet, redisSetEx }));
 
-const KEY = 'wcl:pool:v2:2902:5:mage:fire';
+const KEY = 'wcl:pool:v3:2902:5:mage:fire:b0:anyext';
 
-function pool(over: Partial<CandidatePool> = {}): CandidatePool {
+/** Les arguments de clé du vivier non filtré : celui que tous les joueurs d'une spec partagent. */
+const UNFILTERED = {
+  encounterId: 2902,
+  difficulty: 5,
+  specName: 'Fire',
+  className: 'Mage',
+  bracket: 0,
+  excludeExternals: false,
+};
+
+function pool(over: Partial<PoolSlice> = {}): PoolSlice {
   return {
     candidates: [
       { name: 'Alpha', amount: 812_346, duration: 300_000, report: { code: 'aaa', fightID: 3 } },
@@ -30,37 +40,50 @@ beforeEach(() => {
 
 describe('poolCacheKey', () => {
   it('normalises case and spaces, so two spellings of one spec share an entry', () => {
-    expect(
-      poolCacheKey({ encounterId: 2902, difficulty: 5, specName: 'Fire', className: 'Mage' })
-    ).toBe(KEY);
-    expect(
-      poolCacheKey({ encounterId: 2902, difficulty: 5, specName: 'FIRE', className: 'MAGE' })
-    ).toBe(KEY);
+    expect(poolCacheKey(UNFILTERED)).toBe(KEY);
+    expect(poolCacheKey({ ...UNFILTERED, specName: 'FIRE', className: 'MAGE' })).toBe(KEY);
   });
 
   it('turns the spaces of a two-word spec into dashes, on both halves', () => {
     expect(
       poolCacheKey({
+        ...UNFILTERED,
         encounterId: 2917,
         difficulty: 4,
         specName: 'Beast Mastery',
         className: 'Demon Hunter',
       })
-    ).toBe('wcl:pool:v2:2917:4:demon-hunter:beast-mastery');
+    ).toBe('wcl:pool:v3:2917:4:demon-hunter:beast-mastery:b0:anyext');
   });
 
   it('carries the format version, which is what expires the whole cache at once', () => {
-    expect(KEY.startsWith('wcl:pool:v2:')).toBe(true);
+    expect(KEY.startsWith('wcl:pool:v3:')).toBe(true);
   });
 
   it('separates two difficulties of the same boss', () => {
-    const heroic = poolCacheKey({
-      encounterId: 2902,
-      difficulty: 4,
-      specName: 'Fire',
-      className: 'Mage',
-    });
-    expect(heroic).not.toBe(KEY);
+    expect(poolCacheKey({ ...UNFILTERED, difficulty: 4 })).not.toBe(KEY);
+  });
+
+  // Par bracket et non par fenêtre de brackets : c'est ce qui garde le cache payant une fois
+  // le filtre d'ilvl posé. Deux joueurs d'ilvl voisins ne demandent pas la même fenêtre, mais
+  // ils demandent les mêmes tranches, et chacune est ici une entrée à part entière.
+  it('gives each bracket its own entry, the unfiltered pool included', () => {
+    const b15 = poolCacheKey({ ...UNFILTERED, bracket: 15 });
+    const b16 = poolCacheKey({ ...UNFILTERED, bracket: 16 });
+
+    expect(b15).not.toBe(b16);
+    expect(b15).not.toBe(KEY);
+    expect(b15).toBe('wcl:pool:v3:2902:5:mage:fire:b15:anyext');
+  });
+
+  // Aucun repli entre les deux : un vivier purgé des candidats aidés et un vivier qui les
+  // garde ne répondent pas à la même question, et les confondre rendrait le filtre inopérant
+  // pour la moitié des joueurs.
+  it('never lets a pool purged of external carriers answer for one that kept them', () => {
+    expect(poolCacheKey({ ...UNFILTERED, excludeExternals: true })).toBe(
+      'wcl:pool:v3:2902:5:mage:fire:b0:noext'
+    );
+    expect(poolCacheKey({ ...UNFILTERED, excludeExternals: true })).not.toBe(KEY);
   });
 });
 

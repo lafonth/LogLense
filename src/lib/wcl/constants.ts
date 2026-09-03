@@ -41,6 +41,26 @@ export const ILVL_TOLERANCE = 4;
 export const CANDIDATE_PAGES = 10;
 
 /**
+ * Pages tirées **par bracket d'ilvl** quand le vivier est filtré à la source.
+ *
+ * Trois plutôt que `CANDIDATE_PAGES`, et le compte total y gagne quand même. Un bracket ne
+ * fait que 3 ilvl de large : le spike de l'étape 3 a mesuré 100 entrées en page 1 *et* 100 en
+ * page 2 dans la même tranche, là où dix pages non filtrées balaient tout l'écart d'ilvl du
+ * palier pour n'en rendre qu'une poignée dans la tolérance. À budget de requêtes comparable
+ * — `MAX_POOL_BRACKETS` × 3 contre 10 — le vivier obtenu est incomparablement plus proche.
+ */
+export const PAGES_PER_BRACKET = 3;
+
+/**
+ * Brackets d'ilvl au plus interrogés pour un vivier.
+ *
+ * C'est le budget de requêtes, pas la justesse, qui le fixe : au-delà, filtrer coûterait plus
+ * cher que le vivier non filtré. `bracketsCovering` renonce alors au filtre entier plutôt que
+ * de rogner la couverture — voir son en-tête.
+ */
+export const MAX_POOL_BRACKETS = 4;
+
+/**
  * Partitions d'une même saison interrogées au plus pour un vivier.
  *
  * Chaque partition coûte `CANDIDATE_PAGES` requêtes. Une saison en compte trois
@@ -62,6 +82,17 @@ export const PARTITION_TTL_SECONDS = 24 * 60 * 60;
  * stays one round trip.
  */
 export const VERIFICATION_WINDOW = 12;
+
+/**
+ * Effectif sous lequel un vivier filtré est complété par le vivier non filtré.
+ *
+ * Égal à `VERIFICATION_WINDOW` par construction, et pas par coïncidence : un vivier qui ne
+ * remplit même pas la fenêtre de vérification ne laissera pas `TOP_N` survivants une fois les
+ * critères éliminatoires passés. Les filtres à la source resserrent le vivier ; ce plancher
+ * est ce qui les empêche de le vider. Le relâchement est reporté — `PoolFilters.relaxed` —
+ * parce qu'un vivier élargi en silence n'est plus celui que la bannière décrit.
+ */
+export const POOL_FLOOR = VERIFICATION_WINDOW;
 
 /**
  * Probabilité qu'un rendu tire une référence hors de la fenêtre de vérification.

@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   comparabilityLevel,
+  levelWithPanelSize,
   matchPercent,
   medianOf,
   scoreCandidate,
   selectClosest,
 } from '../comparability';
+import { TOP_N } from '../constants';
 
 const MY_ILVL = 284;
 const MY_MS = 300000; // 5:00
@@ -136,6 +138,29 @@ describe('comparabilityLevel', () => {
     ];
     const scored = selectClosest(candidates, 0, MY_MS, candidates.length);
     expect(comparabilityLevel(scored)).toBe('poor');
+  });
+});
+
+describe('levelWithPanelSize', () => {
+  // Le point de sortie de l'étape 6 : les filtres à la source peuvent vider le vivier, et un
+  // panel réduit sous `TOP_N` ne doit jamais passer sans que le niveau le dise.
+  it('refuses to call a panel shorter than TOP_N better than poor', () => {
+    expect(levelWithPanelSize('close', TOP_N - 1, TOP_N)).toBe('poor');
+    expect(levelWithPanelSize('approximate', 1, TOP_N)).toBe('poor');
+  });
+
+  // Ce n'est pas une pénalité, c'est ce que la mesure vaut : `comparabilityLevel` tranche sur
+  // une médiane, choisie pour sa robustesse — laquelle n'existe pas à une ou deux valeurs.
+  it('leaves a full panel exactly where the distances put it', () => {
+    expect(levelWithPanelSize('close', TOP_N, TOP_N)).toBe('close');
+    expect(levelWithPanelSize('approximate', TOP_N + 2, TOP_N)).toBe('approximate');
+    expect(levelWithPanelSize('poor', TOP_N, TOP_N)).toBe('poor');
+  });
+
+  it('stays none for an empty panel, whichever end it came from', () => {
+    expect(levelWithPanelSize('none', 0, TOP_N)).toBe('none');
+    expect(levelWithPanelSize('close', 0, TOP_N)).toBe('none');
+    expect(levelWithPanelSize('none', TOP_N, TOP_N)).toBe('none');
   });
 });
 

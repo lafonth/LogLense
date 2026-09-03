@@ -2,8 +2,15 @@ import type { EligibilityProfile } from '../eligibility';
 import type { Partition } from '../partitions';
 import type { WorldRanking } from '../references';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CANDIDATE_PAGES, TOP_N, VERIFICATION_WINDOW } from '../constants';
+import {
+  CANDIDATE_PAGES,
+  PAGES_PER_BRACKET,
+  POOL_FLOOR,
+  TOP_N,
+  VERIFICATION_WINDOW,
+} from '../constants';
 import { OFFENSIVE_EXTERNALS } from '../eligibility';
+import { clearZoneMemo, encounterZoneKey, zoneBracketsKey, zonePartitionsKey } from '../partitions';
 import { POOL_TTL_SECONDS, poolCacheKey } from '../pool-cache';
 import {
   readCachedVerifications,
@@ -29,11 +36,23 @@ const CONTEXT = { encounterId: 1, difficulty: 5, specId: 103 };
 
 const POOL_ARGS = { encounterId: 1, difficulty: 5, specName: 'Feral', className: 'Druid' };
 
+/** La clé du vivier non filtré : celle que tout le monde partageait avant l'étape 6. */
+const POOL_KEY_ARGS = { ...POOL_ARGS, bracket: 0, excludeExternals: false };
+
+/** Le découpage d'ilvl relevé sur le palier courant : brackets de 3, à partir de 272. */
+const TIER_BRACKETS = { type: 'Item Level', min: 272, max: 344, bucket: 3 };
+
+/** Le vivier tel qu'il repart de `fetchCandidatePool` quand rien n'a été filtré. */
+const UNFILTERED_FILTERS = { brackets: [], externalBuffs: 'Any' as const, relaxed: false };
+
 describe('fetchCandidatePool', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     redisGet.mockResolvedValue(null);
     redisSetEx.mockResolvedValue(undefined);
+    // L'état de module survit d'un cas au suivant : sans cet oubli, un palier appris ici
+    // servirait au cas d'après et rendrait les assertions dépendantes de leur ordre.
+    clearZoneMemo();
   });
 
   /** Deux partitions d'une même saison : le vivier s'éclate sur les deux. */
@@ -79,17 +98,35 @@ describe('fetchCandidatePool', () => {
    * ne répond pas à ce qu'on lui demande.
    */
   function mockWcl(
-    rankings: (vars: { page: number; partition?: number }) => Response | Promise<Response>,
-    partitions: Partition[] | null = SEASON
+    rankings: (vars: RankingVars) => Response | Promise<Response>,
+    partitions: Partition[] | null = SEASON,
+    brackets: unknown = null
   ) {
     globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
       const body = JSON.parse(String(init.body));
       if (String(body.query).includes('EncounterPartitions')) {
         if (partitions === null) return failedPage();
-        return ok({ worldData: { encounter: { zone: { id: 46, partitions } } } });
+        return ok({ worldData: { encounter: { zone: { id: 46, partitions, brackets } } } });
       }
       return rankings(body.variables);
     });
+  }
+
+  /** Les variables d'une page de classement, filtres compris. */
+  interface RankingVars {
+    page: number;
+    partition?: number;
+    bracket: number;
+    externalBuffs: 'Any' | 'Exclude';
+  }
+
+  /** Les variables de chaque requête de classement réellement partie. */
+  function rankingVars(): RankingVars[] {
+    return vi
+      .mocked(globalThis.fetch)
+      .mock.calls.map(([, init]) => JSON.parse(String((init as RequestInit).body)))
+      .filter((b) => !String(b.query).includes('EncounterPartitions'))
+      .map((b) => b.variables as RankingVars);
   }
 
   it('fetches every page of every partition of the season', async () => {
@@ -112,12 +149,9 @@ describe('fetchCandidatePool', () => {
     expect(pool.pagesExpected).toBe(CANDIDATE_PAGES);
     expect(pool.pagesFetched).toBe(CANDIDATE_PAGES);
 
-    const sent = vi
-      .mocked(globalThis.fetch)
-      .mock.calls.map(([, init]) => JSON.parse(String((init as RequestInit).body)));
-    const rankingCalls = sent.filter((b) => !String(b.query).includes('EncounterPartitions'));
-    expect(rankingCalls).toHaveLength(CANDIDATE_PAGES);
-    expect(rankingCalls.every((b) => b.variables.partition === undefined)).toBe(true);
+    const calls = rankingVars();
+    expect(calls).toHaveLength(CANDIDATE_PAGES);
+    expect(calls.every((v) => v.partition === undefined)).toBe(true);
   });
 
   it('drops duplicates that appear on more than one page', async () => {
@@ -145,20 +179,31 @@ describe('fetchCandidatePool', () => {
   });
 
   // La raison d'être du cache : ces pages sont le gros de la facture WCL d'une analyse.
+  //
+  // Le palier est en cache lui aussi, et il doit l'être : depuis que la clé du vivier porte le
+  // bracket, on ne peut plus la former sans savoir comment le palier découpe l'ilvl. Un cache
+  // chaud reste donc à zéro requête — mais il lui faut ses deux entrées, pas une.
   it('serves a cached pool without touching Warcraft Logs', async () => {
     const cached = {
       candidates: [{ name: 'p', report: { code: 'x', fightID: 1 } }],
       pagesFetched: 4,
       pagesExpected: 4,
     };
-    redisGet.mockResolvedValue(JSON.stringify(cached));
+    clearZoneMemo();
+    redisGet.mockImplementation(async (key: string) => {
+      if (key === encounterZoneKey(POOL_ARGS.encounterId)) return '46';
+      if (key === zonePartitionsKey(46)) return JSON.stringify([1, 2]);
+      if (key === zoneBracketsKey(46)) return 'null';
+      if (key === poolCacheKey(POOL_KEY_ARGS)) return JSON.stringify(cached);
+      return null;
+    });
     globalThis.fetch = vi.fn();
 
     const pool = await fetchCandidatePool('token', POOL_ARGS);
 
-    expect(pool).toEqual(cached);
+    expect(pool).toEqual({ ...cached, filters: UNFILTERED_FILTERS });
     expect(globalThis.fetch).not.toHaveBeenCalled();
-    expect(redisGet).toHaveBeenCalledWith(poolCacheKey(POOL_ARGS));
+    expect(redisGet).toHaveBeenCalledWith(poolCacheKey(POOL_KEY_ARGS));
   });
 
   // Le TTL est la garantie vis-à-vis du §5d : une copie sans expiration serait la base de
@@ -169,7 +214,7 @@ describe('fetchCandidatePool', () => {
     await fetchCandidatePool('token', POOL_ARGS);
 
     expect(redisSetEx).toHaveBeenCalledWith(
-      poolCacheKey(POOL_ARGS),
+      poolCacheKey(POOL_KEY_ARGS),
       expect.any(String),
       POOL_TTL_SECONDS
     );
@@ -190,7 +235,7 @@ describe('fetchCandidatePool', () => {
     // Nommer la clé, et pas seulement le spy : la résolution des partitions écrit son propre
     // cache par le même `redisSetEx`, et un `not.toHaveBeenCalled` nu confondrait les deux.
     expect(redisSetEx).not.toHaveBeenCalledWith(
-      poolCacheKey(POOL_ARGS),
+      poolCacheKey(POOL_KEY_ARGS),
       expect.anything(),
       expect.anything()
     );
@@ -209,9 +254,102 @@ describe('fetchCandidatePool', () => {
     expect(pool.candidates).toHaveLength(2);
   });
 
+  // Le filtre d'ilvl, et la raison d'être de l'étape : le vivier obtenu tient dans la
+  // tolérance au lieu de la croiser, à budget de requêtes comparable.
+  it('asks Warcraft Logs for the brackets covering the tolerance, and for nothing else', async () => {
+    mockWcl((v) => ok(page(`${v.bracket}-${v.partition}-${v.page}`, 2)), SEASON, TIER_BRACKETS);
+
+    const pool = await fetchCandidatePool('token', { ...POOL_ARGS, myIlvl: 320 });
+
+    expect(pool.filters.brackets).toEqual([15, 16, 17, 18]);
+    expect(pool.filters.relaxed).toBe(false);
+
+    const calls = rankingVars();
+    expect([...new Set(calls.map((v) => v.bracket))].sort((a, b) => a - b)).toEqual([
+      15, 16, 17, 18,
+    ]);
+    // Trois pages par bracket et par partition : plus étroit que dix pages non filtrées, et
+    // pourtant plus dense — une tranche de 3 ilvl remplit ses pages.
+    expect(calls).toHaveLength(4 * SEASON.length * PAGES_PER_BRACKET);
+    expect(calls.every((v) => v.page <= PAGES_PER_BRACKET)).toBe(true);
+  });
+
+  // Le repli : un palier qui ne découpe pas sur l'ilvl rend le vivier d'avant l'étape, et les
+  // deux arguments partent quand même avec leur valeur neutre explicite.
+  it('passes the neutral filter values when the tier declares no ilvl bracketing', async () => {
+    mockWcl((v) => ok(page(v.page, 2)), SEASON, null);
+
+    const pool = await fetchCandidatePool('token', { ...POOL_ARGS, myIlvl: 320 });
+
+    expect(pool.filters).toEqual(UNFILTERED_FILTERS);
+    expect(rankingVars().every((v) => v.bracket === 0 && v.externalBuffs === 'Any')).toBe(true);
+    expect(rankingVars()).toHaveLength(SEASON_PAGES);
+  });
+
+  it('does not filter on ilvl when the subject ilvl is unknown', async () => {
+    mockWcl((v) => ok(page(v.page, 2)), SEASON, TIER_BRACKETS);
+
+    const pool = await fetchCandidatePool('token', POOL_ARGS);
+
+    expect(pool.filters.brackets).toEqual([]);
+    expect(rankingVars().every((v) => v.bracket === 0)).toBe(true);
+  });
+
+  // Conditionnel, et c'est tout l'enjeu : pour un joueur qui reçoit Power Infusion à chaque
+  // pull, exclure les porteurs supprimerait précisément ses bonnes comparaisons.
+  it('arms the external filter only for a player who carries none', async () => {
+    mockWcl((v) => ok(page(v.page, 2)));
+    await fetchCandidatePool('token', { ...POOL_ARGS, excludeExternals: true });
+    expect(rankingVars().every((v) => v.externalBuffs === 'Exclude')).toBe(true);
+
+    mockWcl((v) => ok(page(v.page, 2)));
+    const pool = await fetchCandidatePool('token', { ...POOL_ARGS, excludeExternals: false });
+    expect(rankingVars().every((v) => v.externalBuffs === 'Any')).toBe(true);
+    expect(pool.filters.externalBuffs).toBe('Any');
+  });
+
+  it('keeps a populous filtered pool without paying for the unfiltered one', async () => {
+    mockWcl((v) => ok(page(`${v.bracket}-${v.partition}-${v.page}`, 2)), SEASON, TIER_BRACKETS);
+
+    const pool = await fetchCandidatePool('token', { ...POOL_ARGS, myIlvl: 320 });
+
+    expect(pool.candidates.length).toBeGreaterThanOrEqual(POOL_FLOOR);
+    expect(pool.filters.relaxed).toBe(false);
+    expect(rankingVars().some((v) => v.bracket === 0)).toBe(false);
+  });
+
+  // Filtrer peut vider. Sous le plancher, le vivier non filtré est ajouté — et `relaxed` le
+  // dit, parce qu'un vivier élargi en silence n'est plus celui que la bannière décrit.
+  it('widens a filtered pool that fell under the floor, and reports that it did', async () => {
+    // Toutes les tranches rendent la même entrée : le dédoublonnage laisse un vivier d'un.
+    mockWcl(
+      (v) => (v.bracket === 0 ? ok(page(`u-${v.partition}-${v.page}`, 2)) : ok(page('same', 1))),
+      SEASON,
+      TIER_BRACKETS
+    );
+
+    const pool = await fetchCandidatePool('token', { ...POOL_ARGS, myIlvl: 320 });
+
+    expect(pool.filters.relaxed).toBe(true);
+    // Les brackets restent nommés : c'est avec eux que le vivier a d'abord été demandé.
+    expect(pool.filters.brackets).toEqual([15, 16, 17, 18]);
+    expect(pool.candidates.length).toBeGreaterThan(POOL_FLOOR);
+    expect(rankingVars().filter((v) => v.bracket === 0)).toHaveLength(SEASON_PAGES);
+  });
+
+  it('deduplicates a candidate that two neighbouring brackets both returned', async () => {
+    mockWcl(() => ok(page('shared', 3)), SEASON, TIER_BRACKETS);
+
+    const pool = await fetchCandidatePool('token', { ...POOL_ARGS, myIlvl: 320 });
+
+    expect(pool.candidates).toHaveLength(3);
+  });
+
   it('gives two specs of the same boss different cache keys', () => {
-    expect(poolCacheKey(POOL_ARGS)).not.toBe(poolCacheKey({ ...POOL_ARGS, specName: 'Balance' }));
-    expect(poolCacheKey(POOL_ARGS)).not.toBe(poolCacheKey({ ...POOL_ARGS, difficulty: 4 }));
+    expect(poolCacheKey(POOL_KEY_ARGS)).not.toBe(
+      poolCacheKey({ ...POOL_KEY_ARGS, specName: 'Balance' })
+    );
+    expect(poolCacheKey(POOL_KEY_ARGS)).not.toBe(poolCacheKey({ ...POOL_KEY_ARGS, difficulty: 4 }));
   });
 });
 
@@ -320,7 +458,7 @@ describe('resolveReferences', () => {
   ) {
     return resolveReferences(
       'token',
-      { candidates, pagesFetched: 1, pagesExpected: 1 },
+      { candidates, pagesFetched: 1, pagesExpected: 1, filters: UNFILTERED_FILTERS },
       {
         myIlvl: MY_ILVL,
         myKillTimeMs: MY_MS,
@@ -518,6 +656,64 @@ describe('resolveReferences', () => {
       // Sélectionnée par la règle de distance, pas tirée : c'est ce que le corpus doit
       // pouvoir distinguer, et la valeur par défaut ne doit donc pas être implicite.
       explored: false,
+    });
+  });
+
+  // La clause de sortie de l'étape 6, vue de bout en bout : un vivier resserré peut rendre un
+  // panel plus court que `TOP_N`, et le niveau doit le dire — même quand chaque référence
+  // retenue est, elle, toute proche.
+  it('never announces a panel shorter than TOP_N as comparable, however close it is', async () => {
+    mockFights();
+
+    const { topPlayers, comparability } = await resolve([
+      ranking('near', MY_ILVL),
+      ranking('alsonear', MY_ILVL + 1),
+    ]);
+
+    expect(topPlayers).toHaveLength(2);
+    expect(comparability.disqualified).toBe(0);
+    expect(comparability.substituted).toBe(0);
+    expect(comparability.level).toBe('poor');
+  });
+
+  it('leaves a full panel of close references at close', async () => {
+    mockFights();
+
+    const { comparability } = await resolve(
+      Array.from({ length: TOP_N }, (_, i) => ranking(`R${i}`, MY_ILVL + i))
+    );
+
+    expect(comparability.level).toBe('close');
+  });
+
+  // Rendu et non déductible : la couverture peut être abandonnée faute de découpage, et le
+  // plancher peut la relâcher après coup. Un écran qui la recalculerait décrirait un vivier
+  // que personne n'a interrogé.
+  it('carries the pool filters through to the banner', async () => {
+    mockFights();
+
+    const { comparability } = await resolveReferences(
+      'token',
+      {
+        candidates: [ranking('near', MY_ILVL)],
+        pagesFetched: 1,
+        pagesExpected: 1,
+        filters: { brackets: [15, 16, 17], externalBuffs: 'Exclude', relaxed: true },
+      },
+      {
+        myIlvl: MY_ILVL,
+        myKillTimeMs: MY_MS,
+        exclude: NO_EXCLUDE,
+        mine: MINE,
+        context: CONTEXT,
+        random: () => 1,
+      }
+    );
+
+    expect(comparability.poolFilters).toEqual({
+      brackets: [15, 16, 17],
+      externalBuffs: 'Exclude',
+      relaxed: true,
     });
   });
 

@@ -111,13 +111,6 @@ export async function analyzeBoss(
   }
   const { specName, className } = actualSpec;
 
-  const poolPromise = fetchCandidatePool(token, {
-    encounterId,
-    difficulty,
-    specName,
-    className,
-  });
-
   const { stats, rotation, damageEntries, fightTargets, eligibility, context } =
     await fetchFightData(token, {
       code: bestCode,
@@ -129,7 +122,19 @@ export async function analyzeBoss(
       context: { encounterId, difficulty },
     });
 
-  const pool = await poolPromise;
+  // Séquentiel, et c'est le prix assumé du filtrage à la source : le vivier se demande
+  // maintenant avec l'ilvl du sujet et avec ce qu'il a reçu comme externals, dont aucun n'est
+  // connu avant `fetchFightData`. Ce qu'on perd est de la latence, jamais une requête — et le
+  // vivier filtré en rend bien davantage, puisqu'il tient dans la tolérance au lieu de la
+  // croiser. Voir l'en-tête de `fetchCandidatePool`.
+  const pool = await fetchCandidatePool(token, {
+    encounterId,
+    difficulty,
+    specName,
+    className,
+    myIlvl: stats.avgIlvl,
+    excludeExternals: eligibility.externalUptime === 0,
+  });
   const { topPlayers, sample, comparability } = await resolveReferences(token, pool, {
     myIlvl: stats.avgIlvl,
     myKillTimeMs: bestKillMs,

@@ -84,14 +84,14 @@ tiennent un ratio entre 10 et 13.
   que la tâche.
 - **Choisir l'agent, pas le modèle.** Routage par type de tâche, jamais par difficulté :
 
-  | Tâche | Agent — modèle |
-  |---|---|
-  | Trouver où quelque chose est traité | `scout` — Haiku |
-  | Transcrire un plan qui porte déjà le code | `implementer` — Sonnet/`high` |
-  | Relire un diff empaqueté contre son brief | `task-reviewer` — Sonnet/`high` |
-  | Relire une branche entière, tous commits | `branch-reviewer` — Opus/`high` hérité |
-  | Concevoir, arbitrer, trancher produit | session principale — Opus/`high` |
-  | Déboguer une cause inconnue | en ligne — une mauvaise hypothèse coûte plus qu'un modèle |
+  | Tâche                                     | Agent — modèle                                            |
+  | ----------------------------------------- | --------------------------------------------------------- |
+  | Trouver où quelque chose est traité       | `scout` — Haiku                                           |
+  | Transcrire un plan qui porte déjà le code | `implementer` — Sonnet/`high`                             |
+  | Relire un diff empaqueté contre son brief | `task-reviewer` — Sonnet/`high`                           |
+  | Relire une branche entière, tous commits  | `branch-reviewer` — Opus/`high` hérité                    |
+  | Concevoir, arbitrer, trancher produit     | session principale — Opus/`high`                          |
+  | Déboguer une cause inconnue               | en ligne — une mauvaise hypothèse coûte plus qu'un modèle |
 
   Ne jamais passer par `general-purpose`, `claude` ni `Explore` : aucun n'épingle son modèle,
   leur défaut est `inherit` — donc Opus — et `claude` a `tools: *`, donc un volume non borné.
@@ -100,6 +100,7 @@ tiennent un ratio entre 10 et 13.
   L'effort ne se surcharge pas à l'appel : il est figé dans la définition. `task-reviewer` est
   donc en `high`, et un diff qui touche `comparability.ts`, `references.ts` ou l'un des quatre
   pipelines s'escalade vers `branch-reviewer` — pas vers un effort plus haut.
+
 - **Une seule dispatch de revue, pas une chaîne.** Revue puis correctif puis re-revue, c'est
   trois démarrages à froid. Corriger soi-même les points mineurs et les vérifier ; ne déléguer
   que ce qui a réellement besoin d'un regard neuf.
@@ -113,16 +114,16 @@ suivantes. Une règle ajoutée ici doit valoir son écriture.
 
 ## Vocabulaire du domaine
 
-| Terme | Sens |
-|---|---|
-| **parse** | Un combat classé sur Warcraft Logs, avec son percentile par rapport aux autres joueurs de la même spec sur le même boss |
-| **bracket** | Percentile restreint à une tranche d'ilvl, plus juste qu'un percentile global |
-| **ilvl** | Item level moyen de l'équipement. Corrélé au DPS, donc un axe de comparabilité |
-| **set bonus** | Bonus d'ensemble à 2 ou 4 pièces. Un 2p et un 4p ne sont pas comparables. Invisible dans les rankings WCL — demande le `CombatantInfo` de chaque candidat |
-| **external** | Buff offensif reçu d'un autre joueur, Power Infusion en tête. Fausse la comparaison : critère éliminatoire |
-| **opening chain** | Séquence ordonnée des premiers sorts d'un combat. Non disponible aujourd'hui : les casts sont requêtés en agrégat, l'ordre est perdu à la source |
-| **comparabilité** | Le cœur du produit : deux logs sont comparables si l'écart de DPS s'explique par le jeu et non par le contexte (kill time, ilvl, set bonus, externals) |
-| **spec / encounter / difficulty** | Spécialisation (id numérique WCL), boss, et palier de difficulté (3 = Normal, 4 = Heroic, 5 = Mythic) |
+| Terme                             | Sens                                                                                                                                                      |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **parse**                         | Un combat classé sur Warcraft Logs, avec son percentile par rapport aux autres joueurs de la même spec sur le même boss                                   |
+| **bracket**                       | Percentile restreint à une tranche d'ilvl, plus juste qu'un percentile global                                                                             |
+| **ilvl**                          | Item level moyen de l'équipement. Corrélé au DPS, donc un axe de comparabilité                                                                            |
+| **set bonus**                     | Bonus d'ensemble à 2 ou 4 pièces. Un 2p et un 4p ne sont pas comparables. Invisible dans les rankings WCL — demande le `CombatantInfo` de chaque candidat |
+| **external**                      | Buff offensif reçu d'un autre joueur, Power Infusion en tête. Fausse la comparaison : critère éliminatoire                                                |
+| **opening chain**                 | Séquence ordonnée des premiers sorts d'un combat. Non disponible aujourd'hui : les casts sont requêtés en agrégat, l'ordre est perdu à la source          |
+| **comparabilité**                 | Le cœur du produit : deux logs sont comparables si l'écart de DPS s'explique par le jeu et non par le contexte (kill time, ilvl, set bonus, externals)    |
+| **spec / encounter / difficulty** | Spécialisation (id numérique WCL), boss, et palier de difficulté (3 = Normal, 4 = Heroic, 5 = Mythic)                                                     |
 
 ## Carte du code
 
@@ -137,7 +138,12 @@ src/lib/wcl/
   fight-data.ts       Dégâts + rotation d'un combat → stats, rotation, cibles, dps
   eligibility.ts      Set bonus et externals d'un combattant : les critères éliminatoires
   fight-context.ts    Ce qui est arrivé au raid pendant la pull (morts, wipes, durée)
-  pool-cache.ts       Cache à TTL du pool de candidats — jamais un pool incomplet
+  brackets.ts         Le découpage d'ilvl du palier, lu chez WCL : quels brackets couvrent la
+                      tolérance autour du joueur. Rend `[]` — « ne filtre pas » — plutôt que de
+                      rogner une couverture qu'il ne peut pas tenir
+  pool-cache.ts       Cache à TTL du pool de candidats — jamais un pool incomplet. La clé est
+                      **par bracket**, jamais par fenêtre de brackets : sinon deux joueurs
+                      d'ilvl voisins ne partagent plus rien
   comparability.ts    Le calcul : distance d'un candidat, sélection, niveau. `references.ts`
                       en est l'appelant complet ; `cohort.ts` et `damage-gap.ts` n'en tirent
                       que des primitives (`medianOf`, `selectClosest`, `comparabilityLevel`)
@@ -250,12 +256,12 @@ qu'on ne s'appuie pas sur une garantie qui n'existe pas.
 le dit. Le niveau de comparabilité ne bouge pas : il mesure la distance de la cohorte, pas
 l'amputation du sujet.
 
-| Pipeline | Décision |
-|---|---|
-| `pipeline.ts` | Oui — `context` déjà récupéré, bandeau rendu |
-| `report-pipeline.ts` | Oui — idem |
-| `pull-pipeline.ts` | Non — il affiche déjà les morts via `PullContextCard`, et ne compare pas à une cohorte |
-| `raid-ranking.ts` | Non — il ne récupère pas `context`, l'ajouter coûterait une requête par pull |
+| Pipeline             | Décision                                                                               |
+| -------------------- | -------------------------------------------------------------------------------------- |
+| `pipeline.ts`        | Oui — `context` déjà récupéré, bandeau rendu                                           |
+| `report-pipeline.ts` | Oui — idem                                                                             |
+| `pull-pipeline.ts`   | Non — il affiche déjà les morts via `PullContextCard`, et ne compare pas à une cohorte |
+| `raid-ranking.ts`    | Non — il ne récupère pas `context`, l'ajouter coûterait une requête par pull           |
 
 ## Le chat
 

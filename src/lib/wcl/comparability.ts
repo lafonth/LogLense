@@ -84,6 +84,35 @@ export function comparabilityLevel(scored: ScoredCandidate<unknown>[]): Comparab
 }
 
 /**
+ * Le niveau corrigé de la taille réelle du panel : un panel plus court que `TOP_N` ne peut
+ * pas être annoncé mieux que `poor`.
+ *
+ * Ce n'est pas une pénalité, c'est ce que la mesure vaut. `comparabilityLevel` tranche sur la
+ * **médiane** des distances, choisie précisément pour sa robustesse — une valeur extrême y est
+ * absorbée par ses voisines. Une médiane de une ou deux valeurs n'a plus cette propriété : elle
+ * dit la distance de la seule référence trouvée, pas la solidité d'un panel. Deux logs proches
+ * peuvent parfaitement mériter d'être lus, et ils restent affichés ; ce que le bandeau ne doit
+ * pas faire est de leur donner la même confiance qu'à trois.
+ *
+ * C'est le point de sortie de l'étape 6 du plan de retours : les filtres à la source peuvent
+ * vider le vivier, et **un vivier réduit sous `TOP_N` ne doit jamais passer sans que le niveau
+ * de comparabilité le dise**. `POOL_FLOOR` limite le cas ; il ne le supprime pas — un rapport
+ * privé ou un combattant introuvable réduisent le panel après coup, hors de portée du vivier.
+ *
+ * Fonction à part et non règle glissée dans `comparabilityLevel` : la resélection du chat
+ * (`comparison/cohort.ts`) appelle le second et n'est pas dans la portée de l'étape, qui
+ * s'arrête à `pipeline.ts` et `report-pipeline.ts`.
+ */
+export function levelWithPanelSize(
+  level: ComparabilityLevel,
+  panelSize: number,
+  expected: number
+): ComparabilityLevel {
+  if (level === 'none' || panelSize === 0) return 'none';
+  return panelSize < expected ? 'poor' : level;
+}
+
+/**
  * Points de correspondance dépensés par unité de tolérance sur la partie linéaire.
  *
  * Choisis pour que les deux seuils de `comparabilityLevel` tombent sur des chiffres ronds :

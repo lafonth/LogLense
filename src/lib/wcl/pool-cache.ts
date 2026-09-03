@@ -1,4 +1,4 @@
-import type { CandidatePool } from './references';
+import type { PoolSlice } from './references';
 import { redisGet, redisSetEx } from '@/lib/redis';
 
 /**
@@ -18,29 +18,43 @@ export const POOL_TTL_SECONDS = 6 * 60 * 60;
  * Version du format sérialisé. La changer périme tout le cache d'un coup : une entrée écrite
  * par une version antérieure serait relue avec les champs d'aujourd'hui.
  */
-const POOL_CACHE_VERSION = 'v2';
+const POOL_CACHE_VERSION = 'v3';
 
 /**
  * Plafond de ce qu'on accepte d'écrire. Trois partitions de dix pages de cent entrées, c'est
  * trois fois le volume d'avant ; au-delà, le corps dépasserait ce qu'Upstash accepte en REST,
  * et l'écriture échouerait à chaque analyse au lieu de servir une seule fois.
+ *
+ * Le découpage par bracket travaille pour lui : une tranche coûte `PAGES_PER_BRACKET` pages
+ * par partition, là où l'entrée unique en portait `CANDIDATE_PAGES`.
  */
 const MAX_CACHED_BYTES = 1_200_000;
 
 /**
- * Le vivier ne dépend que du boss, de la difficulté et de la spec — jamais du joueur qui
- * demande l'analyse. C'est précisément ce qui rend le cache payant : tous les joueurs d'une
- * même spec sur un même boss partagent la même entrée.
+ * Une tranche de vivier : le boss, la difficulté, la spec — et ce avec quoi WCL l'a filtrée.
+ *
+ * La clé est **par bracket**, jamais par jeu de brackets. C'est ce qui garde le cache payant
+ * une fois le filtre d'ilvl posé : deux joueurs d'ilvl voisins ne demandent pas la même
+ * fenêtre — 320 tire les brackets 15 à 17, 322 les brackets 16 à 18 — et une clé portant la
+ * fenêtre entière ne leur laisserait rien en commun. Par bracket, ils en partagent deux sur
+ * trois. `bracket: 0` est le vivier non filtré, celui que tout le monde partageait avant.
+ *
+ * `externalBuffs` double au plus le nombre de clés, et il n'y a pas de repli : un vivier
+ * purgé des candidats aidés et un vivier qui les garde ne répondent pas à la même question,
+ * les mélanger rendrait le filtre inopérant pour la moitié des joueurs.
  */
 export function poolCacheKey(args: {
   encounterId: number;
   difficulty: number;
   specName: string;
   className: string;
+  bracket: number;
+  excludeExternals: boolean;
 }): string {
   const spec = args.specName.toLowerCase().replace(/\s+/g, '-');
   const klass = args.className.toLowerCase().replace(/\s+/g, '-');
-  return `wcl:pool:${POOL_CACHE_VERSION}:${args.encounterId}:${args.difficulty}:${klass}:${spec}`;
+  const externals = args.excludeExternals ? 'noext' : 'anyext';
+  return `wcl:pool:${POOL_CACHE_VERSION}:${args.encounterId}:${args.difficulty}:${klass}:${spec}:b${args.bracket}:${externals}`;
 }
 
 /**
@@ -50,12 +64,12 @@ export function poolCacheKey(args: {
  * refuserait coûterait l'analyse. Une entrée dont la forme ne correspond pas est traitée
  * comme absente plutôt que rendue telle quelle.
  */
-export async function readCachedPool(key: string): Promise<CandidatePool | null> {
+export async function readCachedPool(key: string): Promise<PoolSlice | null> {
   try {
     const raw = await redisGet(key);
     if (typeof raw !== 'string' || raw.length === 0) return null;
 
-    const parsed = JSON.parse(raw) as CandidatePool;
+    const parsed = JSON.parse(raw) as PoolSlice;
     if (
       !Array.isArray(parsed?.candidates) ||
       typeof parsed?.pagesFetched !== 'number' ||
@@ -77,7 +91,7 @@ export async function readCachedPool(key: string): Promise<CandidatePool | null>
  * et l'installer pour six heures figerait ce hasard sur toute la spec — alors que la relire
  * tout de suite est justement ce que le cache empêcherait.
  */
-export async function writeCachedPool(key: string, pool: CandidatePool): Promise<void> {
+export async function writeCachedPool(key: string, pool: PoolSlice): Promise<void> {
   if (pool.pagesFetched < pool.pagesExpected) return;
 
   const body = JSON.stringify(pool);

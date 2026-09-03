@@ -1,4 +1,6 @@
+import type { ItemLevelBrackets } from './brackets';
 import { redisGet, redisSetEx } from '@/lib/redis';
+import { itemLevelBrackets, parseItemLevelBrackets } from './brackets';
 import { gql } from './client';
 import { MAX_SEASON_PARTITIONS, PARTITION_TTL_SECONDS } from './constants';
 import { Q_ENCOUNTER_PARTITIONS } from './queries';
@@ -9,10 +11,18 @@ export interface Partition {
   default: boolean;
 }
 
+interface RawBracket {
+  type?: string | null;
+  min?: number | null;
+  max?: number | null;
+  bucket?: number | null;
+}
+
 interface ZonePayload {
   id: number;
   encounters: { id: number }[] | null;
   partitions: Partition[];
+  brackets: RawBracket | null;
 }
 
 interface PartitionsResponse {
@@ -29,6 +39,19 @@ const PARTITION_CACHE_VERSION = 'v2';
 /** Les partitions d'un palier. Une seule entrée pour toutes ses rencontres. */
 export function zonePartitionsKey(zoneId: number): string {
   return `wcl:partitions:${PARTITION_CACHE_VERSION}:zone:${zoneId}`;
+}
+
+/**
+ * Le découpage d'ilvl du palier, à côté de ses partitions plutôt que dedans.
+ *
+ * Clé séparée et non champ ajouté : le corps de `zonePartitionsKey` est une liste d'entiers
+ * depuis l'origine, et y glisser un objet ferait relire par le lecteur d'aujourd'hui une
+ * entrée écrite hier. Les deux clés sont écrites ensemble, avec le même TTL, et une entrée de
+ * partitions sans son découpage est traitée comme absente — une génération de cache écrite
+ * avant cette version se recharge donc une fois, d'elle-même.
+ */
+export function zoneBracketsKey(zoneId: number): string {
+  return `wcl:partitions:${PARTITION_CACHE_VERSION}:brackets:${zoneId}`;
 }
 
 /**
@@ -86,11 +109,21 @@ export function seasonPartitions(partitions: Partition[]): number[] {
     .map((p) => p.id);
 }
 
-/** Ce qu'une résolution apprend : un palier, ses rencontres, et ses partitions de saison. */
+/**
+ * Ce qu'une résolution apprend : un palier, ses rencontres, ses partitions de saison et le
+ * découpage d'ilvl sur lequel `characterRankings` accepte de filtrer.
+ */
 interface ResolvedZone {
   zoneId: number;
   encounterIds: number[];
   partitionIds: number[];
+  brackets: ItemLevelBrackets | null;
+}
+
+/** Ce qu'un appelant du vivier a besoin de savoir d'un palier, en une résolution. */
+export interface ZoneRankingContext {
+  partitionIds: number[];
+  brackets: ItemLevelBrackets | null;
 }
 
 /**
@@ -128,8 +161,8 @@ export function clearZoneMemo(): void {
   inFlight = [];
 }
 
-/** La liste en cache pour cette rencontre, ou `null` si rien de complet n'y est. */
-async function readCachedPartitions(encounterId: number): Promise<number[] | null> {
+/** Ce que le cache sait de cette rencontre, ou `null` si rien de complet n'y est. */
+async function readCachedZone(encounterId: number): Promise<ZoneRankingContext | null> {
   try {
     let zoneId = zoneOfEncounter.get(encounterId);
 
@@ -141,14 +174,26 @@ async function readCachedPartitions(encounterId: number): Promise<number[] | nul
       zoneOfEncounter.set(encounterId, zoneId);
     }
 
-    const raw = await redisGet(zonePartitionsKey(zoneId));
+    const [raw, rawBrackets] = await Promise.all([
+      redisGet(zonePartitionsKey(zoneId)),
+      redisGet(zoneBracketsKey(zoneId)),
+    ]);
     if (typeof raw !== 'string' || raw.length === 0) return null;
+    // Écrites ensemble : une entrée de partitions sans son découpage vient d'une génération
+    // antérieure, et la servir priverait le vivier du filtre pour toute la durée du TTL.
+    if (typeof rawBrackets !== 'string' || rawBrackets.length === 0) return null;
 
     const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed) && parsed.length > 0 && parsed.every((n) => typeof n === 'number')) {
-      return parsed;
-    }
-    return null;
+    if (
+      !Array.isArray(parsed) ||
+      parsed.length === 0 ||
+      !parsed.every((n) => typeof n === 'number')
+    )
+      return null;
+
+    // `null` est une valeur écrite, pas une absence : un palier peut légitimement ne pas
+    // découper sur l'ilvl, et le redemander à chaque analyse paierait la même réponse vide.
+    return { partitionIds: parsed, brackets: parseItemLevelBrackets(JSON.parse(rawBrackets)) };
   } catch {
     // Cache muet : on redemande à WCL plutôt que d'abandonner la résolution.
     return null;
@@ -171,13 +216,14 @@ async function discoverZone(token: string, encounterId: number): Promise<Resolve
   if (!zone) return null;
 
   const partitionIds = seasonPartitions(zone.partitions ?? []);
+  const brackets = itemLevelBrackets(zone.brackets);
   // La rencontre demandée est du lot même si WCL ne renvoie pas la liste : c'est elle qui a
   // servi à trouver le palier. Le `Set` la dédoublonne quand la liste la contient déjà.
   const encounterIds = [...new Set([encounterId, ...(zone.encounters ?? []).map((e) => e.id)])];
 
   for (const id of encounterIds) zoneOfEncounter.set(id, zone.id);
 
-  const resolved: ResolvedZone = { zoneId: zone.id, encounterIds, partitionIds };
+  const resolved: ResolvedZone = { zoneId: zone.id, encounterIds, partitionIds, brackets };
   if (partitionIds.length > 0) await writeZoneCache(resolved);
   return resolved;
 }
@@ -196,6 +242,11 @@ async function writeZoneCache(zone: ResolvedZone): Promise<void> {
   try {
     await Promise.all([
       redisSetEx(zonePartitionsKey(zone.zoneId), body, PARTITION_TTL_SECONDS),
+      redisSetEx(
+        zoneBracketsKey(zone.zoneId),
+        JSON.stringify(zone.brackets),
+        PARTITION_TTL_SECONDS
+      ),
       ...zone.encounterIds.map((id) =>
         redisSetEx(encounterZoneKey(id), zoneId, PARTITION_TTL_SECONDS)
       ),
@@ -216,11 +267,11 @@ async function writeZoneCache(zone: ResolvedZone): Promise<void> {
  * zone : sur un rapport de raid entier, neuf à douze appels identiques deviennent un seul,
  * et le règlement de `guardMeteredWclSpend` rend la différence au quota de l'appelant.
  */
-export async function resolveSeasonPartitions(
+export async function resolveZoneRankingContext(
   token: string,
   encounterId: number
-): Promise<number[]> {
-  const cached = await readCachedPartitions(encounterId);
+): Promise<ZoneRankingContext> {
+  const cached = await readCachedZone(encounterId);
   if (cached) return cached;
 
   // Instantané : `inFlight` bouge pendant les `await` qui suivent, et une résolution partie
@@ -228,7 +279,9 @@ export async function resolveSeasonPartitions(
   const pending = [...inFlight];
   for (const resolution of pending) {
     const zone = await resolution;
-    if (zone?.encounterIds.includes(encounterId)) return zone.partitionIds;
+    if (zone?.encounterIds.includes(encounterId)) {
+      return { partitionIds: zone.partitionIds, brackets: zone.brackets };
+    }
   }
 
   // Enregistrée sans `await` entre la création et l'inscription : un appelant qui s'intercale
@@ -237,8 +290,22 @@ export async function resolveSeasonPartitions(
   inFlight.push(discovery);
 
   try {
-    return (await discovery)?.partitionIds ?? [];
+    const zone = await discovery;
+    return { partitionIds: zone?.partitionIds ?? [], brackets: zone?.brackets ?? null };
   } finally {
     inFlight = inFlight.filter((p) => p !== discovery);
   }
+}
+
+/**
+ * Les seules partitions, pour qui n'a rien à faire du découpage d'ilvl.
+ *
+ * Conservée parce qu'elle nomme exactement ce que la plupart des appelants veulent, et parce
+ * que le repli `[]` qu'elle documente est le contrat sur lequel `fetchCandidatePool` s'appuie.
+ */
+export async function resolveSeasonPartitions(
+  token: string,
+  encounterId: number
+): Promise<number[]> {
+  return (await resolveZoneRankingContext(token, encounterId)).partitionIds;
 }

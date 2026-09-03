@@ -6,14 +6,22 @@ import type { CachedVerification } from './reference-cache';
 import type { PoolObservation } from '@/lib/labels/pool';
 import type { Comparability, ReferenceSample, TopPlayer } from '@/types';
 import { recordPool } from '@/lib/labels/record-pool';
+import { bracketsCovering } from './brackets';
 import { gql } from './client';
 import { findCombatantByName } from './combatant';
-import { comparabilityLevel, medianOf, selectClosest } from './comparability';
-import { CANDIDATE_PAGES, EXPLORATION_RATE, TOP_N, VERIFICATION_WINDOW } from './constants';
+import { comparabilityLevel, levelWithPanelSize, medianOf, selectClosest } from './comparability';
+import {
+  CANDIDATE_PAGES,
+  EXPLORATION_RATE,
+  PAGES_PER_BRACKET,
+  POOL_FLOOR,
+  TOP_N,
+  VERIFICATION_WINDOW,
+} from './constants';
 import { disqualify, eligibilityOf } from './eligibility';
 import { fetchFightData } from './fight-data';
 import { fmtMs, parseStats } from './parsers';
-import { resolveSeasonPartitions } from './partitions';
+import { resolveZoneRankingContext } from './partitions';
 import { poolCacheKey, readCachedPool, writeCachedPool } from './pool-cache';
 import { Q_BUFFS, Q_WORLD_RANKINGS, Q_WORLD_RANKINGS_PARTITION } from './queries';
 import {
@@ -33,10 +41,40 @@ export interface WorldRanking {
   report: { code: string; fightID: number };
 }
 
-export interface CandidatePool {
+/**
+ * Une tranche de vivier : ce qu'un jeu d'arguments de filtre rend, et ce que le cache garde.
+ * Le vivier complet en est la somme, dédoublonnée.
+ */
+export interface PoolSlice {
   candidates: WorldRanking[];
   pagesFetched: number;
   pagesExpected: number;
+}
+
+/**
+ * L'enum `ExternalBuffRankFilter` de Warcraft Logs, réduite aux deux valeurs qu'on emploie.
+ * `Require` existe et ne nous sert à rien : on ne cherche pas les candidats aidés.
+ */
+export type ExternalBuffFilter = 'Any' | 'Exclude';
+
+/**
+ * Ce avec quoi le vivier a réellement été construit chez Warcraft Logs.
+ *
+ * Rendu et non déduit : `bracketsCovering` peut renoncer au filtre, et le plancher peut le
+ * relâcher après coup. Un écran qui recalculerait les brackets depuis l'ilvl du joueur
+ * décrirait un vivier que personne n'a interrogé.
+ */
+export interface PoolFilters {
+  /** Les brackets d'ilvl interrogés. Vide : vivier non filtré sur l'équipement. */
+  brackets: number[];
+  /** Les candidats aidés ont-ils été refusés à la source. */
+  externalBuffs: ExternalBuffFilter;
+  /** Le vivier filtré était sous `POOL_FLOOR` : un vivier non filtré l'a complété. */
+  relaxed: boolean;
+}
+
+export interface CandidatePool extends PoolSlice {
+  filters: PoolFilters;
 }
 
 interface RankingsResponse {
@@ -44,8 +82,7 @@ interface RankingsResponse {
 }
 
 /**
- * Builds the candidate pool by fetching CANDIDATE_PAGES pages per partition of the
- * opening season of the tier, in parallel.
+ * Une tranche de vivier : toutes les pages d'un jeu d'arguments, sur toutes les partitions.
  *
  * WCL's default partition is the tier's own next season — on the current tier that means
  * five logs instead of several thousand, because a season that just opened has barely been
@@ -57,27 +94,32 @@ interface RankingsResponse {
  * rather than failing the analysis, and pagesFetched reports what was obtained.
  *
  * Ces pages sont le gros de la facture Warcraft Logs d'une analyse, et elles ne dépendent
- * pas du joueur analysé : d'où le cache, à durée de vie explicite, partagé par tous les
- * joueurs d'une même spec sur un même boss. Voir `pool-cache.ts` pour le TTL et ce qu'il
- * garantit vis-à-vis des CGU.
+ * pas du joueur analysé — seulement de sa tranche d'équipement : d'où le cache, à durée de
+ * vie explicite, partagé par tous les joueurs d'une même spec, sur un même boss, dans un
+ * même bracket. Voir `pool-cache.ts` pour le TTL et ce qu'il garantit vis-à-vis des CGU.
  */
-export async function fetchCandidatePool(
+async function fetchPoolSlice(
   token: string,
-  args: { encounterId: number; difficulty: number; specName: string; className: string }
-): Promise<CandidatePool> {
-  const cacheKey = poolCacheKey(args);
+  args: {
+    encounterId: number;
+    difficulty: number;
+    specName: string;
+    className: string;
+    bracket: number;
+    externalBuffs: ExternalBuffFilter;
+  },
+  partitions: number[],
+  pages: number
+): Promise<PoolSlice> {
+  const cacheKey = poolCacheKey({ ...args, excludeExternals: args.externalBuffs === 'Exclude' });
   const cached = await readCachedPool(cacheKey);
   if (cached) return cached;
 
-  // Résolu avant l'éclatement, pas dedans : les dix pages d'une partition partagent la même
-  // liste, et la redemander par page paierait dix fois la même réponse.
-  const partitions = await resolveSeasonPartitions(token, args.encounterId);
-
   const requests = partitions.length > 0 ? partitions : [null];
 
-  const pages = await Promise.all(
+  const fetched = await Promise.all(
     requests.flatMap((partition) =>
-      Array.from({ length: CANDIDATE_PAGES }, (_, i) =>
+      Array.from({ length: pages }, (_, i) =>
         gql<RankingsResponse>(
           token,
           partition === null ? Q_WORLD_RANKINGS : Q_WORLD_RANKINGS_PARTITION,
@@ -87,6 +129,11 @@ export async function fetchCandidatePool(
             specName: args.specName,
             className: args.className,
             page: i + 1,
+            // Valeurs neutres explicites, jamais omises : les deux arguments sont non
+            // nullables côté requête, et `0` / `Any` sont ce que WCL entend par « ne filtre
+            // pas ». Voir l'en-tête de `Q_WORLD_RANKINGS`.
+            bracket: args.bracket,
+            externalBuffs: args.externalBuffs,
             ...(partition === null ? {} : { partition }),
           }
         )
@@ -96,14 +143,31 @@ export async function fetchCandidatePool(
     )
   );
 
-  const seen = new Set<string>();
   const candidates: WorldRanking[] = [];
   let pagesFetched = 0;
 
-  for (const page of pages) {
+  for (const page of fetched) {
     if (page === null) continue;
     pagesFetched += 1;
-    for (const entry of page) {
+    candidates.push(...page);
+  }
+
+  const slice = { candidates, pagesFetched, pagesExpected: requests.length * pages };
+
+  // Attendue, pas mise en `void` : sur un runtime serverless une promesse non attendue part
+  // avec la fonction, et le cache ne se remplirait jamais. L'appel n'échoue pas.
+  await writeCachedPool(cacheKey, slice);
+
+  return slice;
+}
+
+/** Le vivier de plusieurs tranches, dédoublonné sur le combat. */
+function mergeSlices(slices: PoolSlice[], filters: PoolFilters): CandidatePool {
+  const seen = new Set<string>();
+  const candidates: WorldRanking[] = [];
+
+  for (const slice of slices) {
+    for (const entry of slice.candidates) {
       const key = `${entry.report.code}:${entry.report.fightID}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -111,13 +175,95 @@ export async function fetchCandidatePool(
     }
   }
 
-  const pool = { candidates, pagesFetched, pagesExpected: requests.length * CANDIDATE_PAGES };
+  return {
+    candidates,
+    pagesFetched: slices.reduce((n, slice) => n + slice.pagesFetched, 0),
+    pagesExpected: slices.reduce((n, slice) => n + slice.pagesExpected, 0),
+    filters,
+  };
+}
 
-  // Attendue, pas mise en `void` : sur un runtime serverless une promesse non attendue part
-  // avec la fonction, et le cache ne se remplirait jamais. L'appel n'échoue pas.
-  await writeCachedPool(cacheKey, pool);
+/**
+ * Le vivier de candidats, filtré chez Warcraft Logs plutôt que chez nous.
+ *
+ * Deux filtres, tous deux **durs** — on garde ou on jette — et aucun n'entre dans la distance
+ * euclidienne : `CandidateMetrics` ne porte toujours que `bracketData` et `duration`.
+ *
+ * - **L'ilvl**, par les brackets qui couvrent `ILVL_TOLERANCE` autour du joueur. Ce n'est pas
+ *   qu'un filtre, c'est une densité : à budget de requêtes comparable, le vivier obtenu tient
+ *   entièrement dans la tolérance, là où dix pages non filtrées balayaient tout l'écart d'ilvl
+ *   du palier pour n'en rendre qu'une poignée d'utilisables.
+ * - **Les externals**, quand le joueur n'en porte aucun. Conditionnel, et c'est essentiel :
+ *   `disqualify` n'élimine un candidat que s'il a été aidé **plus** que le joueur, donc pour
+ *   un joueur qui reçoit Power Infusion à chaque pull, exclure les porteurs supprimerait
+ *   précisément ses bonnes comparaisons et le laisserait face à un champ non buffé, dont il
+ *   ressortirait flatté. Le filtre ne part que là où il ne peut rien retirer de légitime.
+ *
+ * Le set bonus, lui, n'est pas ici et ne peut pas y être : le spike de l'étape 3 a mesuré que
+ * `characterRankings` échange `setID` contre `name` sur chaque pièce, et que les deux replis
+ * dérivables — suffixe de nom, icône — se trompent de verdict. Il reste payé par candidat
+ * dans `VERIFICATION_WINDOW`. Voir `docs/07-spike-rankings.md`.
+ *
+ * `size` est écarté pour une autre raison, produit celle-là : le Mythique est à 20 joueurs
+ * fixes, donc le filtre est inerte exactement là où le produit sert, et l'armer ailleurs
+ * demanderait de connaître la taille du raid du sujet — une requête pour un gain nul.
+ *
+ * Enfin, filtrer peut vider. Sous `POOL_FLOOR`, le vivier non filtré est ajouté plutôt que de
+ * rendre un panel famélique — et `filters.relaxed` le dit, parce qu'un vivier élargi en
+ * silence n'est plus celui que la bannière décrit.
+ */
+export async function fetchCandidatePool(
+  token: string,
+  args: {
+    encounterId: number;
+    difficulty: number;
+    specName: string;
+    className: string;
+    /**
+     * L'ilvl du joueur, celui-là même que `scoreCandidate` compare. Absent ou nul : pas de
+     * filtre d'ilvl, et le vivier non filtré d'avant cette étape.
+     */
+    myIlvl?: number;
+    /**
+     * Le joueur porte-t-il un external offensif. `true` arme `Exclude`. Voir l'en-tête pour
+     * pourquoi ce filtre est conditionnel et non systématique.
+     */
+    excludeExternals?: boolean;
+  }
+): Promise<CandidatePool> {
+  const { myIlvl = 0, excludeExternals = false, ...pool } = args;
 
-  return pool;
+  // Résolu avant l'éclatement, pas dedans : toutes les pages partagent la même liste de
+  // partitions et le même découpage d'ilvl, et les redemander par page paierait n fois la
+  // même réponse.
+  const { partitionIds, brackets } = await resolveZoneRankingContext(token, args.encounterId);
+  const externalBuffs: ExternalBuffFilter = excludeExternals ? 'Exclude' : 'Any';
+  const wanted = brackets ? bracketsCovering(myIlvl, brackets) : [];
+
+  const unfiltered = () =>
+    fetchPoolSlice(token, { ...pool, bracket: 0, externalBuffs }, partitionIds, CANDIDATE_PAGES);
+
+  if (wanted.length === 0) {
+    return mergeSlices([await unfiltered()], { brackets: [], externalBuffs, relaxed: false });
+  }
+
+  const slices = await Promise.all(
+    wanted.map((bracket) =>
+      fetchPoolSlice(token, { ...pool, bracket, externalBuffs }, partitionIds, PAGES_PER_BRACKET)
+    )
+  );
+
+  const filtered = mergeSlices(slices, { brackets: wanted, externalBuffs, relaxed: false });
+  if (filtered.candidates.length >= POOL_FLOOR) return filtered;
+
+  // Le relâchement coûte une seconde volée de requêtes, et c'est le bon prix : ce qu'il tire
+  // est l'entrée que tous les joueurs de la spec partagent, donc le cache l'amortit d'un
+  // joueur à l'autre — là où un panel réduit à une ou deux références serait payé par chacun.
+  return mergeSlices([...slices, await unfiltered()], {
+    brackets: wanted,
+    externalBuffs,
+    relaxed: true,
+  });
 }
 
 export interface ResolvedReferences {
@@ -504,7 +650,15 @@ export async function resolveReferences(
   const comparability: Comparability = {
     // A substituted panel is not comparable, whatever the distances say: the criterion
     // that eliminated the substitute is eliminatory, and the distance never saw it.
-    level: keptSubstitutes.length > 0 ? 'poor' : comparabilityLevel(scored),
+    //
+    // `levelWithPanelSize` par-dessus : un panel plus court que `TOP_N` n'est pas non plus
+    // comparable, quelle que soit la distance de ce qu'il reste. Depuis que le vivier est
+    // filtré à la source, c'est un cas qu'on peut provoquer soi-même.
+    level: levelWithPanelSize(
+      keptSubstitutes.length > 0 ? 'poor' : comparabilityLevel(scored),
+      scored.length,
+      TOP_N
+    ),
     referenceIlvl: medianOf(referenceIlvls),
     referenceIlvlCount: referenceIlvls.length,
     myIlvl,
@@ -518,6 +672,7 @@ export async function resolveReferences(
     disqualified: eliminated.length,
     unverifiable: attempted - verified.length,
     substituted: keptSubstitutes.length,
+    poolFilters: pool.filters,
   };
 
   return { topPlayers, sample: sampleOf(verified), comparability };

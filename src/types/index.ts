@@ -2,6 +2,7 @@ import type { ComparabilityLevel } from '@/lib/wcl/comparability';
 import type { DisqualificationReason, EligibilityProfile } from '@/lib/wcl/eligibility';
 import type { FightContext } from '@/lib/wcl/fight-context';
 import type { IconIndex } from '@/lib/wcl/icons';
+import type { PoolFilters } from '@/lib/wcl/references';
 import type { TrajectoryPoint } from '@/lib/wcl/trajectory';
 
 /**
@@ -218,6 +219,7 @@ export interface FightTarget {
 }
 
 export type { ComparabilityLevel } from '@/lib/wcl/comparability';
+export type { PoolFilters } from '@/lib/wcl/references';
 
 export interface Comparability {
   level: ComparabilityLevel;
@@ -258,6 +260,19 @@ export interface Comparability {
    * force `level` à `poor` : le panel est plein, mais il ne dit plus la même chose.
    */
   substituted: number;
+  /**
+   * Ce avec quoi le vivier a été demandé à Warcraft Logs, quand il l'a été avec des filtres.
+   *
+   * Rendu et non déductible : la couverture en brackets peut être abandonnée faute de
+   * découpage exploitable, et le plancher peut la relâcher après coup. Un écran qui la
+   * recalculerait depuis l'ilvl du joueur décrirait un vivier que personne n'a interrogé.
+   *
+   * Optionnel : les instantanés de 24 h écrits avant cette version rejouent sans lui, et le
+   * bandeau tait alors la provenance du vivier au lieu d'en inventer une — même doctrine que
+   * `icons?` et que les compteurs de la table de sorts, donc pas de bump de
+   * `SNAPSHOT_CACHE_VERSION`.
+   */
+  poolFilters?: PoolFilters;
 }
 
 /**

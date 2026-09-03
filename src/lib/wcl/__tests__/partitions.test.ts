@@ -5,8 +5,10 @@ import {
   clearZoneMemo,
   encounterZoneKey,
   resolveSeasonPartitions,
+  resolveZoneRankingContext,
   seasonOf,
   seasonPartitions,
+  zoneBracketsKey,
   zonePartitionsKey,
 } from '../partitions';
 
@@ -29,6 +31,9 @@ const CURRENT_TIER: Partition[] = [
   { id: 3, name: '12.0.7', default: false },
   { id: 4, name: '12.1', default: true },
 ];
+
+/** Le découpage d'ilvl relevé sur le palier courant au spike de l'étape 3. */
+const TIER_BRACKETS = { type: 'Item Level', min: 272, max: 344, bucket: 3 };
 
 describe('seasonOf', () => {
   it('groups the patches of one season under their two leading segments', () => {
@@ -102,13 +107,24 @@ describe('resolveSeasonPartitions', () => {
   const ZONE_ENCOUNTERS = [3176, 3177, 3179, 3178, 3180, 3181, 3306, 3182, 3183];
 
   const ok = (data: unknown) => ({ ok: true, json: async () => ({ data }) }) as Response;
-  const zone = (partitions: Partition[] | null, encounters = ZONE_ENCOUNTERS) =>
+  const zone = (
+    partitions: Partition[] | null,
+    encounters = ZONE_ENCOUNTERS,
+    brackets: unknown = TIER_BRACKETS
+  ) =>
     ok({
       worldData: {
         encounter:
           partitions === null
             ? null
-            : { zone: { id: 46, encounters: encounters.map((id) => ({ id })), partitions } },
+            : {
+                zone: {
+                  id: 46,
+                  encounters: encounters.map((id) => ({ id })),
+                  partitions,
+                  brackets,
+                },
+              },
       },
     });
 
@@ -117,10 +133,11 @@ describe('resolveSeasonPartitions', () => {
     ({ ok: false, status: 500, headers: { get: () => null } }) as unknown as Response;
 
   /** Le cache chaud d'un conteneur qui démarre froid : le palier, puis sa liste. */
-  const cachedZone = (ids: number[]) =>
+  const cachedZone = (ids: number[], brackets: unknown = { min: 272, max: 344, bucket: 3 }) =>
     redisGet.mockImplementation(async (key: string) => {
       if (key === encounterZoneKey(3306)) return '46';
       if (key === zonePartitionsKey(46)) return JSON.stringify(ids);
+      if (key === zoneBracketsKey(46)) return JSON.stringify(brackets);
       return null;
     });
 
@@ -136,6 +153,7 @@ describe('resolveSeasonPartitions', () => {
     redisGet.mockImplementation(async (key: string) => {
       if (key === encounterZoneKey(3306)) return '46';
       if (key === zonePartitionsKey(46)) return JSON.stringify({ ids: [1, 2] });
+      if (key === zoneBracketsKey(46)) return JSON.stringify({ min: 272, max: 344, bucket: 3 });
       return null;
     });
     globalThis.fetch = vi.fn().mockResolvedValue(zone(CURRENT_TIER));
@@ -240,5 +258,95 @@ describe('resolveSeasonPartitions', () => {
   // la zone 46 et la rencontre 46 partageraient une entrée.
   it('never collides a zone key with an encounter key', () => {
     expect(zonePartitionsKey(46)).not.toBe(encounterZoneKey(46));
+    expect(zoneBracketsKey(46)).not.toBe(zonePartitionsKey(46));
+  });
+});
+
+describe('resolveZoneRankingContext', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    redisGet.mockResolvedValue(null);
+    redisSetEx.mockResolvedValue(undefined);
+    clearZoneMemo();
+  });
+
+  const ok = (data: unknown) => ({ ok: true, json: async () => ({ data }) }) as Response;
+  const zone = (brackets: unknown) =>
+    ok({
+      worldData: {
+        encounter: {
+          zone: { id: 46, encounters: [{ id: 3306 }], partitions: CURRENT_TIER, brackets },
+        },
+      },
+    });
+
+  // Le découpage arrive par la requête qui résolvait déjà les partitions : zéro requête de
+  // plus, et c'est ce qui rend le filtre d'ilvl gratuit à l'échelle de l'analyse.
+  it('brings the tier ilvl brackets back with its partitions, in one request', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(zone(TIER_BRACKETS));
+
+    const context = await resolveZoneRankingContext('token', 3306);
+
+    expect(context.partitionIds).toEqual([1, 2, 3]);
+    expect(context.brackets).toEqual({ min: 272, max: 344, bucket: 3 });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  // Filtrer sur un axe qu'on prend pour l'ilvl écarterait le vivier au hasard, en silence.
+  it('refuses a bracketing that is not on item level', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(zone({ ...TIER_BRACKETS, type: 'Boss Percentage' }));
+
+    await expect(resolveZoneRankingContext('token', 3306)).resolves.toMatchObject({
+      partitionIds: [1, 2, 3],
+      brackets: null,
+    });
+  });
+
+  it('caches the bracketing beside the partitions, with the same expiry', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(zone(TIER_BRACKETS));
+
+    await resolveZoneRankingContext('token', 3306);
+
+    expect(redisSetEx).toHaveBeenCalledWith(
+      zoneBracketsKey(46),
+      JSON.stringify({ min: 272, max: 344, bucket: 3 }),
+      PARTITION_TTL_SECONDS
+    );
+  });
+
+  // `null` est une valeur écrite, pas une absence : un palier peut légitimement ne pas
+  // découper sur l'ilvl, et le redemander à chaque analyse paierait la même réponse vide.
+  it('reads back a cached absence of bracketing without asking again', async () => {
+    redisGet.mockImplementation(async (key: string) => {
+      if (key === encounterZoneKey(3306)) return '46';
+      if (key === zonePartitionsKey(46)) return JSON.stringify([1, 2, 3]);
+      if (key === zoneBracketsKey(46)) return 'null';
+      return null;
+    });
+    globalThis.fetch = vi.fn();
+
+    await expect(resolveZoneRankingContext('token', 3306)).resolves.toEqual({
+      partitionIds: [1, 2, 3],
+      brackets: null,
+    });
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  // Les deux clés sont écrites ensemble : une entrée de partitions sans son découpage vient
+  // d'une génération antérieure, et la servir priverait le vivier du filtre pour tout le TTL.
+  it('treats a partitions entry without its bracketing as a miss, and re-resolves once', async () => {
+    redisGet.mockImplementation(async (key: string) => {
+      if (key === encounterZoneKey(3306)) return '46';
+      if (key === zonePartitionsKey(46)) return JSON.stringify([1, 2, 3]);
+      return null;
+    });
+    globalThis.fetch = vi.fn().mockResolvedValue(zone(TIER_BRACKETS));
+
+    const context = await resolveZoneRankingContext('token', 3306);
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(context.brackets).toEqual({ min: 272, max: 344, bucket: 3 });
   });
 });

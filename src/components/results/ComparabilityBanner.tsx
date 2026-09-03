@@ -39,8 +39,11 @@ export function ComparabilityBanner({
   comparability,
   earlyDeathPct = null,
 }: ComparabilityBannerProps) {
-  const { level } = comparability;
+  const { level, poolFilters } = comparability;
   const tone = LEVEL_TONE[level];
+  // Absent des instantanés écrits avant le filtrage à la source : on se tait alors sur la
+  // provenance du vivier plutôt que d'en inventer une.
+  const narrowed = poolFilters !== undefined && poolFilters.brackets.length > 0;
 
   return (
     <Card header="Comparison basis">
@@ -66,6 +69,16 @@ export function ComparabilityBanner({
         Closest of <span className="font-mono">{comparability.candidatesConsidered}</span>{' '}
         candidates over <span className="font-mono">{comparability.pagesFetched}</span> ranking
         pages
+        {narrowed && (
+          <>
+            , drawn from <span className="font-mono">{poolFilters.brackets.length}</span> item level
+            brackets around yours
+          </>
+        )}
+        {poolFilters?.externalBuffs === 'Exclude' && (
+          <>, none of them handed an offensive external</>
+        )}
+        {poolFilters?.relaxed && <>, widened back to the full rankings for lack of logs near you</>}
         {comparability.disqualified > 0 && (
           <>
             , <span className="font-mono">{comparability.disqualified}</span> eliminated on set

@@ -124,6 +124,68 @@ describe('comparabilityBanner', () => {
   });
 });
 
+// D'où sort le vivier n'est pas déductible de l'écran : la couverture en brackets peut être
+// abandonnée faute de découpage exploitable, et le plancher peut la relâcher après coup.
+describe('comparabilityBanner, provenance du vivier', () => {
+  it('says how narrow the pool was drawn around the player', () => {
+    render(
+      <ComparabilityBanner
+        comparability={comparability({
+          poolFilters: { brackets: [15, 16, 17], externalBuffs: 'Any', relaxed: false },
+        })}
+      />
+    );
+
+    expect(screen.getByText(/item level brackets around yours/)).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+  });
+
+  it('says when the field was purged of external carriers', () => {
+    render(
+      <ComparabilityBanner
+        comparability={comparability({
+          poolFilters: { brackets: [15, 16], externalBuffs: 'Exclude', relaxed: false },
+        })}
+      />
+    );
+
+    expect(screen.getByText(/handed an offensive external/)).toBeInTheDocument();
+  });
+
+  // Un vivier élargi en silence n'est plus celui que la bannière décrit : le repli se dénonce.
+  it('says when the filtered pool was too thin and had to be widened', () => {
+    render(
+      <ComparabilityBanner
+        comparability={comparability({
+          poolFilters: { brackets: [15, 16, 17], externalBuffs: 'Any', relaxed: true },
+        })}
+      />
+    );
+
+    expect(screen.getByText(/widened back to the full rankings/)).toBeInTheDocument();
+  });
+
+  // Les instantanés de 24 h écrits avant le filtrage à la source rejouent sans ce champ.
+  it('says nothing about the pool when the snapshot predates the filters', () => {
+    render(<ComparabilityBanner comparability={comparability()} />);
+
+    expect(screen.queryByText(/item level brackets around yours/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/widened back/)).not.toBeInTheDocument();
+  });
+
+  it('says nothing about a pool the tier would not let it narrow', () => {
+    render(
+      <ComparabilityBanner
+        comparability={comparability({
+          poolFilters: { brackets: [], externalBuffs: 'Any', relaxed: false },
+        })}
+      />
+    );
+
+    expect(screen.queryByText(/item level brackets around yours/)).not.toBeInTheDocument();
+  });
+});
+
 describe('comparabilityBanner, mort précoce', () => {
   it('says the comparison is hard to defend, in the colour reserved for that', () => {
     const { container } = render(

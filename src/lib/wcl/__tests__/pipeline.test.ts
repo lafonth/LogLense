@@ -164,6 +164,46 @@ describe('renderId', () => {
   });
 });
 
+// Le vivier part maintenant après les données de combat, et non plus en parallèle : il se
+// demande avec l'ilvl du sujet et avec ce qu'il a reçu comme externals, dont aucun n'est connu
+// plus tôt. Ce qui est vérifié ici est le câblage — que les deux chemins le fassent, et que
+// personne ne rétablisse le parallélisme en reperdant les arguments au passage.
+describe('pool filters', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('asks for the pool with the subject ilvl, on both paths', async () => {
+    await charBoss();
+    expect(vi.mocked(fetchCandidatePool).mock.calls[0]?.[1]).toMatchObject({ myIlvl: 635 });
+
+    vi.clearAllMocks();
+    await reportBoss();
+    expect(vi.mocked(fetchCandidatePool).mock.calls[0]?.[1]).toMatchObject({ myIlvl: 635 });
+  });
+
+  // Conditionnel : pour un joueur qui reçoit un external à chaque pull, exclure les porteurs
+  // supprimerait précisément ses bonnes comparaisons et le laisserait flatté face à un champ
+  // non buffé. La fixture n'en porte aucun, donc le filtre s'arme.
+  it('arms the external filter from what the subject actually carried', async () => {
+    await charBoss();
+    expect(vi.mocked(fetchCandidatePool).mock.calls[0]?.[1]).toMatchObject({
+      excludeExternals: true,
+    });
+
+    vi.clearAllMocks();
+    vi.mocked(fetchFightData).mockResolvedValueOnce({
+      ...fixtures.fightData,
+      eligibility: { tierPieces: 4, externalUptime: 42, externals: ['Power Infusion'] },
+    } as unknown as Awaited<ReturnType<typeof fetchFightData>>);
+
+    await charBoss();
+    expect(vi.mocked(fetchCandidatePool).mock.calls[0]?.[1]).toMatchObject({
+      excludeExternals: false,
+    });
+  });
+});
+
 // L'écart affiché soustrait le DPS du sujet à celui des références, et `references.ts` prend
 // toujours le montant des classements WCL. Les deux chemins doivent donc mesurer le sujet à la
 // même règle — c'est l'invariant qui manquait, et que le chemin rapport enfreignait.
