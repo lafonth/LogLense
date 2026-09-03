@@ -45,8 +45,10 @@ coûtent aucune requête WCL, puis le spike qui conditionne tout le reste, puis 
 de lui. Le chantier IA passe en dernier — c'est le plus incertain, et un arbitrage a déjà été
 rendu contre lui une fois.
 
-Deux volets sont **retenus hors plan**, faute d'arbitrage produit : le panneau de filtres
-utilisateur et le garde-fou côté formulaire. Ils attendent un second tour de retours.
+Un volet reste **retenu hors plan**, faute d'arbitrage produit : le garde-fou côté
+formulaire. Il attend un second tour de retours. Le second — le panneau de filtres utilisateur —
+en est sorti le 2026-09-04 et devient l'étape 9 : ses deux questions ouvertes se tranchent sur
+une mesure, pas sur un avis.
 
 ---
 
@@ -408,17 +410,85 @@ avant/après** sur un vrai combat via `record-usage.ts`. Les quatre vérificatio
 
 ---
 
+## Étape 9 — Le panneau de filtres, et ce qu'il n'a pas le droit de bouger
+
+Ouverte le 2026-09-04, après coup. Elle était retenue hors plan faute d'arbitrage produit ;
+ses deux questions ouvertes se sont révélées tranchables sans second tour de retours, parce
+que la mesure les tranche — le vivier est déjà chez le client.
+
+**Le retour** : le testeur veut régler lui-même les seuils de comparabilité plutôt que de
+subir `KILL_TIME_TOLERANCE`, `ILVL_TOLERANCE` et `TOP_N`.
+
+**Le panneau n'invente pas ses axes.** `CohortFilter` (`cohort.ts:26-38`) les porte déjà —
+pièces de tier, bornes de kill time, écart d'ilvl, plafond d'externals, inclusion des
+disqualifiés — parce que le chat pose déjà ces questions-là. L'étape donne une surface à
+l'outil de resélection ; elle n'ouvre pas un axe de plus.
+
+**Quatre arbitrages, rendus ici pour que la session d'exécution n'ait pas à les rouvrir** :
+
+1. **Resélection gratuite, dans le navigateur, et rien d'autre.**
+   `/api/analyze/[encounterId]` rend le `BossResult` entier au client, `sample` compris — les
+   douze candidats de `VERIFICATION_WINDOW`, avec stats, dps, kill time, ilvl, `tierPieces`,
+   `externalUptime` et verdict de qualification. `describeCohort` est un module pur qui rejoue
+   `selectClosest` et `comparabilityLevel` sur ce vivier. Le panneau l'appelle donc **côté
+   client** : pas de route, pas de requête WCL, pas de Redis. Un curseur qui bouge ne déclenche
+   jamais une analyse.
+2. **L'instantané ne se souvient de rien.** `result-snapshot.ts` est le rendu partagé — ce que
+   le second lecteur d'un lien voit du premier — et son TTL est une frontière légale, pas une
+   fraîcheur. Y écrire les filtres, ce serait une écriture Redis par coup de curseur, et une
+   clé qui ne désigne plus un rendu. Les filtres vivent dans l'état du composant. Aucun champ
+   ajouté, donc aucun bump de `SNAPSHOT_CACHE_VERSION`.
+3. **Le panneau ne gouverne que ce qu'il peut honnêtement gouverner.** `ReferenceSample` ne
+   porte ni rotation ni table de dégâts — seuls les `TOP_N` de `topPlayers` les portent, et les
+   récupérer coûte trois requêtes par candidat (`promote.ts`). Un filtre peut donc recalculer
+   l'effectif, le niveau, les distributions de stats / dps / kill time et la liste des
+   références avec leur distance ; il **ne peut pas** refaire `damage-gap`, `rotation-stats`,
+   `ability-table`, `cast-timing` ni `findings`. Il ne fait pas semblant de le pouvoir : ce
+   qu'il montre est étiqueté cohorte, et quand le filtre exclut l'une des trois références
+   détaillées, il le **dit** — sinon les écrans de sorts continuent de comparer à quelqu'un que
+   l'utilisateur vient d'écarter, en silence. La promotion payante existe déjà et reste où elle
+   est : dans le chat, qui l'annonce avant de dépenser.
+4. **`ComparabilityBanner` ne bouge pas.** Il est monté hors des onglets
+   (`BossContentPanel.tsx:172`) et énonce la comparabilité de la sélection **réellement
+   utilisée** par le reste de l'écran. Le niveau recalculé s'affiche dans le panneau, comme
+   réponse à « qu'est-ce que ça change », jamais en écrasant le bandeau. C'est la divergence
+   que l'étape 5 avait déjà refusée : le pourcentage disant une chose et le bandeau une autre.
+
+**Sur `TOP_N`, qui n'est pas un seuil de même nature que les deux autres.** `ILVL_TOLERANCE` et
+`KILL_TIME_TOLERANCE` filtrent un vivier déjà en mémoire ; `TOP_N` décide combien de références
+ont été **récupérées**, et l'augmenter demande des requêtes. Un curseur qui promettrait une
+quatrième référence détaillée serait un mensonge à trois requêtes près. Il n'est donc pas
+exposé comme levier : l'écran le nomme comme fixé au moment de l'analyse.
+
+**À lire d'abord** : `src/lib/comparison/cohort.ts` en entier — 166 lignes, c'est le moteur de
+l'étape — puis `src/components/results/ComparisonTab.tsx:90-120` et
+`src/lib/wcl/constants.ts:23-24` et `:38` pour les valeurs par défaut.
+
+**Fait quand** : un panneau de filtres est rendu dans l'onglet Comparison, à côté de
+`ReferenceLabels` ; bouger un réglage ne produit aucune requête réseau ; l'effectif, le niveau
+recalculé et les distributions suivent le filtre ; le bandeau hors onglets ne bouge pas ; le
+panneau nomme les références détaillées que le filtre exclut ; sa position neutre est le filtre
+vide — la cohorte telle que la sélection l'a vue — et un bouton y ramène. Les quatre
+vérifications passent.
+
+**Prompt** :
+
+> Étape 9 de `PLAN_RETOURS_TEST.md`. Lis l'étape : elle rend quatre arbitrages, ne les rouvre
+> pas. Puis `src/lib/comparison/cohort.ts` en entier et
+> `src/components/results/ComparisonTab.tsx:90-120`. Ajoute un panneau de filtres **côté
+> client** qui rend les axes de `CohortFilter` et appelle `describeCohort` sur `result.sample` :
+> aucune requête, aucune écriture d'instantané, aucun champ de type ajouté. Le niveau recalculé
+> s'affiche dans le panneau, jamais dans `ComparabilityBanner`. Quand le filtre exclut l'une des
+> références de `topPlayers`, le panneau le dit. Position neutre = filtre vide, avec un bouton
+> de retour. N'expose pas `TOP_N` : il coûte des requêtes, les deux autres non.
+
+---
+
 ## Retenus hors plan
 
-Les deux volets qui demandent le plus d'arbitrage produit, et le moins de code. Ils attendent
-un second tour de retours plutôt qu'une décision prise seul.
+Le volet qui demande le plus d'arbitrage produit, et le moins de code. Il attend un second tour
+de retours plutôt qu'une décision prise seul.
 
-- **Le panneau de filtres utilisateur** (exposer `KILL_TIME_TOLERANCE`, `ILVL_TOLERANCE`,
-  `TOP_N`). Deux décisions avant d'écrire : un changement de filtre rejoue-t-il la sélection
-  sans requête (comme le chat le fait déjà via `cohort.ts`) ou déclenche-t-il une nouvelle
-  analyse ? Et l'instantané de 24 h (`result-snapshot.ts`) doit-il se souvenir des filtres
-  choisis ? Penchant : resélection gratuite sur le `sample` existant, rien de neuf chez WCL
-  sans demande explicite.
 - **Le garde-fou au formulaire** (specs non supportées grisées avec leur raison). C'est
   masquer les specs qui a produit le bug : la joueuse Sacré a choisi Ombre parce que c'était la
   seule option offerte. Mais griser demande de décider ce qu'on promet — et l'étape 0 rend déjà
@@ -446,3 +516,4 @@ un second tour de retours plutôt qu'une décision prise seul.
 | 2026-09-03 | 6     | Étape réduite d'un côté et élargie de l'autre, comme le spike de l'étape 3 le prévoyait. **Volet set bonus : abandonné au niveau du vivier**, il reste payé par candidat dans `VERIFICATION_WINDOW` — `characterRankings` échange `setID` contre `name`, et les deux replis dérivables sont mesurés faux. **Volet filtres serveur : deux filtres au lieu d'un.** `bracket`, et `externalBuffs: Exclude` — la trouvaille du spike, gratuite en octets — **conditionnel**, armé seulement quand le sujet n'a porté aucun external : `disqualify` n'élimine qu'un candidat aidé _plus_ que le joueur, donc l'exclure pour un joueur qui reçoit Power Infusion à chaque pull supprimerait précisément ses bonnes comparaisons et le laisserait flatté face à un champ non buffé. **`size` écarté**, et pour une raison produit : le Mythique est à 20 joueurs fixes, donc le filtre est inerte exactement là où le produit sert, et l'armer en Normal/Héroïque coûterait une requête pour connaître la taille du raid du sujet. `brackets.ts` porte l'arithmétique du spike (`bracket n → [min + (n−1)·bucket, min + n·bucket − 1]`) et rend **`[]` — « ne filtre pas » — plutôt que de rogner** : ilvl inconnu, découpage incohérent, ou couverture demandant plus de `MAX_POOL_BRACKETS` (4) tranches ; rogner écarterait en silence une partie de `ILVL_TOLERANCE`, que `scoreCandidate` continue de juger entière. `PAGES_PER_BRACKET = 3` contre `CANDIDATE_PAGES = 10` : budget de requêtes comparable, vivier incomparablement plus proche. Le découpage arrive par `zone { brackets }` **sur la requête de partitions déjà payée** — zéro requête de plus — mais dans une **clé Redis séparée** (`zoneBracketsKey`), le corps de `zonePartitionsKey` étant une liste d'entiers depuis l'origine ; une entrée de partitions sans son découpage est traitée comme absente, donc une génération de cache antérieure se recharge une fois, d'elle-même. Deux validateurs et non un (`itemLevelBrackets` sur la forme WCL, `parseItemLevelBrackets` sur la forme normalisée) : le champ `type` ne survit pas au cache, et un validateur unique aurait rejeté à la relecture tout ce qu'on venait d'écrire. Cache de vivier en `v3`, **clé par bracket et jamais par fenêtre de brackets** — c'est ce qui le garde payant : ilvl 320 et 322 partagent trois tranches sur quatre, une clé portant la fenêtre entière ne leur laisserait rien. Aucun repli entre `anyext` et `noext`, les deux ne répondent pas à la même question. **Clause de sortie tenue par deux mécanismes** : `POOL_FLOOR = VERIFICATION_WINDOW` complète un vivier filtré trop maigre par le vivier non filtré et le **dit** (`PoolFilters.relaxed`), et `levelWithPanelSize` refuse d'annoncer mieux que `poor` un panel plus court que `TOP_N` — le plancher limite le cas, il ne le supprime pas (un rapport privé réduit le panel après coup). Fonction à part et non règle glissée dans `comparabilityLevel` : la resélection du chat (`cohort.ts`) l'appelle et n'est pas dans la portée. Ce n'est pas une pénalité — `comparabilityLevel` tranche sur une **médiane**, choisie pour sa robustesse, laquelle n'existe pas à une ou deux valeurs. Écart assumé sur la lettre du « fait quand » : `scoreCandidate` et `selectClosest` ne changent pas d'une ligne, les filtres étant **durs** et appliqués à la source — `CandidateMetrics` ne porte toujours que `bracketData` et `duration`, aucun filtre n'entre dans la distance ; la couverture est donc dans `brackets.test.ts`, dans la suite `fetchCandidatePool` (brackets demandés, valeurs neutres, external conditionnel, dédoublonnage, relâchement) et sur `levelWithPanelSize`. `poolFilters` optionnel sur `Comparability` → les instantanés de 24 h rejouent sans lui, pas de bump de `SNAPSHOT_CACHE_VERSION` ; rendu et non déductible — le bandeau dit la couverture, l'exclusion et l'élargissement, un écran qui les recalculerait décrirait un vivier que personne n'a interrogé. **Deux coûts assumés** : le vivier part désormais **après** `fetchFightData` dans les deux pipelines (ni l'ilvl ni les externals du sujet ne sont connus plus tôt) — de la latence, jamais une requête, et la règle du projet fait passer la qualité de donnée avant le temps au premier résultat ; et un cache de vivier chaud ne suffit plus seul à tenir zéro requête, la clé ne pouvant se former sans le découpage du palier — lequel est en cache et mémoïsé par conteneur. Portée respectée : `pull-pipeline` et `raid-ranking` inchangés. |
 | 2026-09-03 | 7     | Le BYOK retiré aux sept points, et deux choses tombent avec lui. D'abord une brèche : le rapport laissait une clé apportée court-circuiter `guardServerKey()`, donc le quota — plus d'en-tête, plus de contournement, et deux tests posent que `x-ai-key` est ignoré tout en étant facturé. Ensuite le choix de fournisseur, qui n'avait plus de raison d'être côté client : `offeredProviders()` lit `AI_PROVIDERS` (défaut `claude` seul), `servableProviders()` le croise avec les clés réellement posées, les deux `GET` rendent `{ providers }` et le sélecteur disparaît en dessous de deux. C'est le « pas de choix de fournisseur pour la bêta » du plan, sans figer le catalogue dans le code. Le plafond global suit la paire WCL : `AI_GLOBAL_LIMIT = 60` (3× `AI_LIMIT`), sujet `all` — il ne peut pas entrer en collision avec un compte, `hashUserId` rendant 32 hexadécimaux. Il se consomme **après** le compteur de compte et seulement si celui-ci a laissé passer : un appelant déjà refusé n'a pas à brûler le compteur partagé, et un test le vérifie en comptant les `redisIncrBy`. `consumeStrictQuota`, donc échec fermé. La paire vit dans un seul module (`src/lib/api/ai-guard.ts`) pour que le rapport et le chat ne divergent pas ; les tests des deux routes passent désormais par un double de Redis, seule façon de voir tourner la paire plutôt qu'un verdict qu'on aurait posé soi-même. Le chat consommait bien un quota de compte, jamais de global — c'est réparé, et un instantané périmé (410) ne facture rien. Cache : `ttl: '1h'` sur les deux points de coupure du prompt système de `claude.ts` ; celui de la queue mouvante reste volontairement à 5 min, il se déplace à chaque tour. **Non vérifié** : `cache_read_input_tokens` non nul au second appel, bloqué sur le prérequis hors code — compte Anthropic Console et crédit, qu'un abonnement Pro ne donne pas. |
 | 2026-09-03 | 8     | La prémisse du volet 1 était fausse, et la mesure la corrige : un combat entier **tient en une page**. `scripts/probe-cast-timeline.ts` sur un kill Mythic de 512 s — 502 à 779 événements selon l'acteur, `limit: 1000` les rend en **une** requête, celle que `fetchFightData` payait déjà. Ce que « renoncer au `limit` » coûtait n'était pas des requêtes mais des octets. `OPENING_EVENT_LIMIT = 40` devient donc `CAST_EVENT_LIMIT = 2000` (douze minutes au rythme le plus rapide mesuré, 84 casts/min), `Q_CAST_EVENTS` sélectionne `nextPageTimestamp` **pour ce que sa présence dit, jamais pour le suivre**, et `parseOpening` s'exprime sur `parseCastChain` : une seule lecture, des offsets partagés, l'ouverture est la tête de la chaîne. `OpeningCast` renommé `TimedCast`, `RotationSummary.timeline` **facultative** — un instantané de 24 h écrit avant la capture se relit tel quel, pas de bump de `SNAPSHOT_CACHE_VERSION`. **Volet 2, arbitré : timeline du sujet + écart calculé.** Les chaînes des références n'entrent pas dans le prompt — mesuré +59 à +100 % de jetons pour espérer que le modèle y trouve l'écart lui-même, soit exactement le gadget de la contrainte 2. `comparison/cast-timing.ts` calcule « sort hors fenêtre » : par cooldown, mon instant contre la fourchette min/médiane/max du champ, **rang par rang** et non à l'horloge. Trois silences : pas de chaîne, chaîne tronquée, moins de deux références à ce rang. Plancher de bruit `MIN_TIMING_DEVIATION_MS = 5 s` **au-delà du bord** de la fourchette, qui absorbe déjà la gigue. Un rang jamais atteint est rendu sans chiffre — l'absence n'a pas d'amplitude — et passe devant tout retard chiffré. **Garde de périmètre à retenir** : l'axe ne retient que les sorts présents dans ma table de dégâts, seule garantie sans métadonnée de spec qu'il ne s'agit pas d'une défensive (`SCOPE_RULE`). Limite assumée et payée : un cooldown offensif qui n'inflige aucun dégât lui-même est invisible à l'axe. **Volet 3 (guides de spec) : abandonné**, et le motif d'origine était faux. L'idée était d'éviter de « charger les guides depuis une ressource externe » — or aucune ressource externe n'est chargée aujourd'hui, le prompt ne porte aucun guide. Une table `src/data/spells/` **ajouterait** ~9 400 jetons d'entrée neuve par rapport au lieu d'en retirer, et l'espoir du cache est déjà mesuré négatif (zéro sur cinq relevés, 2026-08-28), avec ~40 specs donc autant de préfixes distincts. §A de `PLAN_CONTEXTE_CLASSES.md` reste refusé, le dossier reste parqué. **Capture au corpus : rien à écrire, et c'est motivé.** `ExposureRecord` porte déjà `code` / `fightID` / `actorId` du sujet **et de chaque référence** ; la chaîne se refetche intégralement depuis ces pointeurs, les rapports WCL étant permanents. La seule chose non dérivable est `truncated`, qui est une fonction de `CAST_EVENT_LIMIT`, une constante du dépôt. Écrire 400 casts par enregistrement dans un corpus append-only jamais purgé achèterait zéro donnée nouvelle. **Mesure avant/après** (`PROMPT_VERSION` 3 → 4), sur le `BossResult` de démo et la chaîne réelle du kill de 512 s (392 casts) : contexte boss 4 113 → 5 699 jetons estimés (+1 586), prompt système 1 646 → 2 061 (+415, une fois par rapport). Total ~5 759 → ~7 760, soit **+35 %** sur ce rapport à un boss, ou **+21 %** rapporté au relevé de production de 9 400 jetons. Estimation à 3,6 car./jeton et **annoncée comme telle** : le compteur d'Anthropic demande une clé que le dépôt n'a pas, même « non vérifié » qu'à l'étape 7. Glossaire de `CLAUDE.md` corrigé — l'ouverture n'est plus « non disponible », et **cast chain** y entre à côté d'elle. |
+| 2026-09-04 | 9     | Le panneau de filtres est entièrement client : `describeCohort` rejoue `selectClosest` et `comparabilityLevel` sur le `sample` déjà rendu, donc bouger un réglage ne coûte ni requête WCL ni écriture Redis — un test le vérifie en assertant que `fetch` n'est jamais appelé. Position neutre = filtre vide, et le bouton de retour n'est actif que lorsqu'un réglage l'a quittée. Les quatre arbitrages de l'étape ont tenu, et un cinquième s'est présenté à l'exécution : la dernière position de chaque curseur est **Any**, parce qu'un axe qu'on ne peut qu'ouvrir ou fermer demandait sinon une bascule de plus par axe. Deux constats non prévus par l'étape. D'abord le panneau ne peut que **restreindre** : le vivier est celui de l'analyse, et le dire est plus honnête que de laisser croire qu'élargir l'ilvl ramènera quelqu'un. Ensuite l'avertissement sur les références détaillées écartées ne s'affiche qu'hors position neutre — au neutre, une référence substituée serait signalée comme exclue par le filtre alors que c'est la sélection qui l'a jugée, et `ReferenceLabels` le dit déjà juste au-dessus. Deux modules partagés extraits pour ne pas dupliquer le vocabulaire : `comparability-labels.ts` (le niveau doit se dire avec les mêmes mots dans le bandeau et dans le panneau) et `stat-format.ts` (un ilvl arrondi ici et à la décimale là se lirait comme un écart). `TOP_N` n'est pas exposé, et l'écran le nomme comme fixé au moment de l'analyse. |

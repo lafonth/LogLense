@@ -1,6 +1,7 @@
 // src/components/results/ComparabilityBanner.tsx
-import type { Comparability, ComparabilityLevel } from '@/types';
+import type { Comparability } from '@/types';
 import { Card } from '@/components/ui/Card';
+import { LEVEL_LABEL, LEVEL_TONE } from './comparability-labels';
 
 interface ComparabilityBannerProps {
   comparability: Comparability;
@@ -11,20 +12,6 @@ interface ComparabilityBannerProps {
    */
   earlyDeathPct?: number | null;
 }
-
-const LEVEL_TONE: Record<ComparabilityLevel, string> = {
-  close: 'text-positive',
-  approximate: 'text-warning',
-  poor: 'text-danger',
-  none: 'text-muted',
-};
-
-const LEVEL_LABEL: Record<ComparabilityLevel, string> = {
-  close: 'Comparable',
-  approximate: 'Roughly comparable',
-  poor: 'Not comparable',
-  none: 'No comparable logs',
-};
 
 /**
  * Le bandeau de légitimité, et rien de plus. Il ouvre le bloc au-dessus des onglets, donc

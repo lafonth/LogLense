@@ -1,21 +1,12 @@
-import type { StatKey } from '@/lib/comparison/stat-distribution';
 import type { CharacterStats, ReferenceSample } from '@/types';
 import { ScrollArea } from '@/components/ui/ScrollArea';
 import { describeStats, STAT_AXES } from '@/lib/comparison/stat-distribution';
+import { STAT_FORMATTERS } from './stat-format';
 
 interface StatsTableProps {
   character: CharacterStats;
   sample: ReferenceSample[];
 }
-
-const FORMATTERS: Record<StatKey, (v: number) => string> = {
-  avgIlvl: (v) => v.toFixed(1),
-  primaryStat: (v) => Math.round(v).toLocaleString('en-US'),
-  crit: (v) => Math.round(v).toLocaleString('en-US'),
-  haste: (v) => Math.round(v).toLocaleString('en-US'),
-  mastery: (v) => Math.round(v).toLocaleString('en-US'),
-  vers: (v) => Math.round(v).toLocaleString('en-US'),
-};
 
 const CELL = 'border-border font-mono text-xs border-b px-3 py-2 text-right';
 const HEADER_CELL = `${CELL} text-muted text-2xs tracking-wider uppercase`;
@@ -51,7 +42,7 @@ export function StatsTable({ character, sample }: StatsTableProps) {
             {STAT_AXES.map(({ key, label }) => (
               <tr key={key}>
                 <td className={`${CELL} text-muted text-left`}>{label}</td>
-                <td className={`${CELL} text-text`}>{FORMATTERS[key](character[key])}</td>
+                <td className={`${CELL} text-text`}>{STAT_FORMATTERS[key](character[key])}</td>
               </tr>
             ))}
           </tbody>
@@ -76,7 +67,7 @@ export function StatsTable({ character, sample }: StatsTableProps) {
           </thead>
           <tbody>
             {stats.map((stat) => {
-              const fmt = FORMATTERS[stat.key];
+              const fmt = STAT_FORMATTERS[stat.key];
               return (
                 <tr key={stat.key}>
                   <td className={`${CELL} text-muted text-left`}>{stat.label}</td>

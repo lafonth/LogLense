@@ -7,6 +7,7 @@ import { abilityTable } from '@/lib/comparison/ability-table';
 import { usableSample } from '@/lib/comparison/stat-distribution';
 import { mergeIcons } from '@/lib/wcl/icons';
 import { AbilityTable } from './AbilityTable';
+import { CohortFilterPanel } from './CohortFilterPanel';
 import { FindingsList } from './FindingsList';
 import { OpeningChain } from './OpeningChain';
 import { ReferenceLabels } from './ReferenceLabels';
@@ -101,6 +102,13 @@ export function ComparisonTab({
           frontière — les preuves entre elles gardent `mt-6`. */}
       <div className="mt-8">
         <ReferenceLabels result={result} />
+      </div>
+      {/* Le panneau suit la carte des références parce qu'il parle de la même chose : qui
+          nous sert de comparaison. Il vient après elle et avant les preuves, là où la
+          question « et si je resserrais ? » se pose — et il ne gouverne rien de ce qui suit,
+          ce qu'il dit lui-même quand un réglage écarte une référence détaillée. */}
+      <div className="mt-6">
+        <CohortFilterPanel result={result} />
       </div>
       <div className="mt-6">
         <RotationCards
