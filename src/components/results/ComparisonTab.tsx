@@ -3,8 +3,10 @@ import type { Encounter, TalentNode } from '@/types';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { isBossRefusal, isBossResult } from '@/lib/boss-outcome';
+import { abilityTable } from '@/lib/comparison/ability-table';
 import { usableSample } from '@/lib/comparison/stat-distribution';
 import { mergeIcons } from '@/lib/wcl/icons';
+import { AbilityTable } from './AbilityTable';
 import { FindingsList } from './FindingsList';
 import { OpeningChain } from './OpeningChain';
 import { ReferenceLabels } from './ReferenceLabels';
@@ -107,6 +109,14 @@ export function ComparisonTab({
           characterDamage={result.character.damageTable.entries}
           foldMatching
         />
+      </div>
+      {/* Les cartes au-dessus comptent les casts ; celle-ci compte les dégâts. C'est la vue
+          `compare` de Warcraft Logs, colonne pour colonne — et la colonne de droite est la
+          médiane du champ, jamais une référence nommée : une seule serait plus lisible et
+          perdrait la dispersion, qui est ce qui dit si mon écart sort de l'ordinaire. */}
+      <div className="mt-6">
+        <h3 className="text-muted mb-2 font-mono text-xs tracking-wider uppercase">Damage table</h3>
+        <AbilityTable table={abilityTable(result.character, result.topPlayers)} icons={icons} />
       </div>
       <div className="mt-6">
         <h3 className="text-muted mb-2 font-mono text-xs tracking-wider uppercase">

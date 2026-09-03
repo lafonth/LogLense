@@ -152,6 +152,9 @@ src/lib/comparison/
   cohort.ts           Resélection de la cohorte sur le `sample` — zéro requête WCL
   damage-gap.ts       Par sort : ma part de dégâts, celle du champ, l'écart en dps. Le tri est
                       `|fieldDps − mineDps|` — symétrique, mesuré, dans l'unité de l'écran
+  ability-table.ts    Les six colonnes de WCL par sort, mes valeurs contre la médiane du champ.
+                      Le dénominateur d'`avgCast` est `DamageEntry.uses`, jamais `CastEntry.casts` :
+                      la table des casts compte double un sort empoweré
   findings.ts         Les constats classés : `rankedGaps` (verdict, plancher de bruit,
                       effectif), leur cause probable, l'ouverture et le build. Un classement,
                       un filtrage, une tête — la bannière nomme cette tête-là, jamais la sienne
@@ -278,10 +281,11 @@ ouvrirait le chat sur un fournisseur que la route refuse en 400.
 
 ## Interface : tokens et primitives
 
-**Aucun `style={{}}` dans les composants.** Trois exceptions, toutes des géométries calculées
-à l'exécution : la largeur des barres dans `DamageBreakdown` et `TalentDiff`, la position de
-la bande et du marqueur dans `RotationCards`. `TrajectoryChart` montre l'alternative quand
-elle existe : la géométrie passe par des attributs SVG, pas par un style en ligne.
+**Aucun `style={{}}` dans les composants.** Quatre exceptions, toutes des géométries calculées
+à l'exécution : la largeur des barres dans `DamageBreakdown` et `TalentDiff`, la barre de part
+et son filigrane min–max dans `AbilityTable`, la position de la bande et du marqueur dans
+`RotationCards`. `TrajectoryChart` montre l'alternative quand elle existe : la géométrie passe
+par des attributs SVG, pas par un style en ligne.
 
 Les couleurs, tailles, rayons et points de rupture sont déclarés une fois dans
 `src/app/globals.css`, dans un bloc `@theme` Tailwind v4, et consommés uniquement par des

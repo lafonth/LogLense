@@ -27,6 +27,9 @@ interface DamageResponse {
             name: string;
             total: number;
             abilityIcon?: string;
+            uses?: number;
+            hitCount?: number;
+            tickCount?: number;
             targets?: { name: string; total: number; type: string }[];
           }[];
         };
@@ -136,8 +139,18 @@ export async function fetchFightData(token: string, args: FightDataArgs): Promis
   );
   const rotation = summarizeRotation(name, casts, buffs, fightMs, opening, dps, icons);
 
+  // Les trois compteurs voyagent dans la même charge utile que `total` : les garder ne coûte
+  // aucune requête, et ne pas les garder les perdrait pour de bon. Ils restent facultatifs —
+  // un instantané écrit avant ce parse se relit tel quel pendant 24 h, colonnes en repli.
   const damageEntries: DamageEntry[] = allDmgEntries
-    .map((e) => ({ guid: e.guid, name: e.name, total: e.total }))
+    .map((e) => ({
+      guid: e.guid,
+      name: e.name,
+      total: e.total,
+      uses: e.uses,
+      hitCount: e.hitCount,
+      tickCount: e.tickCount,
+    }))
     .sort((a, b) => b.total - a.total);
 
   const targetTotals = new Map<string, { type: string; total: number }>();

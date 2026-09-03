@@ -109,6 +109,20 @@ export interface DamageEntry {
   guid: number;
   name: string;
   total: number;
+  /**
+   * Les coups que WCL rattache à un cast. Absent sur ce qu'il ne sait pas rattacher — un
+   * proc, un bijou, la retombée d'un sort empouvoiré — et **jamais zéro par défaut** : une
+   * ligne sans dénominateur n'a pas de coût moyen, elle n'en a pas un nul.
+   *
+   * C'est ce compte-là, et non `CastEntry.casts`, qui divise `total` : la table des casts
+   * compte deux fois un sort empouvoiré (Fire Breath, 24 contre 11 en relevé), la table de
+   * dégâts non.
+   */
+  uses?: number;
+  /** Coups directs. Facultatif au même titre que `uses` — cf. `RotationSummary.icons`. */
+  hitCount?: number;
+  /** Ticks périodiques : un canalisé n'a que ceux-là, et ils comptent comme des coups. */
+  tickCount?: number;
 }
 
 /**
