@@ -1,9 +1,9 @@
 import type { OpeningSource } from '../opening-diff';
-import type { OpeningCast } from '@/types';
+import type { TimedCast } from '@/types';
 import { describe, expect, it } from 'vitest';
 import { diffOpening } from '../opening-diff';
 
-function opening(names: string[]): OpeningCast[] {
+function opening(names: string[]): TimedCast[] {
   return names.map((name, i) => ({ guid: i + 1, name, offsetMs: i * 1500 }));
 }
 

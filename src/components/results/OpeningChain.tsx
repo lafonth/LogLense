@@ -1,12 +1,12 @@
 import type { OpeningSource } from '@/lib/comparison/opening-diff';
 import type { IconIndex } from '@/lib/wcl/icons';
-import type { OpeningCast } from '@/types';
+import type { TimedCast } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { SpellIcon } from '@/components/ui/SpellIcon';
 import { diffOpening } from '@/lib/comparison/opening-diff';
 
 interface OpeningChainProps {
-  mine: OpeningCast[];
+  mine: TimedCast[];
   /** Les références dont la rotation a été payée — l'ordre des sorts n'existe que là. */
   references: OpeningSource[];
   /** L'index du combat. Absent, chaque rang rend sa pastille neutre. */

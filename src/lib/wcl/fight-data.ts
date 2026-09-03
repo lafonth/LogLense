@@ -4,13 +4,13 @@ import type { FightContext } from './fight-context';
 import type { CastEvent, WCLTable } from './parsers';
 import type { CharacterStats, DamageEntry, FightTarget, RotationSummary } from '@/types';
 import { gql } from './client';
-import { MIN_TARGET_PCT, OPENING_EVENT_LIMIT, OPENING_LENGTH } from './constants';
+import { CAST_EVENT_LIMIT, MIN_TARGET_PCT, OPENING_LENGTH } from './constants';
 import { eligibilityOf } from './eligibility';
 import { fetchFightContext } from './fight-context';
 import {
   collectIcons,
+  parseCastChain,
   parseCasts,
-  parseOpening,
   parseStats,
   parseUptime,
   summarizeRotation,
@@ -43,7 +43,7 @@ interface RotationResponse {
 }
 
 interface CastEventsResponse {
-  reportData: { report: { events: { data?: CastEvent[] } } };
+  reportData: { report: { events: { data?: CastEvent[]; nextPageTimestamp?: number | null } } };
 }
 
 export interface FightData {
@@ -91,11 +91,11 @@ export async function fetchFightData(token: string, args: FightDataArgs): Promis
   const [dmgData, rotData, castEvents, context] = await Promise.all([
     gql<DamageResponse>(token, Q_DAMAGE, vars),
     gql<RotationResponse>(token, Q_ROTATION, vars),
-    // L'ouverture est un axe de plus, pas une dépendance : un log qui ne rend pas ses
-    // événements de cast doit produire un rapport sans ouverture, pas une erreur.
+    // La chaîne de casts est un axe de plus, pas une dépendance : un log qui ne rend pas ses
+    // événements de cast doit produire un rapport sans ouverture ni timing, pas une erreur.
     gql<CastEventsResponse>(token, Q_CAST_EVENTS, {
       ...vars,
-      limit: OPENING_EVENT_LIMIT,
+      limit: CAST_EVENT_LIMIT,
     }).catch(() => null),
     args.context
       ? fetchFightContext(token, {
@@ -123,11 +123,18 @@ export async function fetchFightData(token: string, args: FightDataArgs): Promis
     ...parseUptime(rotData.reportData.report.debuffs, fightMs),
     ...parseUptime(rotData.reportData.report.buffs, fightMs),
   };
-  const opening = parseOpening(
-    castEvents?.reportData?.report?.events?.data ?? [],
-    castTable,
-    OPENING_LENGTH
-  );
+  // Une seule lecture des événements pour les deux axes : l'ouverture est la tête de la
+  // chaîne, elle n'est pas un second parcours. `nextPageTimestamp` non nul dit que le combat
+  // a débordé la page — la chaîne rendue est alors un préfixe, et elle le déclare plutôt que
+  // de laisser croire qu'un sort n'a jamais été relancé.
+  const chain = parseCastChain(castEvents?.reportData?.report?.events?.data ?? [], castTable);
+  const opening = chain.slice(0, OPENING_LENGTH);
+  const timeline = castEvents
+    ? {
+        casts: chain,
+        truncated: castEvents.reportData?.report?.events?.nextPageTimestamp != null,
+      }
+    : undefined;
   // Les quatre tables du combat sont déjà en main : l'index d'icônes ne coûte qu'un
   // parcours. La table de dégâts en premier — c'est la seule qui nomme un sort dont le
   // joueur n'a rien lancé lui-même (un dot posé par un autre effet, une invocation).
@@ -137,7 +144,7 @@ export async function fetchFightData(token: string, args: FightDataArgs): Promis
     rotData.reportData.report.buffs,
     rotData.reportData.report.debuffs
   );
-  const rotation = summarizeRotation(name, casts, buffs, fightMs, opening, dps, icons);
+  const rotation = summarizeRotation(name, casts, buffs, fightMs, opening, dps, icons, timeline);
 
   // Les trois compteurs voyagent dans la même charge utile que `total` : les garder ne coûte
   // aucune requête, et ne pas les garder les perdrait pour de bon. Ils restent facultatifs —

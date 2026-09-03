@@ -1,6 +1,6 @@
 import type { CombatantEvent } from './combatant';
 import type { IconIndex } from './icons';
-import type { CastEntry, CharacterStats, OpeningCast, RotationSummary } from '@/types';
+import type { CastEntry, CastTimeline, CharacterStats, RotationSummary, TimedCast } from '@/types';
 
 /** parseStats reads gear, stats and talents — it never needs the combatant's identity. */
 type CombatantStats = Omit<CombatantEvent, 'sourceID'>;
@@ -90,23 +90,19 @@ export interface CastEvent {
 }
 
 /**
- * The ordered opening, from raw cast events.
+ * The ordered cast chain of the fight, from raw cast events.
  *
  * Three decisions worth stating. `begincast` is dropped: a channel would otherwise appear
  * twice, and what is compared is what landed. Names come from the aggregate `Casts` table,
- * which covers the whole fight and therefore every ability of its opening — so naming the
- * chain costs no further query. And offsets are counted from the *first* cast rather than
- * from the pull, because a slow reaction to the countdown is not a rotation mistake.
+ * which covers the whole fight and therefore every ability of its chain — so naming it costs
+ * no further query. And offsets are counted from the *first* cast rather than from the pull,
+ * because a slow reaction to the countdown is not a rotation mistake.
  */
-export function parseOpening(
-  events: CastEvent[],
-  castTable: WCLTable,
-  length: number
-): OpeningCast[] {
+export function parseCastChain(events: CastEvent[], castTable: WCLTable): TimedCast[] {
   const names = new Map<number, string>();
   for (const entry of castTable.data?.entries ?? []) names.set(entry.guid, entry.name);
 
-  const casts = events.filter((e) => e.type === 'cast').slice(0, length);
+  const casts = events.filter((e) => e.type === 'cast');
   if (casts.length === 0) return [];
 
   const start = casts[0].timestamp;
@@ -120,14 +116,31 @@ export function parseOpening(
   });
 }
 
+/**
+ * The opening: the head of the chain, not a second parse of the same events.
+ *
+ * Kept as its own function because the two are read differently — the opening is a sequence
+ * one compares step by step (`opening-diff.ts`), the chain is a spacing one compares rank by
+ * rank (`cast-timing.ts`). Sharing the offsets is what matters: both count from the same
+ * first cast, so a step of the opening and a row of the timing table name the same instant.
+ */
+export function parseOpening(
+  events: CastEvent[],
+  castTable: WCLTable,
+  length: number
+): TimedCast[] {
+  return parseCastChain(events, castTable).slice(0, length);
+}
+
 export function summarizeRotation(
   name: string,
   casts: Record<string, CastEntry>,
   buffs: Record<string, number>,
   fightMs: number,
-  opening: OpeningCast[],
+  opening: TimedCast[],
   dps?: number,
-  icons: IconIndex = {}
+  icons: IconIndex = {},
+  timeline?: CastTimeline
 ): RotationSummary {
-  return { name, dps, fightDurationMs: fightMs, casts, buffs, opening, icons };
+  return { name, dps, fightDurationMs: fightMs, casts, buffs, opening, icons, timeline };
 }

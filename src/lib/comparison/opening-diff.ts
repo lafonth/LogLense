@@ -1,11 +1,11 @@
-import type { OpeningCast } from '@/types';
+import type { TimedCast } from '@/types';
 
 /**
  * Le minimum dont la comparaison d'ouverture a besoin. Volontairement structurel, comme
  * `TalentSource` : `TopPlayer` le satisfait sans qu'on ait à l'importer ici.
  */
 export interface OpeningSource {
-  rotation: { opening: OpeningCast[] };
+  rotation: { opening: TimedCast[] };
 }
 
 export interface OpeningStep {
@@ -34,7 +34,7 @@ export interface OpeningDiffResult {
 }
 
 /** Le sort le plus lancé à ce rang, ex æquo départagés par ordre d'apparition. */
-function majorityAt(openings: OpeningCast[][], index: number): [string, number] | null {
+function majorityAt(openings: TimedCast[][], index: number): [string, number] | null {
   const counts = new Map<string, number>();
   for (const opening of openings) {
     const cast = opening[index];
@@ -52,7 +52,7 @@ function majorityAt(openings: OpeningCast[][], index: number): [string, number] 
  * autrement. Quand il n'en reste aucune, le résultat porte mes rangs et un consensus vide —
  * l'écran a de quoi montrer ma séquence en disant qu'il n'a rien à quoi la comparer.
  */
-export function diffOpening(mine: OpeningCast[], references: OpeningSource[]): OpeningDiffResult {
+export function diffOpening(mine: TimedCast[], references: OpeningSource[]): OpeningDiffResult {
   const openings = references.map((r) => r.rotation.opening).filter((o) => o.length > 0);
   const referenceTotal = openings.length;
 

@@ -65,13 +65,13 @@ const CAST_EVENTS = [
 ];
 
 /** Routes the three parallel queries by looking at the GraphQL body. */
-function mockQueries(damageEntries = DAMAGE_ENTRIES) {
+function mockQueries(damageEntries = DAMAGE_ENTRIES, nextPageTimestamp: number | null = null) {
   globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
     const body = String(init.body);
     const payload = body.includes('DamageDone')
       ? { reportData: { report: { table: { data: { entries: damageEntries } } } } }
       : body.includes('CastEvents')
-        ? { reportData: { report: { events: { data: CAST_EVENTS } } } }
+        ? { reportData: { report: { events: { data: CAST_EVENTS, nextPageTimestamp } } } }
         : { reportData: { report: { casts: CASTS, buffs: BUFFS, debuffs: DEBUFFS } } };
 
     return { ok: true, json: async () => ({ data: payload }) } as Response;
@@ -82,6 +82,26 @@ const ARGS = { code: 'abc', fightId: 7, combatant: COMBATANT, name: 'Jumbaa', fi
 
 describe('fetchFightData', () => {
   beforeEach(() => vi.restoreAllMocks());
+
+  it('carries the whole cast chain, and the opening is its head', async () => {
+    mockQueries();
+
+    const { rotation } = await fetchFightData('token', ARGS);
+
+    expect(rotation.timeline?.casts).toHaveLength(2);
+    expect(rotation.timeline?.truncated).toBe(false);
+    expect(rotation.opening).toEqual(rotation.timeline?.casts);
+  });
+
+  it('declares the chain truncated when the fight outran the page', async () => {
+    // `nextPageTimestamp` n'est jamais suivi — sa présence seule dit que ce qui revient est
+    // un préfixe, et tout ce qui en dépend se tait alors.
+    mockQueries(DAMAGE_ENTRIES, 42_000);
+
+    const { rotation } = await fetchFightData('token', ARGS);
+
+    expect(rotation.timeline?.truncated).toBe(true);
+  });
 
   it('builds stats, rotation and damage entries for the fight', async () => {
     mockQueries();

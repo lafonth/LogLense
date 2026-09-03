@@ -74,15 +74,31 @@ export interface CastEntry {
 }
 
 /**
- * Un sort de l'ouverture, à sa place dans la séquence.
+ * Un sort à sa place dans la séquence — de l'ouverture comme du combat entier.
  *
  * `offsetMs` compte depuis le premier cast du combat, pas depuis le pull : ce qui se
  * compare, c'est l'espacement des sorts entre eux, pas le temps de réaction au décompte.
+ *
+ * Nommé `TimedCast` et non `OpeningCast` depuis que la même forme porte la chaîne entière :
+ * `RotationSummary.opening` n'en est que les {@link OPENING_LENGTH} premiers éléments.
  */
-export interface OpeningCast {
+export interface TimedCast {
   guid: number;
   name: string;
   offsetMs: number;
+}
+
+/**
+ * La chaîne de casts du combat entier, dans l'ordre.
+ *
+ * `truncated` n'est pas un détail d'implémentation : la capture tient en **une** requête —
+ * `CAST_EVENT_LIMIT` événements, jamais de pagination — et un combat qui la dépasse rend une
+ * fenêtre partielle. Comparer un timing sur une fenêtre amputée annoncerait « ce sort, tu ne
+ * l'as jamais relancé » alors qu'on a simplement cessé de regarder. Ce qui en dépend se tait.
+ */
+export interface CastTimeline {
+  casts: TimedCast[];
+  truncated: boolean;
 }
 
 export interface RotationSummary {
@@ -95,7 +111,14 @@ export interface RotationSummary {
    * Les premiers sorts, dans l'ordre. Vide quand le log ne porte aucun événement de cast
    * exploitable — l'écran doit alors dire qu'il ne sait pas, pas afficher une ouverture vide.
    */
-  opening: OpeningCast[];
+  opening: TimedCast[];
+  /**
+   * La chaîne entière, dont `opening` est la tête. Facultative, et elle doit le rester : un
+   * instantané écrit avant que la capture ne monte à `CAST_EVENT_LIMIT` se relit tel quel
+   * pendant 24 h — cf. `icons`. Ce qui en dépend se tait alors, il ne se recalcule pas sur
+   * l'ouverture seule.
+   */
+  timeline?: CastTimeline;
   /**
    * Nom de capacité → icône, pour tout ce que ce combat a rendu : casts, auras et lignes de
    * dégâts. Facultatif, et il doit le rester : un instantané écrit avant que le parse ne

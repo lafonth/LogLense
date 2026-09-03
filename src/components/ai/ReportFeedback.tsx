@@ -23,7 +23,10 @@ const AXIS_LABELS: Record<PromptAxis, string> = {
   stats: 'DPS & stats',
   'spell-usage': 'Spell usage',
   opening: 'Opening',
-  uptimes: 'Cooldowns',
+  timing: 'Cooldown timing',
+  // « Cooldowns » jusqu'ici — le libellé devient celui du titre de section du prompt, faute
+  // de quoi il ne se distinguerait plus de l'axe de placement ajouté juste au-dessus.
+  uptimes: 'Buff uptime',
   damage: 'Damage split',
   talents: 'Talents',
 };

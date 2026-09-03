@@ -121,7 +121,8 @@ suivantes. Une règle ajoutée ici doit valoir son écriture.
 | **ilvl**                          | Item level moyen de l'équipement. Corrélé au DPS, donc un axe de comparabilité                                                                            |
 | **set bonus**                     | Bonus d'ensemble à 2 ou 4 pièces. Un 2p et un 4p ne sont pas comparables. Invisible dans les rankings WCL — demande le `CombatantInfo` de chaque candidat |
 | **external**                      | Buff offensif reçu d'un autre joueur, Power Infusion en tête. Fausse la comparaison : critère éliminatoire                                                |
-| **opening chain**                 | Séquence ordonnée des premiers sorts d'un combat. Non disponible aujourd'hui : les casts sont requêtés en agrégat, l'ordre est perdu à la source          |
+| **opening chain**                 | Séquence ordonnée des premiers sorts d'un combat, les `OPENING_LENGTH` premiers. Tête de la **cast chain**, la chaîne entière du combat                   |
+| **cast chain**                    | Tous les casts du combat, dans l'ordre, horodatés depuis le premier. Une requête, jamais paginée : au-delà de `CAST_EVENT_LIMIT` elle se déclare tronquée |
 | **comparabilité**                 | Le cœur du produit : deux logs sont comparables si l'écart de DPS s'explique par le jeu et non par le contexte (kill time, ilvl, set bonus, externals)    |
 | **spec / encounter / difficulty** | Spécialisation (id numérique WCL), boss, et palier de difficulté (3 = Normal, 4 = Heroic, 5 = Mythic)                                                     |
 
@@ -160,6 +161,10 @@ src/lib/comparison/
   cohort.ts           Resélection de la cohorte sur le `sample` — zéro requête WCL
   damage-gap.ts       Par sort : ma part de dégâts, celle du champ, l'écart en dps. Le tri est
                       `|fieldDps − mineDps|` — symétrique, mesuré, dans l'unité de l'écran
+  cast-timing.ts      « Sort hors fenêtre » : par cooldown, mon instant contre la fourchette du champ,
+                      rang par rang. Il existe pour que les chaînes des références n'entrent
+                      **pas** dans le prompt — mesuré +59 à +100 % de jetons. Périmètre tenu par la
+                      table de dégâts : hors d'elle, rien ne distingue un cooldown d'une défensive
   ability-table.ts    Les six colonnes de WCL par sort, mes valeurs contre la médiane du champ.
                       Le dénominateur d'`avgCast` est `DamageEntry.uses`, jamais `CastEntry.casts` :
                       la table des casts compte double un sort empoweré

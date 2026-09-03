@@ -229,15 +229,26 @@ export const Q_ROTATION = `
 `;
 
 /**
- * The opening chain, which the `Casts` *table* cannot give: it aggregates, so the order is
- * lost at the source. `events` keeps it. `limit` is what makes this cheap — the API returns
- * the fight's events from its start, so the first page *is* the opening; no pagination.
+ * The cast chain, which the `Casts` *table* cannot give: it aggregates, so the order is lost
+ * at the source. `events` keeps it.
+ *
+ * One page, always. Measured on 2026-09-03 (`scripts/probe-cast-timeline.ts`): a 512 s Mythic
+ * kill is 502 to 779 cast events, so `CAST_EVENT_LIMIT` holds a whole fight in the single
+ * request this query has always cost — the opening was never the cheap part, the absence of
+ * pagination was.
+ *
+ * `nextPageTimestamp` is selected for what its *presence* means, never to follow it: a
+ * non-null value says the fight outran the page, and the chain that comes back is a prefix.
+ * Following it would turn one request per actor into several, times the reference cohort.
  */
 export const Q_CAST_EVENTS = `
   query CastEvents($code: String!, $fightIDs: [Int]!, $sourceID: Int!, $limit: Int!) {
     reportData {
       report(code: $code) {
-        events(dataType: Casts, fightIDs: $fightIDs, sourceID: $sourceID, limit: $limit) { data }
+        events(dataType: Casts, fightIDs: $fightIDs, sourceID: $sourceID, limit: $limit) {
+          data
+          nextPageTimestamp
+        }
       }
     }
   }

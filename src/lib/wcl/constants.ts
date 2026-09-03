@@ -118,10 +118,60 @@ export const EXPLORATION_RATE = 0.1;
 export const OPENING_LENGTH = 12;
 
 /**
- * How many raw cast events are fetched to extract the opening. Larger than
- * `OPENING_LENGTH` because `begincast` events are interleaved and then dropped.
+ * How many raw cast events one page of `Q_CAST_EVENTS` asks for.
+ *
+ * It was 40 — enough for the opening and nothing else. Measured on 2026-09-03
+ * (`scripts/probe-cast-timeline.ts`, three actors of a 512 s Mythic kill): a whole fight is
+ * 502 to 779 events, and **one** page holds it. Raising the limit therefore buys the entire
+ * cast chain for the query the pipeline already pays — no pagination, no second request, for
+ * the subject as for each reference.
+ *
+ * 2000 is a ceiling, not a target: it covers a twelve-minute kill at the highest cast rate
+ * measured (84 casts/min, Shadow Priest) and it bounds what a 24 h snapshot can hold. Beyond
+ * it the chain comes back truncated and says so, rather than being silently short.
  */
-export const OPENING_EVENT_LIMIT = 40;
+export const CAST_EVENT_LIMIT = 2000;
+
+/**
+ * Au-dessus de ce rythme, la place d'un sort dans la séquence n'est plus une décision.
+ *
+ * Un sort lancé plus d'une fois toutes les 40 secondes est un remplissage : ce qui décide de
+ * son instant, c'est ce qui vient d'être lancé, pas un plan. En dessous, c'est un cooldown —
+ * son placement est un choix, et c'est le seul endroit où « hors fenêtre » veut dire quelque
+ * chose. Le seuil est un rythme et non un compte d'utilisations, pour valoir autant sur un
+ * combat de deux minutes que sur un de huit.
+ */
+export const COOLDOWN_MAX_PER_MIN = 1.5;
+
+/**
+ * Combien de références doivent avoir lancé un sort à un rang donné pour que sa fourchette
+ * de timing existe.
+ *
+ * Deux, sur les trois de `TOP_N` : une seule référence n'est pas une fourchette, c'est un
+ * exemple. Même doctrine que le plancher de bruit de `findings.ts` — une médiane prise sur
+ * trop peu de valeurs fait passer l'échantillonnage pour un constat.
+ */
+export const MIN_TIMING_REFERENCES = 2;
+
+/**
+ * En deçà de cet écart au bord de la fourchette du champ, on se tait.
+ *
+ * C'est le plancher de bruit de l'axe, celui de `MIN_GAP_DPS_SHARE` transposé au temps. La
+ * fourchette absorbe déjà la gigue — elle va du plus tôt au plus tard des références — donc
+ * ce seuil se mesure **au-delà** de ce que le champ lui-même étale : cinq secondes de plus
+ * que le plus lent d'entre eux, quand le sort a au moins quarante secondes de recharge.
+ * En dessous, ce n'est pas une décision de jeu qu'on lit, c'est un temps de réaction.
+ */
+export const MIN_TIMING_DEVIATION_MS = 5000;
+
+/**
+ * Combien de sorts la comparaison de timing rend au plus.
+ *
+ * Comme `MAX_OPPORTUNITIES`, la borne est la raison d'être de l'axe et non une limite
+ * technique : au-delà de cinq lignes, ce n'est plus un constat, c'est le journal du combat —
+ * lequel est déjà là, juste au-dessus, sous sa forme compressée.
+ */
+export const MAX_TIMING_ROWS = 5;
 
 /**
  * Uptime points of offensive externals a reference may hold over the player before it

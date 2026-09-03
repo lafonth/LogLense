@@ -276,6 +276,86 @@ describe('buildAnalysisPrompt', () => {
     expect(prompt).toContain('leaves the reference majority at cast 2');
   });
 
+  /** Un boss dont le sujet et les références portent une chaîne de casts complète. */
+  function bossWithTimelines(mineSeconds: number[], fieldSeconds: number[][]): BossResult {
+    const boss = makeBoss();
+    const chain = (seconds: number[]) => ({
+      casts: seconds.map((s) => ({ guid: 106951, name: 'Berserk', offsetMs: s * 1000 })),
+      truncated: false,
+    });
+
+    // Berserk doit être une source de dégâts pour entrer dans l'axe : hors de la table, rien
+    // ne le distingue d'une défensive, et `SCOPE_RULE` interdit d'en parler.
+    boss.character.damageTable.entries.push({ guid: 106951, name: 'Berserk', total: 900000 });
+    boss.character.rotation.timeline = chain(mineSeconds);
+
+    // La fourchette demande deux références : le panel du fixture n'en porte qu'une, on la
+    // duplique pour en obtenir autant que de chaînes demandées.
+    const model = boss.topPlayers[0];
+    boss.topPlayers = fieldSeconds.map((seconds) => ({
+      ...structuredClone(model),
+      rotation: { ...structuredClone(model.rotation), timeline: chain(seconds) },
+    }));
+    return boss;
+  }
+
+  const analysisOf = (boss: BossResult): AnalysisResult => ({
+    input: {
+      characterName: 'Jumbaa',
+      serverSlug: 'ysondre',
+      region: 'EU',
+      difficulty: 5,
+      encounters: [{ id: 3306, name: 'Chimaerus' }],
+      specId: 103,
+    },
+    bosses: [boss],
+    generatedAt: '2026-05-09T00:00:00.000Z',
+  });
+
+  it('renders my chain in ten-second windows and the cooldown gap beside it', () => {
+    const boss = bossWithTimelines(
+      [0, 150],
+      [
+        [0, 120],
+        [0, 122],
+        [0, 121],
+      ]
+    );
+
+    const prompt = buildAnalysisPrompt(analysisOf(boss));
+    expect(prompt).toContain('### Cast Timing');
+    expect(prompt).toContain('Sequence (10s windows, your casts):');
+    expect(prompt).toContain('2:30  Berserk');
+    expect(prompt).toContain('Cooldown placement');
+    // 150 s contre une fourchette qui s'arrête à 122 : l'écart se compte au bord, pas à la
+    // médiane.
+    expect(prompt).toContain('+28s');
+    expect(coveredAxes(boss)).toContain('timing');
+  });
+
+  it('renders the chain but forbids judging it when no reference chain exists', () => {
+    const boss = bossWithTimelines([0, 150], []);
+
+    const prompt = buildAnalysisPrompt(analysisOf(boss));
+    expect(prompt).toContain('### Cast Timing');
+    expect(prompt).toContain('do not judge this sequence on its own');
+    expect(prompt).not.toContain('Cooldown placement');
+  });
+
+  it('omits the section entirely when the chain is a truncated prefix', () => {
+    const boss = bossWithTimelines(
+      [0, 150],
+      [
+        [0, 120],
+        [0, 122],
+      ]
+    );
+    boss.character.rotation.timeline!.truncated = true;
+
+    expect(buildAnalysisPrompt(analysisOf(boss))).not.toContain('### Cast Timing');
+    expect(coveredAxes(boss)).not.toContain('timing');
+  });
+
   it('describes the stats as a distribution and names the size of the field', () => {
     const input: AnalysisResult = {
       input: {

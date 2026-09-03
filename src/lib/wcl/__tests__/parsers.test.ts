@@ -2,6 +2,7 @@ import type { CastEvent } from '../parsers';
 import { describe, expect, it } from 'vitest';
 import {
   fmtMs,
+  parseCastChain,
   parseCasts,
   parseOpening,
   parseStats,
@@ -147,6 +148,16 @@ describe('parseOpening', () => {
   it('truncates to the requested length', () => {
     const events = [event(0, 5217), event(1000, 5221), event(2000, 1079)];
     expect(parseOpening(events, NAMES, 2)).toHaveLength(2);
+  });
+
+  it('gives the whole chain, sharing its offsets with the opening', () => {
+    // Les deux lectures doivent nommer le même instant : l'ouverture est la tête de la
+    // chaîne, pas un second parcours qui recompterait depuis son propre premier cast.
+    const events = [event(103000, 5217), event(104500, 5221), event(106000, 1079)];
+    const chain = parseCastChain(events, NAMES);
+
+    expect(chain).toHaveLength(3);
+    expect(chain.slice(0, 2)).toEqual(parseOpening(events, NAMES, 2));
   });
 
   it('falls back to the guid when the cast table does not name the ability', () => {

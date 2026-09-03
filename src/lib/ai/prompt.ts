@@ -1,3 +1,4 @@
+import type { CastTimingResult } from '@/lib/comparison/cast-timing';
 import type { AbilityComparison } from '@/lib/comparison/rotation-stats';
 import type { TalentDiffEntry } from '@/lib/comparison/talent-diff';
 import type { TrendVerdict } from '@/lib/comparison/trend';
@@ -5,6 +6,7 @@ import type { TrajectoryPoint } from '@/lib/wcl/trajectory';
 import type {
   AnalysisResult,
   BossResult,
+  CastTimeline,
   CharacterStats,
   DamageEntry,
   FightTarget,
@@ -14,6 +16,7 @@ import type {
   TopPlayer,
 } from '@/types';
 import { isBossRefusal } from '@/lib/boss-outcome';
+import { castTimings } from '@/lib/comparison/cast-timing';
 import { damageGaps } from '@/lib/comparison/damage-gap';
 import { leadingGap } from '@/lib/comparison/leading-gap';
 import { diffOpening } from '@/lib/comparison/opening-diff';
@@ -86,7 +89,13 @@ The Opening table is the only ordered data you have: rank, what you cast, and wh
 Judge it only on the FIRST rank where you leave the majority — every later rank is shifted by that one divergence, so listing them all invents mistakes. \
 Say nothing about the opening when the section is absent, when it states no reference opening is available, or when you follow the majority throughout.
 
-STEP 7 — TRAJECTORY
+STEP 7 — CAST TIMING
+The Cast Timing section holds two different things, and confusing them is the failure mode to avoid.
+The Sequence is YOUR cast chain, compressed into 10-second windows. It is evidence, not a verdict: quote it to say WHEN something happened, never read a priority order out of it. The order in which buttons come back off cooldown is not the order the spec asks for, and you do not have the spec's priority list.
+The Cooldown Placement table is the comparison, and it is the ONLY thing in this section you may call a mistake. Each row is one long-cooldown damage ability, the use number where you leave the field's range, your time and the field's min, median and max at that same use number. The range already spans the earliest and latest reference, so a row only appears when you are outside it by a real margin. "You: —" means you never reached that use at all while the field did — report that as a missing use, not as a late one, and give no number for it.
+Two limits to respect. The table only covers abilities that appear in your damage breakdown, so an offensive cooldown that deals no damage itself is absent — never conclude it was unused. And say nothing at all about timing when the section is absent, when it says no comparison was possible, or when the table is empty.
+
+STEP 8 — TRAJECTORY
 The Trajectory section, when present, lists this player's previous kills on this boss. Read the verdict on the PERCENTILE column, never on the DPS column: \
 the DPS of a whole raid rises across a tier as item level rises and kills get shorter, so a rising DPS curve on its own says nothing about the player. \
 The section also splits the DPS swing into an item-level part, a kill-time part and a remainder. That split comes from fixed coefficients, not from measurement: \
@@ -100,9 +109,10 @@ Output format per boss:
 3. Secondary issues — the next gaps in the same order: damage impact first, raw casts/min difference only as a tie-breaker.
 4. Target split — only when it diverges, and stated as a difference in assignment.
 5. Opening — the first divergence rank and the two abilities involved, only if there is one.
-6. Stats — where the player sits in the field, with the percentile and the gap to the median.
-7. Talents — only if impactful, with the adoption count.
-8. One thing to fix next raid.
+6. Cooldown placement — the rows of the timing table, only if there are any, with the use number and both times.
+7. Stats — where the player sits in the field, with the percentile and the gap to the median.
+8. Talents — only if impactful, with the adoption count.
+9. One thing to fix next raid.
 
 Be concise. Every number you cite must come directly from the data tables, and every fix you name must be something a reference already does.`;
 
@@ -532,6 +542,135 @@ function openingSection(charRotation: RotationSummary, topPlayers: TopPlayer[]):
   return [table, '', `Openings compared against ${referenceTotal} references. ${note}`].join('\n');
 }
 
+/**
+ * La largeur d'une fenêtre de compression de la chaîne, en millisecondes.
+ *
+ * Dix secondes : assez large pour que les casts de remplissage se regroupent en une ligne au
+ * lieu d'en occuper une chacune, assez étroite pour qu'un cooldown reste situé à la fenêtre
+ * près. C'est le réglage qui fait tenir un combat de huit minutes en une cinquantaine de
+ * lignes — mesuré le 2026-09-03 : la chaîne brute pèse trois fois cela.
+ */
+const TIMELINE_WINDOW_MS = 10_000;
+
+function mmss(ms: number): string {
+  const total = Math.floor(ms / 1000);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
+
+/**
+ * Ma chaîne de casts, compressée par fenêtres de dix secondes.
+ *
+ * Deux compressions se cumulent, et aucune ne perd d'information de placement : les casts se
+ * regroupent par fenêtre, et les répétitions consécutives d'un même sort deviennent un
+ * multiplicateur. Ce qui disparaît est l'horodatage exact d'un remplissage — précisément ce
+ * dont aucun conseil ne dépend.
+ *
+ * Seule la mienne est rendue. Envoyer aussi celles des références, c'était +59 à +100 % de
+ * jetons (mesuré le 2026-09-03) pour espérer que le modèle y trouve l'écart lui-même :
+ * l'écart est calculé dans `cast-timing.ts` et rendu à côté, sous forme de tableau.
+ */
+function timelineBlock(timeline: CastTimeline): string {
+  const lines: string[] = [];
+  let window = -1;
+  let runs: { name: string; count: number }[] = [];
+
+  const flush = () => {
+    if (window < 0) return;
+    const label = runs.map((r) => (r.count > 1 ? `${r.name} x${r.count}` : r.name)).join(', ');
+    lines.push(`${mmss(window * TIMELINE_WINDOW_MS)}  ${label}`);
+  };
+
+  for (const cast of timeline.casts) {
+    const w = Math.floor(cast.offsetMs / TIMELINE_WINDOW_MS);
+    if (w !== window) {
+      flush();
+      window = w;
+      runs = [];
+    }
+    const last = runs[runs.length - 1];
+    if (last && last.name === cast.name) last.count++;
+    else runs.push({ name: cast.name, count: 1 });
+  }
+  flush();
+
+  return lines.join('\n');
+}
+
+const TIMING_SILENCE: Record<NonNullable<CastTimingResult['silenced']>, string> = {
+  'no-timeline': 'No cast chain available for this fight.',
+  truncated: 'The cast chain is incomplete for this fight.',
+  'not-enough-references':
+    'No reference cast chain available — do not judge this sequence on its own.',
+};
+
+/**
+ * La séquence réelle, et le seul écart qu'on ait le droit d'en tirer.
+ *
+ * L'ouverture dit l'ordre des douze premiers sorts, la table agrégée dit les cadences ; entre
+ * les deux, le placement d'un cooldown à la sixième minute n'était dit par personne. C'est ce
+ * que cette section ajoute — et elle l'ajoute sous la forme d'un écart déjà calculé, pas d'une
+ * pile de chaînes à comparer.
+ *
+ * La chaîne du sujet reste rendue même sans comparaison possible, avec la phrase qui l'interdit
+ * de jugement — même traitement que `openingSection` sans référence. Elle est alors une preuve
+ * datée pour les autres axes, jamais une matière à constat.
+ */
+function timingSection(character: BossResult['character'], topPlayers: TopPlayer[]): string {
+  const timeline = character.rotation.timeline;
+  // Une chaîne tronquée n'est pas une chaîne courte : la rendre annoncerait une fin de combat
+  // qui n'a pas eu lieu. Rien ne vaut mieux qu'un préfixe qu'on prendrait pour un tout.
+  if (!timeline || timeline.truncated || timeline.casts.length === 0) return '';
+
+  const result = castTimings(
+    { rotation: character.rotation, damageTable: character.damageTable },
+    topPlayers
+  );
+
+  const parts = ['Sequence (10s windows, your casts):', timelineBlock(timeline)];
+
+  if (result.silenced !== null) {
+    return [...parts, '', TIMING_SILENCE[result.silenced]].join('\n');
+  }
+
+  const rows = result.abilities.map((ability) => {
+    const rank = ability.ranks.find((r) => r.rank === ability.firstOutsideRank)!;
+    return [
+      ability.name,
+      `#${rank.rank}`,
+      rank.mineMs === null ? '—' : `${(rank.mineMs / 1000).toFixed(0)}s`,
+      `${(rank.referenceMinMs / 1000).toFixed(0)}s`,
+      `${(rank.referenceMedianMs / 1000).toFixed(0)}s`,
+      `${(rank.referenceMaxMs / 1000).toFixed(0)}s`,
+      ability.deviationMs === null
+        ? 'never used'
+        : `${ability.deviationMs > 0 ? '+' : ''}${(ability.deviationMs / 1000).toFixed(0)}s`,
+    ];
+  });
+
+  const note =
+    rows.length === 0
+      ? `All ${result.comparedTotal} long-cooldown abilities land inside the field's range.`
+      : `${rows.length} of ${result.comparedTotal} long-cooldown abilities land outside the field's range.`;
+
+  const table =
+    rows.length === 0
+      ? ''
+      : mdTable(
+          [
+            'Cooldown placement',
+            'Use',
+            'You',
+            'Field min',
+            'Field median',
+            'Field max',
+            'Deviation',
+          ],
+          rows
+        );
+
+  return [...parts, '', note, ...(table ? ['', table] : [])].join('\n');
+}
+
 function uptimeTable(charRotation: RotationSummary, topPlayers: TopPlayer[]): string {
   const rows = compareUptimes(charRotation, topPlayers);
   if (rows.length === 0) return '';
@@ -640,7 +779,7 @@ function talentSection(
  * Sans elle, le corpus de retours mélangerait des jugements portés sur deux conseils
  * différents sous une seule étiquette : « inutile » ne dirait plus de quel rapport on parle.
  */
-export const PROMPT_VERSION = 3;
+export const PROMPT_VERSION = 4;
 
 /**
  * Les axes que le rapport peut couvrir — le vocabulaire commun de l'empreinte du conseil
@@ -656,6 +795,7 @@ export const PROMPT_AXES = [
   'stats',
   'spell-usage',
   'opening',
+  'timing',
   'uptimes',
   'damage',
   'talents',
@@ -668,6 +808,7 @@ const AXIS_HEADINGS: Record<PromptAxis, string> = {
   stats: '### Gear & Stats',
   'spell-usage': '### Spell Usage',
   opening: '### Opening',
+  timing: '### Cast Timing',
   uptimes: '### Buff Uptimes',
   damage: '### Damage Breakdown',
   talents: '### Talent Differences',
@@ -695,6 +836,7 @@ function axisBodies(boss: BossResult, talentNodes: TalentNode[]): Record<PromptA
       boss.character.damageTable.entries
     ),
     opening: openingSection(boss.character.rotation, topPlayers),
+    timing: timingSection(boss.character, topPlayers),
     uptimes: uptimeTable(boss.character.rotation, topPlayers),
     damage: damageTable(boss.character, topPlayers),
     talents: talentSection(talentNodes, boss.character.stats.talents, boss.sample),
@@ -799,6 +941,12 @@ export function buildBossContext(result: AnalysisResult, talentNodes: TalentNode
 
       if (bodies.opening) {
         sections.push(AXIS_HEADINGS.opening, bodies.opening, '');
+      }
+
+      // Juste après l'ouverture : les deux sont les seules données ordonnées du prompt, et
+      // celle-ci prend le relais là où l'autre s'arrête — au douzième cast.
+      if (bodies.timing) {
+        sections.push(AXIS_HEADINGS.timing, bodies.timing, '');
       }
 
       if (bodies.uptimes) {
