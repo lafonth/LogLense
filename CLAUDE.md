@@ -64,7 +64,9 @@ tiennent un ratio entre 10 et 13.
 
 - **Filtrer la sortie de chaque commande.** `pnpm test` passe par
   `| grep -E "Tests |FAIL"`, un build par `| tail`. Lire les fichiers par plages
-  (`sed -n`, `offset` / `limit`), jamais en entier « pour voir ».
+  (`sed -n`, `offset` / `limit`), jamais en entier « pour voir ». Un hook `PreToolUse`
+  refuse désormais les deux — la lecture non bornée d'un gros fichier, et la relecture
+  d'un fichier inchangé ; `touch .claude/state/read-guard-off` lève le refus, une fois.
 - **Proposer les points de coupure : c'est le levier n° 1.** Je ne peux ni vider ni compacter
   le contexte moi-même — mais je dois dire quand le faire. `/clear` au changement de sujet :
   le hook `SessionStart` réinjecte l'état du dépôt, donc repartir de zéro ne coûte rien, et

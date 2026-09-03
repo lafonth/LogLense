@@ -10,6 +10,12 @@
       {
         "hooks": [{ "type": "command", "command": "node .claude/hooks/pre-compact.mjs", "timeout": 15 }]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read|Bash|PowerShell",
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/pre-tool-read.mjs", "timeout": 10 }]
+      }
     ]
   }
 }
