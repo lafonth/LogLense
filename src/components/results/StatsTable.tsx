@@ -6,6 +6,12 @@ import { STAT_FORMATTERS } from './stat-format';
 interface StatsTableProps {
   character: CharacterStats;
   sample: ReferenceSample[];
+  /**
+   * Vrai quand le lecteur a coché ces logs lui-même. La distribution porte alors exactement
+   * sur eux, sans le repli qui écarte les disqualifiés : cocher un candidat écarté puis ne
+   * rien voir bouger serait un réglage qui ment.
+   */
+  chosen?: boolean;
 }
 
 const CELL = 'border-border font-mono text-xs border-b px-3 py-2 text-right';
@@ -25,8 +31,8 @@ function DeltaBadge({ delta, format }: { delta: number; format: (v: number) => s
   );
 }
 
-export function StatsTable({ character, sample }: StatsTableProps) {
-  const { stats, sampleSize, includesDisqualified } = describeStats(character, sample);
+export function StatsTable({ character, sample, chosen = false }: StatsTableProps) {
+  const { stats, sampleSize, includesDisqualified } = describeStats(character, sample, chosen);
 
   if (stats.length === 0) {
     return (

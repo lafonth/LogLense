@@ -42,9 +42,27 @@ export interface CohortSubject {
   killTimeMs: number;
 }
 
+/**
+ * Le pointeur qui identifie un log partout où il apparaît : `ReferenceSample`,
+ * `ReferenceProvenance` et les membres d'une cohorte le portent tous les trois. C'est ce qui
+ * permet à un écran de dire qu'une case cochée et une référence détaillée désignent le même
+ * combat — le nom seul ne le prouve pas.
+ */
+export function logKey(ref: { code: string; fightID: number; actorId: number }): string {
+  return `${ref.code}:${ref.fightID}:${ref.actorId}`;
+}
+
 /** Un membre de la cohorte retenue, à plat : ce que le chat a le droit de nommer. */
 export interface CohortMember {
   name: string;
+  /**
+   * Le log désigné, pour que l'appelant retrouve le `ReferenceSample` derrière une ligne.
+   * Le chat n'en voit rien : `chat-tools` recopie les membres champ par champ, et un
+   * pointeur de log ne lui servirait qu'à consommer des jetons.
+   */
+  code: string;
+  fightID: number;
+  actorId: number;
   dps: number;
   killTimeMs: number;
   avgIlvl: number;
@@ -129,6 +147,9 @@ export function describeCohort(
 
   const members: CohortMember[] = scored.map(({ candidate, distance }) => ({
     name: candidate.entry.name,
+    code: candidate.entry.code,
+    fightID: candidate.entry.fightID,
+    actorId: candidate.entry.actorId,
     dps: candidate.entry.dps,
     killTimeMs: candidate.entry.killTimeMs,
     avgIlvl: candidate.entry.stats.avgIlvl,

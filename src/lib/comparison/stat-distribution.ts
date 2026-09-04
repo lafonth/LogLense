@@ -79,11 +79,23 @@ export function usableSample(sample: ReferenceSample[]): {
   return { entries: sample, includesDisqualified: sample.length > 0 };
 }
 
+/**
+ * `chosen` vrai veut dire que ces logs ont été désignés un par un — une case cochée dans le
+ * panneau de cohorte, pas une sélection automatique. Le repli de {@link usableSample} ne
+ * s'applique alors pas : une demande explicite ne se fait pas corriger en silence, et c'est
+ * déjà la doctrine de `describeCohort`, qui ne passe pas par lui non plus.
+ */
 export function describeStats(
   mine: CharacterStats,
-  sample: ReferenceSample[]
+  sample: ReferenceSample[],
+  chosen = false
 ): StatDistributionResult {
-  const { entries, includesDisqualified } = usableSample(sample);
+  const { entries, includesDisqualified } = chosen
+    ? {
+        entries: sample,
+        includesDisqualified: sample.length > 0 && sample.every((s) => !s.qualified),
+      }
+    : usableSample(sample);
 
   const stats = STAT_AXES.flatMap(({ key, label }) => {
     const dist = describeValues(

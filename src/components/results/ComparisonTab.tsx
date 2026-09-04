@@ -1,10 +1,12 @@
+'use client';
+
 import type { BossState } from '@/hooks/useAnalysis';
-import type { Encounter, TalentNode } from '@/types';
+import type { BossResult, Encounter, TalentNode } from '@/types';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useCohortState } from '@/hooks/useCohortState';
 import { isBossRefusal, isBossResult } from '@/lib/boss-outcome';
 import { abilityTable } from '@/lib/comparison/ability-table';
-import { usableSample } from '@/lib/comparison/stat-distribution';
 import { mergeIcons } from '@/lib/wcl/icons';
 import { AbilityTable } from './AbilityTable';
 import { CohortFilterPanel } from './CohortFilterPanel';
@@ -75,6 +77,26 @@ export function ComparisonTab({
     );
   }
 
+  return <ComparisonBody result={result} talentNodes={talentNodes} />;
+}
+
+/**
+ * Le contenu, une fois le `BossResult` acquis.
+ *
+ * Séparé des gardes ci-dessus pour une seule raison : `useCohortState` tient l'état de la
+ * cohorte, et un hook ne se place pas derrière un retour anticipé.
+ */
+function ComparisonBody({
+  result,
+  talentNodes,
+}: {
+  result: BossResult;
+  talentNodes: TalentNode[];
+}) {
+  // La cohorte vit ici et non dans le panneau : les cases cochées gouvernent aussi la table
+  // de stats et le diff de build plus bas. Deux états séparés se désynchroniseraient.
+  const cohort = useCohortState(result);
+
   // Les trois blocs ci-dessous affichent l'union des noms : l'ouverture montre le consensus
   // des références, le diff de talents montre ce qu'elles prennent et pas moi. L'index des
   // références les couvre ; le mien passe en dernier et gagne à nom égal.
@@ -105,10 +127,12 @@ export function ComparisonTab({
       </div>
       {/* Le panneau suit la carte des références parce qu'il parle de la même chose : qui
           nous sert de comparaison. Il vient après elle et avant les preuves, là où la
-          question « et si je resserrais ? » se pose — et il ne gouverne rien de ce qui suit,
-          ce qu'il dit lui-même quand un réglage écarte une référence détaillée. */}
+          question « et si je resserrais ? » se pose — et il précède les deux preuves qu'il
+          gouverne, la table de stats et le diff de build. Il ne gouverne pas les écrans de
+          sorts, faute de dégâts et de casts hors des références détaillées, et c'est lui qui
+          le dit — au pied du panneau, et nommément dès qu'une case en écarte une. */}
       <div className="mt-6">
-        <CohortFilterPanel result={result} />
+        <CohortFilterPanel result={result} cohort={cohort} />
       </div>
       <div className="mt-6">
         <RotationCards
@@ -130,7 +154,7 @@ export function ComparisonTab({
         <h3 className="text-muted mb-2 font-mono text-xs tracking-wider uppercase">
           Where you sit in the field
         </h3>
-        <StatsTable character={result.character.stats} sample={result.sample} />
+        <StatsTable character={result.character.stats} sample={cohort.selected} chosen />
       </div>
       <div className="mt-6">
         <OpeningChain
@@ -143,7 +167,7 @@ export function ComparisonTab({
         <TalentDiff
           nodes={talentNodes}
           myTalents={result.character.stats.talents}
-          references={usableSample(result.sample).entries}
+          references={cohort.selected}
           icons={icons}
         />
       </div>

@@ -1,48 +1,52 @@
 'use client';
 
-import type { CohortFilter } from '@/lib/comparison/cohort';
+import type { CohortState } from '@/hooks/useCohortState';
 import type { ValueDistribution } from '@/lib/comparison/stat-distribution';
 import type { BossResult } from '@/types';
-import { useId, useState } from 'react';
+import { useId } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ScrollArea } from '@/components/ui/ScrollArea';
 import { Select } from '@/components/ui/Select';
-import { applyCohortFilter, describeCohort } from '@/lib/comparison/cohort';
+import { EXTERNAL_STEPS, ILVL_STEPS, KILL_TIME_STEPS } from '@/hooks/useCohortState';
+import { logKey } from '@/lib/comparison/cohort';
 import { matchPercent } from '@/lib/wcl/comparability';
 import { ILVL_TOLERANCE, KILL_TIME_TOLERANCE, TOP_N } from '@/lib/wcl/constants';
 import { fmtMs } from '@/lib/wcl/parsers';
 import { LEVEL_LABEL, LEVEL_TONE } from './comparability-labels';
-import { STAT_FORMATTERS } from './stat-format';
 
 /**
- * Régler soi-même les seuils de comparabilité, sans dépenser une requête.
+ * Régler soi-même la cohorte, sans dépenser une requête.
  *
- * Tout est calculé ici, dans le navigateur : `describeCohort` rejoue `selectClosest` et
- * `comparabilityLevel` sur `result.sample`, les candidats que l'analyse a déjà vérifiés et
- * rendus au client. Bouger un réglage ne déclenche donc ni requête WCL, ni écriture
- * d'instantané — l'instantané est le rendu partagé, pas un état d'interface.
+ * Tout est calculé dans le navigateur, par `useCohortState` : `describeCohort` rejoue
+ * `selectClosest` et `comparabilityLevel` sur `result.sample`, les candidats que l'analyse a
+ * déjà vérifiés et rendus au client. Bouger un curseur ou cocher une ligne ne déclenche donc
+ * ni requête WCL, ni écriture d'instantané — l'instantané est le rendu partagé, pas un état
+ * d'interface.
  *
- * Deux limites tenues plutôt que masquées :
+ * Deux gestes, et ils ne font pas la même chose : les curseurs **réduisent la liste
+ * proposée**, les cases **désignent la cohorte**. C'est la cohorte cochée, et elle seule, que
+ * le niveau annoncé ici décrit et que les tables de stats et de build rendent plus bas — un
+ * effectif dans le panneau et un autre dans la table du dessous seraient deux vérités sur le
+ * même écran.
+ *
+ * Trois limites tenues plutôt que masquées :
  *
  * - le panneau **ne peut que restreindre**. Le vivier est celui de l'analyse ; aucun réglage
  *   n'ira chercher un candidat de plus ;
  * - il ne gouverne que ce que `ReferenceSample` porte — effectif, niveau, distributions,
- *   distances. Dégâts et rotation n'existent que pour les `TOP_N` références détaillées, et
- *   les récupérer coûte trois requêtes par candidat. Quand un filtre écarte l'une d'elles,
- *   le panneau le dit : sinon les écrans de sorts continueraient de comparer, en silence, à
- *   quelqu'un que le lecteur vient d'exclure.
+ *   distances, talents. Dégâts et rotation n'existent que pour les `TOP_N` références
+ *   détaillées, et les récupérer coûte trois requêtes par candidat : les écrans de sorts
+ *   restent donc sur ces trois-là, quoi qu'on coche, et le pied du panneau l'écrit ;
+ * - quand une case décoche l'une de ces trois références, le panneau la **nomme** : sinon les
+ *   écrans de sorts continueraient de comparer, en silence, à quelqu'un que le lecteur vient
+ *   d'exclure.
  *
  * `ComparabilityBanner` ne bouge pas pour autant. Il énonce la comparabilité de la sélection
- * réellement utilisée par le reste de l'écran ; le niveau recalculé ici répond à « qu'est-ce
- * que ça change ». Deux verdicts divergents sur un même écran seraient exactement ce que
- * l'étape 5 avait refusé.
+ * réellement utilisée par les écrans de sorts ; le niveau recalculé ici répond à « qu'est-ce
+ * que ça change ». Deux verdicts divergents sur une même comparaison seraient exactement ce
+ * que l'étape 5 avait refusé.
  */
-
-/** `null` ferme l'axe : la dernière position de chaque curseur ne filtre rien. */
-const KILL_TIME_STEPS: (number | null)[] = [0.05, 0.1, 0.15, 0.2, 0.3, 0.5, null];
-const ILVL_STEPS: (number | null)[] = [1, 2, 3, 4, 6, 8, 12, null];
-const EXTERNAL_STEPS: (number | null)[] = [0, 5, 10, 20, 40, null];
 
 const CELL = 'border-border font-mono text-xs border-b px-3 py-2 text-right';
 const HEADER_CELL = `${CELL} text-muted text-2xs tracking-wider uppercase`;
@@ -92,22 +96,18 @@ function RangeControl({
   );
 }
 
-/** Le pointeur qui identifie un log des deux côtés : `sample` et `topPlayers` le portent. */
-function logKey(ref: { code: string; fightID: number; actorId: number }): string {
-  return `${ref.code}:${ref.fightID}:${ref.actorId}`;
-}
+const CHECKBOX =
+  'accent-brass-bright focus-visible:outline-brass-bright cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2';
 
 interface CohortFilterPanelProps {
   result: BossResult;
+  /** L'état monte dans `ComparisonTab` : les cases gouvernent aussi les tables du dessous. */
+  cohort: CohortState;
 }
 
-export function CohortFilterPanel({ result }: CohortFilterPanelProps) {
-  const [tier, setTier] = useState<'any' | number>('any');
-  const [killIdx, setKillIdx] = useState(KILL_TIME_STEPS.length - 1);
-  const [ilvlIdx, setIlvlIdx] = useState(ILVL_STEPS.length - 1);
-  const [extIdx, setExtIdx] = useState(EXTERNAL_STEPS.length - 1);
-  const [includeDisqualified, setIncludeDisqualified] = useState(false);
+export function CohortFilterPanel({ result, cohort }: CohortFilterPanelProps) {
   const disqualifiedId = useId();
+  const allId = useId();
 
   const { sample, comparability, character, topPlayers } = result;
   const myKillTimeMs = comparability.myKillTimeMs;
@@ -123,28 +123,8 @@ export function CohortFilterPanel({ result }: CohortFilterPanelProps) {
     );
   }
 
-  const killTol = KILL_TIME_STEPS[killIdx];
-  const ilvlWithin = ILVL_STEPS[ilvlIdx];
-  const maxExternalUptime = EXTERNAL_STEPS[extIdx];
-
-  const filter: CohortFilter = {};
-  if (tier !== 'any') filter.tierPieces = tier;
-  // Un kill time de zéro rendrait deux bornes nulles, donc une cohorte vide sans que le
-  // lecteur ait rien demandé : l'axe se ferme plutôt que de mentir.
-  if (killTol !== null && myKillTimeMs > 0) {
-    filter.minKillTimeMs = myKillTimeMs * (1 - killTol);
-    filter.maxKillTimeMs = myKillTimeMs * (1 + killTol);
-  }
-  if (ilvlWithin !== null) filter.ilvlWithin = ilvlWithin;
-  if (maxExternalUptime !== null) filter.maxExternalUptime = maxExternalUptime;
-  if (includeDisqualified) filter.includeDisqualified = true;
-
-  const neutral = Object.keys(filter).length === 0;
-  const view = describeCohort(
-    { stats: character.stats, dps: character.dps, killTimeMs: myKillTimeMs },
-    sample,
-    filter
-  );
+  const { view, selectedView, selected, checkedKeys, neutral, killTol, ilvlWithin } = cohort;
+  const maxExternalUptime = cohort.maxExternalUptime;
 
   // Les pièces de tier réellement observées. Proposer « 4 pièces » quand aucun candidat n'en
   // porte, c'est offrir un réglage qui ne peut que vider la cohorte.
@@ -152,31 +132,31 @@ export function CohortFilterPanel({ result }: CohortFilterPanelProps) {
     ...new Set(sample.flatMap((e) => (e.tierPieces === null ? [] : [e.tierPieces]))),
   ].sort((a, b) => a - b);
 
-  // Les références détaillées que ce filtre écarte. Mesuré contre le vivier complet, jamais
-  // contre `topPlayers` seul : une référence absente du `sample` n'a pas été exclue ici.
+  // Les références détaillées que cette cohorte n'inclut pas — décochées ou écartées par un
+  // curseur, la cause importe peu : ce qui compte est qu'elles gouvernent encore les écrans de
+  // sorts. Mesuré contre le vivier complet, jamais contre `topPlayers` seul : une référence
+  // absente du `sample` n'a pas été exclue ici. Muet en position neutre, où une référence
+  // substituée serait signalée comme exclue par un réglage alors que c'est la sélection qui l'a
+  // jugée — et `ReferenceLabels` le dit déjà juste au-dessus.
   const inSample = new Set(sample.map(logKey));
-  const kept = new Set(applyCohortFilter(sample, filter, character.stats.avgIlvl).map(logKey));
   const droppedReferences = neutral
     ? []
     : topPlayers.filter(
-        (p) => inSample.has(logKey(p.provenance)) && !kept.has(logKey(p.provenance))
+        (p) => inSample.has(logKey(p.provenance)) && !checkedKeys.has(logKey(p.provenance))
       );
 
+  // Les deux axes que la table de stats plus bas ne porte pas. Les axes d'équipement ne sont
+  // pas repris ici : ils y sont rendus sur exactement cette cohorte-là, et les redire au-dessus
+  // ferait deux tableaux à comparer au lieu d'un à lire.
   const rows: { label: string; d: ValueDistribution | null; format: (v: number) => string }[] = [
-    { label: 'DPS', d: view.dps, format: fmtDps },
-    { label: 'Kill time', d: view.killTimeMs, format: fmtMs },
-    ...view.stats.map((s) => ({ label: s.label, d: s, format: STAT_FORMATTERS[s.key] })),
+    { label: 'DPS', d: selectedView.dps, format: fmtDps },
+    { label: 'Kill time', d: selectedView.killTimeMs, format: fmtMs },
   ];
 
-  const medianMatch = view.medianDistance === null ? null : matchPercent(view.medianDistance);
+  const medianMatch =
+    selectedView.medianDistance === null ? null : matchPercent(selectedView.medianDistance);
 
-  function reset() {
-    setTier('any');
-    setKillIdx(KILL_TIME_STEPS.length - 1);
-    setIlvlIdx(ILVL_STEPS.length - 1);
-    setExtIdx(EXTERNAL_STEPS.length - 1);
-    setIncludeDisqualified(false);
-  }
+  const allChecked = view.members.length > 0 && checkedKeys.size === view.members.length;
 
   return (
     <Card header="Tune the cohort">
@@ -184,7 +164,7 @@ export function CohortFilterPanel({ result }: CohortFilterPanelProps) {
         <RangeControl
           label="Kill time"
           value={killTol === null ? 'Any' : `±${Math.round(killTol * 100)}%`}
-          index={killIdx}
+          index={cohort.killIdx}
           max={KILL_TIME_STEPS.length - 1}
           disabled={myKillTimeMs <= 0}
           hint={
@@ -192,30 +172,32 @@ export function CohortFilterPanel({ result }: CohortFilterPanelProps) {
               ? 'Your pull has no measured duration, so this axis cannot be bounded.'
               : `Around your ${fmtMs(myKillTimeMs)}. Distance scoring treats ±${Math.round(KILL_TIME_TOLERANCE * 100)}% as one unit.`
           }
-          onChange={setKillIdx}
+          onChange={cohort.setKillIdx}
         />
         <RangeControl
           label="Item level"
           value={ilvlWithin === null ? 'Any' : `±${ilvlWithin}`}
-          index={ilvlIdx}
+          index={cohort.ilvlIdx}
           max={ILVL_STEPS.length - 1}
           hint={`Around your ${character.stats.avgIlvl.toFixed(1)}. Distance scoring treats ±${ILVL_TOLERANCE} as one unit.`}
-          onChange={setIlvlIdx}
+          onChange={cohort.setIlvlIdx}
         />
         <RangeControl
           label="Externals received"
           value={maxExternalUptime === null ? 'Any' : `≤ ${maxExternalUptime}%`}
-          index={extIdx}
+          index={cohort.extIdx}
           max={EXTERNAL_STEPS.length - 1}
           hint="Share of the pull spent under an offensive buff handed over by someone else."
-          onChange={setExtIdx}
+          onChange={cohort.setExtIdx}
         />
         {tierOptions.length > 0 && (
           <div className="flex flex-col gap-1.5">
             <Select
               label="Tier pieces"
-              value={tier === 'any' ? 'any' : String(tier)}
-              onChange={(e) => setTier(e.target.value === 'any' ? 'any' : Number(e.target.value))}
+              value={cohort.tier === 'any' ? 'any' : String(cohort.tier)}
+              onChange={(e) =>
+                cohort.setTier(e.target.value === 'any' ? 'any' : Number(e.target.value))
+              }
             >
               <option value="any">Any</option>
               {tierOptions.map((n) => (
@@ -237,33 +219,29 @@ export function CohortFilterPanel({ result }: CohortFilterPanelProps) {
           <input
             id={disqualifiedId}
             type="checkbox"
-            checked={includeDisqualified}
-            onChange={(e) => setIncludeDisqualified(e.target.checked)}
-            className="accent-brass-bright focus-visible:outline-brass-bright cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2"
+            checked={cohort.includeDisqualified}
+            onChange={(e) => cohort.setIncludeDisqualified(e.target.checked)}
+            className={CHECKBOX}
           />
           <span className="text-muted font-sans text-xs">
             Include candidates the eliminatory criteria threw out
           </span>
         </label>
-        <Button variant="secondary" size="xs" disabled={neutral} onClick={reset}>
+        <Button variant="secondary" size="xs" disabled={neutral} onClick={cohort.reset}>
           Reset to the selection
         </Button>
       </div>
 
       <p className="mt-4 font-sans text-xs">
-        <span className="text-muted">Cohort: </span>
+        <span className="text-muted">Comparing against </span>
+        <span className="font-mono">{selected.length}</span>
+        <span className="text-muted"> checked · </span>
         <span className="font-mono">{view.size}</span>
-        <span className="text-muted"> of </span>
+        <span className="text-muted"> shown by the filter · </span>
         <span className="font-mono">{sample.length}</span>
         <span className="text-muted"> verified candidates</span>
-        {view.excluded > 0 && (
-          <span className="text-muted">
-            {' '}
-            — <span className="font-mono">{view.excluded}</span> filtered out
-          </span>
-        )}
         <span className="text-muted"> · </span>
-        <span className={LEVEL_TONE[view.level]}>{LEVEL_LABEL[view.level]}</span>
+        <span className={LEVEL_TONE[selectedView.level]}>{LEVEL_LABEL[selectedView.level]}</span>
         {medianMatch !== null && (
           <span className="text-muted">
             {' '}
@@ -276,11 +254,11 @@ export function CohortFilterPanel({ result }: CohortFilterPanelProps) {
         Rouge, comme une substitution : ce n'est pas une position dans une distribution, c'est
         une comparaison que l'écran continue de faire contre la volonté qu'on vient
         d'exprimer. Les cartes de rotation, la table de dégâts et l'ouverture ne suivent pas
-        le filtre — leurs données n'existent que pour les références détaillées.
+        les cases — leurs données n'existent que pour les références détaillées.
       */}
       {droppedReferences.length > 0 && (
         <p className="text-danger text-2xs mt-3 font-sans">
-          This cohort excludes{' '}
+          This cohort leaves out{' '}
           <span className="font-mono">
             {droppedReferences.map((p) => p.provenance.name).join(', ')}
           </span>
@@ -296,39 +274,58 @@ export function CohortFilterPanel({ result }: CohortFilterPanelProps) {
         </p>
       ) : (
         <div className="mt-3 flex flex-col gap-4">
-          <ScrollArea label="Where you sit in the filtered cohort">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr>
-                  <th className={`${HEADER_CELL} text-left`}>Axis</th>
-                  <th className={HEADER_CELL}>You</th>
-                  <th className={HEADER_CELL}>Cohort min</th>
-                  <th className={HEADER_CELL}>Cohort median</th>
-                  <th className={HEADER_CELL}>Cohort max</th>
-                  <th className={HEADER_CELL}>Your position</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(({ label, d, format }) =>
-                  d === null ? null : (
-                    <tr key={label}>
-                      <td className={`${CELL} text-muted text-left`}>{label}</td>
-                      <td className={`${CELL} text-text`}>{format(d.mine)}</td>
-                      <td className={`${CELL} text-muted`}>{format(d.min)}</td>
-                      <td className={`${CELL} text-text`}>{format(d.median)}</td>
-                      <td className={`${CELL} text-muted`}>{format(d.max)}</td>
-                      <td className={`${CELL} text-text`}>p{d.percentile}</td>
-                    </tr>
-                  )
-                )}
-              </tbody>
-            </table>
-          </ScrollArea>
+          {selected.length === 0 ? (
+            <p className="text-muted font-sans text-xs">
+              Nothing checked. Tick a match below to compare against it — until then the stats and
+              build sections have no field to read.
+            </p>
+          ) : (
+            <ScrollArea label="Your pull against the checked cohort">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th className={`${HEADER_CELL} text-left`}>Axis</th>
+                    <th className={HEADER_CELL}>You</th>
+                    <th className={HEADER_CELL}>Cohort min</th>
+                    <th className={HEADER_CELL}>Cohort median</th>
+                    <th className={HEADER_CELL}>Cohort max</th>
+                    <th className={HEADER_CELL}>Your position</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(({ label, d, format }) =>
+                    d === null ? null : (
+                      <tr key={label}>
+                        <td className={`${CELL} text-muted text-left`}>{label}</td>
+                        <td className={`${CELL} text-text`}>{format(d.mine)}</td>
+                        <td className={`${CELL} text-muted`}>{format(d.min)}</td>
+                        <td className={`${CELL} text-text`}>{format(d.median)}</td>
+                        <td className={`${CELL} text-muted`}>{format(d.max)}</td>
+                        <td className={`${CELL} text-text`}>p{d.percentile}</td>
+                      </tr>
+                    )
+                  )}
+                </tbody>
+              </table>
+            </ScrollArea>
+          )}
 
           <ScrollArea label="The cohort, closest first">
             <table className="w-full border-collapse">
               <thead>
                 <tr>
+                  <th className={`${HEADER_CELL} text-left`}>
+                    <label htmlFor={allId} className="flex items-center gap-2">
+                      <input
+                        id={allId}
+                        type="checkbox"
+                        checked={allChecked}
+                        onChange={(e) => cohort.setAllChecked(e.target.checked)}
+                        className={CHECKBOX}
+                      />
+                      <span>Compare</span>
+                    </label>
+                  </th>
                   <th className={`${HEADER_CELL} text-left`}>Log</th>
                   <th className={HEADER_CELL}>Match</th>
                   <th className={HEADER_CELL}>DPS</th>
@@ -341,8 +338,18 @@ export function CohortFilterPanel({ result }: CohortFilterPanelProps) {
               <tbody>
                 {view.members.map((m) => {
                   const match = matchPercent(m.distance);
+                  const key = logKey(m);
                   return (
-                    <tr key={`${m.name}:${m.killTimeMs}:${m.dps}`}>
+                    <tr key={key}>
+                      <td className={`${CELL} text-left`}>
+                        <input
+                          type="checkbox"
+                          checked={checkedKeys.has(key)}
+                          onChange={() => cohort.toggle(key)}
+                          aria-label={`Compare against ${m.name}`}
+                          className={CHECKBOX}
+                        />
+                      </td>
                       <td className={`${CELL} text-text text-left`}>
                         {m.name}
                         {!m.qualified && (
@@ -371,11 +378,14 @@ export function CohortFilterPanel({ result }: CohortFilterPanelProps) {
       )}
 
       <p className="text-dim text-2xs mt-4 font-sans">
-        These settings narrow the candidates the analysis already fetched — they never fetch more,
-        and the verdict above the tabs keeps ruling on the selection the rest of this screen
-        actually uses. The <span className="font-mono">{TOP_N}</span> detailed references were fixed
-        when the analysis ran: promoting a fourth costs three requests, and the chat says so before
-        spending them.
+        What you check governs the two sections that read a whole field — “Where you sit in the
+        field” and the build differences at the bottom. Everything spell by spell — the rotation
+        cards, the damage table and the opening — stays on the{' '}
+        <span className="font-mono">{TOP_N}</span> detailed references fixed when the analysis ran:
+        they are the only logs whose casts and damage were fetched, and promoting a fourth costs
+        three requests, which the chat announces before spending them. Nothing here fetches
+        anything, and the verdict above the tabs keeps ruling on the selection those spell screens
+        actually use.
       </p>
     </Card>
   );
