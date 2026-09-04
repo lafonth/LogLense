@@ -300,11 +300,10 @@ proposer un fournisseur dont le serveur n'a pas la clé, c'est proposer un 503.
 
 ## Interface : tokens et primitives
 
-**Aucun `style={{}}` dans les composants.** Quatre exceptions, toutes des géométries calculées
-à l'exécution : la largeur des barres dans `DamageBreakdown` et `TalentDiff`, la barre de part
-et son filigrane min–max dans `AbilityTable`, la position de la bande et du marqueur dans
-`RotationCards`. `TrajectoryChart` montre l'alternative quand elle existe : la géométrie passe
-par des attributs SVG, pas par un style en ligne.
+**Aucun `style={{}}` dans les composants.** Trois exceptions, toutes des géométries calculées
+à l'exécution : la largeur des barres dans `DamageBreakdown` et `TalentDiff`, et la barre de part
+avec son filigrane min–max dans `AbilityTable`. `TrajectoryChart` montre l'alternative quand elle
+existe : la géométrie passe par des attributs SVG, pas par un style en ligne.
 
 Les couleurs, tailles, rayons et points de rupture sont déclarés une fois dans
 `src/app/globals.css`, dans un bloc `@theme` Tailwind v4, et consommés uniquement par des
@@ -314,8 +313,10 @@ ou de rayon ne doit apparaître dans un composant.
 Trois règles qui ont chacune coûté une ronde de correction :
 
 - **Le rouge (`text-danger`) est réservé aux erreurs.** Un écart par rapport aux références
-  s'affiche en bleu (`text-deviation`) : une position dans une distribution n'est pas une
-  faute. Le rouge doit rester disponible pour signaler une comparaison illégitime.
+  n'est pas une faute mais une position dans une distribution : il se lit en bleu
+  (`text-deviation`) sous la médiane, en laiton (`text-brass-bright`) au-dessus. La couleur
+  dit le côté, jamais le jugement — sur-caster un sort se paie sur un autre. Le rouge doit
+  rester disponible pour signaler une comparaison illégitime.
 - **Tous les chiffres sont en `font-mono`**, y compris à l'intérieur d'une phrase — on
   enveloppe alors le nombre, pas la phrase. Seul le corps du rapport IA fait exception :
   c'est de la prose, il est en `font-sans`.

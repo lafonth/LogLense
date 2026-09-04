@@ -84,7 +84,10 @@ describe('rotationCards', () => {
 
     expect(screen.getByText('4.10')).toBeInTheDocument();
     expect(screen.getByText(/No comparable logs/)).toBeInTheDocument();
-    expect(screen.queryByTestId('rotation-bar')).not.toBeInTheDocument();
+    // Les colonnes de comparaison s'abandonnent : une table sans référence ne rend pas trois
+    // colonnes de tirets, elle ne les rend pas du tout.
+    expect(screen.queryByRole('columnheader', { name: /Median/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /Deviation/ })).not.toBeInTheDocument();
   });
 
   it('shows a value with no deviation when no reference used the ability', () => {
@@ -105,15 +108,14 @@ describe('rotationCards', () => {
 
     render(<RotationCards character={mine} topPlayers={references} characterDamage={[]} />);
 
-    const ripCard = screen.getByText('Rip').closest('li');
-    expect(ripCard).not.toBeNull();
+    const ripRow = screen.getByText('Rip').closest('tr');
+    expect(ripRow).not.toBeNull();
     expect(screen.getByText('0.90')).toBeInTheDocument();
-    expect(ripCard).not.toHaveTextContent('%');
-    // No reference cast Rip at all — there must be no range band or "references x – y" text,
-    // not just no deviation percentage (the cast unit is "/min", so a stray "0.00 – 0.00"
-    // range wouldn't have contained a '%' either and would have slipped past that assertion).
-    expect(ripCard).not.toHaveTextContent('references');
-    expect(ripCard?.querySelector('[data-testid="rotation-bar"]')).toBeNull();
+    expect(ripRow).not.toHaveTextContent('%');
+    // No reference cast Rip at all — the median, range and deviation cells must all read as
+    // missing, not as a stray "0.00 – 0.00" range (the cast unit is "/min", so such a range
+    // would have contained no '%' either and would have slipped past the assertion above).
+    expect(ripRow?.textContent?.match(/—/g)).toHaveLength(3);
   });
 
   // L'ordre change quand une table de dégâts est fournie : le dire, sinon la liste est
@@ -128,9 +130,10 @@ describe('rotationCards', () => {
     );
 
     expect(screen.getByText('Rotation · by cost')).toBeInTheDocument();
-    // La part se lit désormais à côté du nom du sort, pas dans le pied de carte : c'est elle
-    // qui pilote le tri, et un ordre dont la grandeur est enterrée ne se voit pas.
-    expect(screen.getByText(/100\.0 % of damage/)).toBeInTheDocument();
+    // La part occupe sa propre colonne, pas le pied de carte : c'est elle qui pilote le tri,
+    // et un ordre dont la grandeur est enterrée dans une phrase ne se vérifie pas à l'œil.
+    expect(screen.getByRole('columnheader', { name: '% dmg' })).toBeInTheDocument();
+    expect(screen.getByText('100.0 %')).toBeInTheDocument();
   });
 
   it('announces the deviation ordering when no damage table is available', () => {

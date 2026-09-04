@@ -3,6 +3,7 @@ import type { AbilityComparison } from '@/lib/comparison/rotation-stats';
 import type { IconIndex } from '@/lib/wcl/icons';
 import type { DamageEntry, RotationSummary, TopPlayer } from '@/types';
 import { Card } from '@/components/ui/Card';
+import { ScrollArea } from '@/components/ui/ScrollArea';
 import { SpellIcon } from '@/components/ui/SpellIcon';
 import { groupCasts, groupUptimes } from '@/lib/comparison/ability-groups';
 import { compareCasts, compareUptimes, inReferenceBand } from '@/lib/comparison/rotation-stats';
@@ -17,83 +18,102 @@ interface RotationCardsProps {
   foldMatching?: boolean;
 }
 
+/** Les mêmes classes que `AbilityTable` : les deux tables se lisent l'une sous l'autre. */
+const CELL = 'border-border font-mono text-xs border-b px-3 py-2 text-right whitespace-nowrap';
+const HEADER_CELL = `${CELL} text-muted text-2xs tracking-wider uppercase`;
+
 function formatDeviation(pct: number): string {
   // U+2212 minus sign, not a hyphen — it aligns with digits in a monospace face.
   const sign = pct < 0 ? '−' : '+';
   return `${sign}${Math.abs(pct).toFixed(1)} %`;
 }
 
-function AbilityCard({
-  row,
+/**
+ * La couleur de l'écart dit **le côté**, jamais la faute.
+ *
+ * En dessous de la médiane, `text-deviation` — la couleur d'écart du produit. Au-dessus,
+ * `text-brass-bright`. Le rouge reste réservé aux erreurs : caster plus que le champ n'est pas
+ * une réussite en soi (sur-caster un sort se paie sur un autre), donc un couple vert / rouge
+ * affirmerait un jugement que la donnée ne porte pas.
+ */
+function deviationClass(pct: number): string {
+  return pct < 0 ? 'text-deviation' : 'text-brass-bright';
+}
+
+/** Un tiret cadratin, et non une case vide : l'absence de donnée doit se voir dans la colonne. */
+const MISSING = '—';
+
+function AbilityRows({
+  rows,
   unit,
   icons,
+  showShare,
+  showReferences,
 }: {
-  row: AbilityComparison;
+  rows: AbilityComparison[];
   unit: string;
   icons?: IconIndex;
+  showShare: boolean;
+  showReferences: boolean;
 }) {
-  const hasRange = row.referenceMedian !== null;
-  const scale = Math.max(row.referenceMax ?? 0, row.mine) * 1.1 || 1;
-  const bandLeft = hasRange ? (row.referenceMin! / scale) * 100 : 0;
-  const bandWidth = hasRange ? ((row.referenceMax! - row.referenceMin!) / scale) * 100 : 0;
-  const markerLeft = (row.mine / scale) * 100;
-
   return (
-    <li className="border-border bg-surface-raised rounded-sm border p-3">
-      <div className="flex items-baseline justify-between gap-3">
-        {/* `damageShare` est ce qui pilote le tri : elle se lit à côté du nom, pas en pied de
-            carte. Un ordre dont la grandeur est enterrée en `text-2xs` ne se voit pas. */}
-        <span className="min-w-0 truncate">
-          {/* En flux inline, pas en `flex` : `truncate` sur le conteneur doit continuer de
-              couper le nom, et une boîte flex casserait la troncature. */}
-          <span className="mr-1.5">
-            <SpellIcon name={row.name} icon={icons?.[row.name]} />
-          </span>
-          <span className="text-text font-sans text-xs">{row.name}</span>
-          {row.damageShare !== null && row.damageShare > 0 && (
-            <span className="text-2xs text-muted ml-2 font-mono">
-              {(row.damageShare * 100).toFixed(1)} % of damage
-            </span>
-          )}
-        </span>
-        {row.deviationPct !== null && (
-          <span className="text-deviation shrink-0 font-mono text-xs">
-            {formatDeviation(row.deviationPct)}
-          </span>
-        )}
-      </div>
-
-      {hasRange && (
-        <div
-          className="bg-border relative mt-2 h-1 rounded-full"
-          data-testid="rotation-bar"
-          aria-hidden="true"
-        >
-          <div
-            className="bg-border-strong absolute h-1 rounded-full"
-            style={{ left: `${bandLeft}%`, width: `${bandWidth}%` }}
-          />
-          <div
-            className="bg-deviation absolute -top-1 h-3 w-0.5"
-            style={{ left: `${markerLeft}%` }}
-          />
-        </div>
-      )}
-
-      <div className="text-2xs text-dim mt-2 flex justify-between">
-        <span>
-          you <span className="text-text font-mono">{row.mine.toFixed(2)}</span> {unit}
-        </span>
-        {hasRange && (
-          <span>
-            references{' '}
-            <span className="font-mono">
-              {row.referenceMin!.toFixed(2)} – {row.referenceMax!.toFixed(2)}
-            </span>
-          </span>
-        )}
-      </div>
-    </li>
+    <ScrollArea label={`Your rotation against the references, in ${unit}`}>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr>
+            <th className={`${HEADER_CELL} text-left`}>Ability</th>
+            {/* La part de dégâts est ce qui pilote le tri : elle reste une colonne, et non un
+                appendice du nom, pour que l'ordre se vérifie en descendant les chiffres. */}
+            {showShare && <th className={HEADER_CELL}>% dmg</th>}
+            <th className={HEADER_CELL}>You {unit}</th>
+            {showReferences && <th className={HEADER_CELL}>Median</th>}
+            {showReferences && <th className={HEADER_CELL}>References</th>}
+            {showReferences && <th className={HEADER_CELL}>Deviation</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.name}>
+              <td className={`${CELL} text-left`}>
+                <span className="text-muted flex min-w-0 items-center gap-1.5">
+                  <SpellIcon name={row.name} icon={icons?.[row.name]} />
+                  <span className="text-text truncate font-sans">{row.name}</span>
+                </span>
+              </td>
+              {showShare && (
+                <td className={CELL}>
+                  {row.damageShare !== null && row.damageShare > 0
+                    ? `${(row.damageShare * 100).toFixed(1)} %`
+                    : MISSING}
+                </td>
+              )}
+              <td className={`${CELL} text-text`}>{row.mine.toFixed(2)}</td>
+              {showReferences && (
+                <td className={CELL}>
+                  {row.referenceMedian === null ? MISSING : row.referenceMedian.toFixed(2)}
+                </td>
+              )}
+              {showReferences && (
+                <td className={`${CELL} text-dim`}>
+                  {row.referenceMedian === null
+                    ? MISSING
+                    : `${row.referenceMin!.toFixed(2)} – ${row.referenceMax!.toFixed(2)}`}
+                </td>
+              )}
+              {showReferences && (
+                <td
+                  className={`${CELL} ${
+                    row.deviationPct === null ? 'text-dim' : deviationClass(row.deviationPct)
+                  }`}
+                >
+                  {row.deviationPct === null ? MISSING : formatDeviation(row.deviationPct)}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </ScrollArea>
   );
 }
 
@@ -103,13 +123,10 @@ function AbilityCard({
 function GroupedAbilities({
   groups,
   unit,
-  fullWidth,
   icons,
 }: {
   groups: AbilityGroup[];
   unit: string;
-  /** Une colonne unique : l'œil descend le classement au lieu de balayer en Z. */
-  fullWidth?: boolean;
   icons?: IconIndex;
 }) {
   return (
@@ -117,13 +134,16 @@ function GroupedAbilities({
       {groups.map((group) => (
         <div key={group.label} className="flex flex-col gap-2">
           {group.label !== '' && <h3 className="text-2xs text-muted font-sans">{group.label}</h3>}
-          <ul
-            className={fullWidth ? 'flex flex-col gap-2' : 'grid grid-cols-1 gap-2 md:grid-cols-2'}
-          >
-            {group.rows.map((row) => (
-              <AbilityCard key={row.name} row={row} unit={unit} icons={icons} />
-            ))}
-          </ul>
+          <AbilityRows
+            rows={group.rows}
+            unit={unit}
+            icons={icons}
+            // Les colonnes s'abandonnent quand la donnée n'existe pas, comme dans
+            // `AbilityTable` : une table de dégâts absente ne laisse pas une colonne de
+            // tirets, et un groupe qu'aucune référence n'a joué ne prétend pas à un écart.
+            showShare={group.rows.some((row) => (row.damageShare ?? 0) > 0)}
+            showReferences={group.rows.some((row) => row.referenceMedian !== null)}
+          />
         </div>
       ))}
     </div>
@@ -189,12 +209,7 @@ export function RotationComparisonCards({
           </p>
         )}
         {shownCasts.length > 0 ? (
-          <GroupedAbilities
-            groups={groupCasts(shownCasts)}
-            unit="/min"
-            fullWidth={foldMatching}
-            icons={icons}
-          />
+          <GroupedAbilities groups={groupCasts(shownCasts)} unit="/min" icons={icons} />
         ) : (
           <p className="text-muted font-sans text-xs">
             Every ability sits inside the reference range.
@@ -228,12 +243,7 @@ export function RotationComparisonCards({
 
       {shownUptimes.length > 0 && (
         <Card header="Uptime">
-          <GroupedAbilities
-            groups={groupUptimes(shownUptimes, castNames)}
-            unit="%"
-            fullWidth={foldMatching}
-            icons={icons}
-          />
+          <GroupedAbilities groups={groupUptimes(shownUptimes, castNames)} unit="%" icons={icons} />
         </Card>
       )}
     </div>
